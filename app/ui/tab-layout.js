@@ -1,0 +1,251 @@
+import { escapeHTML as esc } from './editor.js';
+import { icon } from './icons.js';
+
+// Tabs own their DOM; groups only move those surfaces. Moving a note therefore
+// preserves its buffer, selection, undo history, and edit/preview mode.
+export class TabLayout {
+  constructor(root, { activate, close, changed }) {
+    this.root = root;
+    this.callbacks = { activate, close, changed };
+    this.tabs = new Map();
+    this.serial = 0;
+    this.tree = this.group();
+    this.focused = this.tree.id;
+    this.dragged = null;
+    this.surfaces = new Map();
+    this.dividers = new Map();
+    this.leftControl = document.getElementById('menu');
+    this.rightControl = document.getElementById('context-toggle');
+    this.toolbar = document.querySelector('.topbar');
+    new ResizeObserver(() => this.position()).observe(root);
+    root.addEventListener('pointerdown', e => {
+      const group = e.target.closest('[data-group], [data-owner-group]');
+      const id = group?.dataset.group || group?.dataset.ownerGroup;
+      if (id && id !== this.focused) this.focus(id);
+    });
+    root.addEventListener('focusin', e => {
+      const group = e.target.closest('[data-group], [data-owner-group]');
+      const id = group?.dataset.group || group?.dataset.ownerGroup;
+      if (id && id !== this.focused) this.focus(id);
+    });
+    root.addEventListener('click', e => {
+      const close = e.target.closest('[data-tab-close]');
+      if (close) { this.callbacks.close(close.dataset.tabClose); return; }
+      const tab = e.target.closest('[data-tab-select]');
+      if (tab) this.select(tab.dataset.tabSelect);
+    });
+    root.addEventListener('dragstart', e => {
+      const tab = e.target.closest('[data-tab-id]');
+      if (!tab) return;
+      this.dragged = tab.dataset.tabId;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('application/x-orbitalnote-tab', this.dragged);
+      e.dataTransfer.setData('text/plain', this.tabs.get(this.dragged).title);
+    });
+    root.addEventListener('dragover', e => {
+      if (!this.dragged) return;
+      const target = this.dropTarget(e); if (!target) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+      this.clearDrop(); target.element.dataset.drop = target.edge;
+    });
+    root.addEventListener('dragleave', e => { if (!root.contains(e.relatedTarget)) this.clearDrop(); });
+    root.addEventListener('dragend', () => { this.dragged = null; this.clearDrop(); });
+    root.addEventListener('drop', e => {
+      if (!this.dragged) return;
+      const target = this.dropTarget(e), id = this.dragged;
+      this.dragged = null; this.clearDrop();
+      if (!target) return;
+      e.preventDefault(); e.stopPropagation();
+      this.move(id, target.group, target.edge, target.before);
+    });
+  }
+  group() { return { id: `group-${++this.serial}`, tabs: [], active: null }; }
+  groups(node = this.tree) { return node.children ? node.children.flatMap(child => this.groups(child)) : [node]; }
+  owner(id) { return this.groups().find(group => group.tabs.includes(id)); }
+  focusedGroup() { return this.groups().find(group => group.id === this.focused) || this.groups()[0]; }
+  open(id, tab, activate = true) {
+    this.tabs.set(id, tab);
+    if (!this.owner(id)) { const group = this.focusedGroup(); group.tabs.push(id); group.active ||= id; }
+    if (activate) this.select(id); else this.render();
+  }
+  select(id) {
+    const group = this.owner(id); if (!group) return;
+    group.active = id; this.focused = group.id;
+    this.render(); this.callbacks.activate(id); this.changed();
+  }
+  focus(id) {
+    this.focused = id;
+    this.placeControls();
+    this.root.querySelectorAll('[data-group]').forEach(el => el.classList.toggle('focused', el.dataset.group === id));
+    const active = this.focusedGroup().active;
+    if (active) this.callbacks.activate(active);
+    this.changed();
+  }
+  remove(id) {
+    const group = this.owner(id); if (!group) return;
+    const index = group.tabs.indexOf(id);
+    group.tabs.splice(index, 1);
+    if (group.active === id) group.active = group.tabs[Math.min(index, group.tabs.length - 1)] || null;
+    this.tabs.get(id)?.element.remove(); this.tabs.delete(id);
+    this.compact(); this.render(); this.focus(this.focusedGroup().id);
+  }
+  rename(from, to, tab) {
+    const group = this.owner(from); if (!group) return;
+    group.tabs[group.tabs.indexOf(from)] = to;
+    if (group.active === from) group.active = to;
+    this.tabs.delete(from); this.tabs.set(to, tab);
+    const surface = this.surfaces.get(from);
+    if (surface) { this.surfaces.delete(from); this.surfaces.set(to, surface); }
+  }
+  compact() {
+    const prune = node => {
+      if (!node.children) return node.tabs.length ? node : null;
+      const children = node.children.map(prune).filter(Boolean);
+      return children.length === 2 ? { ...node, children } : children[0] || null;
+    };
+    this.tree = prune(this.tree) || this.group();
+    if (!this.groups().some(group => group.id === this.focused)) this.focused = this.groups()[0].id;
+  }
+  move(id, targetID, edge = 'center', before) {
+    const from = this.owner(id), target = this.groups().find(group => group.id === targetID);
+    if (!from || !target || (from === target && from.tabs.length === 1 && edge !== 'center')) return;
+    if (before === id) return;
+    const fromIndex = from.tabs.indexOf(id);
+    from.tabs.splice(fromIndex, 1);
+    if (from.active === id) from.active = from.tabs[Math.min(fromIndex, from.tabs.length - 1)] || null;
+    let destination = target;
+    if (edge !== 'center') {
+      destination = this.group();
+      const children = ['left', 'top'].includes(edge) ? [destination, target] : [target, destination];
+      const branch = { axis: ['left', 'right'].includes(edge) ? 'horizontal' : 'vertical', ratio: .5, children };
+      const replace = node => node === target ? branch : node.children ? { ...node, children: node.children.map(replace) } : node;
+      this.tree = replace(this.tree);
+    }
+    const index = destination.tabs.indexOf(before);
+    destination.tabs.splice(index < 0 ? destination.tabs.length : index, 0, id);
+    destination.active = id; this.focused = destination.id;
+    this.compact(); this.render(); this.callbacks.activate(id); this.changed();
+  }
+  dropTarget(e) {
+    const owner = e.target.closest('[data-group], [data-owner-group]');
+    const id = owner?.dataset.group || owner?.dataset.ownerGroup;
+    const element = this.root.querySelector(`[data-group="${id}"]`); if (!element) return null;
+    let edge = 'center';
+    const strip = e.target.closest('.tab-strip');
+    if (!strip) {
+      const rect = element.getBoundingClientRect(), x = (e.clientX - rect.left) / rect.width, y = (e.clientY - rect.top) / rect.height;
+      const distances = { left: x, right: 1 - x, top: y, bottom: 1 - y };
+      const nearest = Object.keys(distances).sort((a, b) => distances[a] - distances[b])[0];
+      if (distances[nearest] < .25) edge = nearest;
+    }
+    return { element, group: element.dataset.group, edge, before: strip ? e.target.closest('[data-tab-id]')?.dataset.tabId : undefined };
+  }
+  clearDrop() { this.root.querySelectorAll('[data-drop]').forEach(el => delete el.dataset.drop); }
+  changed() { this.callbacks.changed?.(this.snapshot()); }
+  snapshot() { return { tree: this.tree, focused: this.focused }; }
+  restore(saved) {
+    const seen = new Set();
+    const read = (node, depth = 0) => {
+      if (!node || depth > 12) return null;
+      if (Array.isArray(node.children)) {
+        const children = node.children.slice(0, 2).map(child => read(child, depth + 1)).filter(Boolean);
+        return children.length === 2 ? { axis: node.axis === 'vertical' ? 'vertical' : 'horizontal', ratio: Math.max(.15, Math.min(.85, Number(node.ratio) || .5)), children } : children[0];
+      }
+      const group = this.group();
+      group.tabs = (Array.isArray(node.tabs) ? node.tabs : []).filter(id => this.tabs.has(id) && !seen.has(id) && seen.add(id));
+      group.active = group.tabs.includes(node.active) ? node.active : group.tabs[0];
+      if (node.id === saved.focused) this.focused = group.id;
+      return group.tabs.length ? group : null;
+    };
+    const tree = read(saved.tree); if (!tree) return;
+    this.tree = tree;
+    for (const id of this.tabs.keys()) if (!seen.has(id)) this.groups()[0].tabs.push(id);
+    this.render(); this.focus(this.focusedGroup().id);
+  }
+  reset() {
+    for (const tab of this.tabs.values()) tab.element.remove();
+    this.tabs.clear(); this.tree = this.group(); this.focused = this.tree.id; this.render();
+  }
+  render() {
+    // Each surface has a permanent DOM parent. Splitting/reordering only changes
+    // geometry and ownership, preserving editor state, focus and undo history.
+    const existing = new Map([...this.root.querySelectorAll('[data-group]')].map(el => [el.dataset.group, el]));
+    const groups = this.groups();
+    for (const [id, el] of existing) if (!groups.some(group => group.id === id)) { el.remove(); existing.delete(id); }
+    for (const [id, surface] of this.surfaces) if (!this.tabs.has(id)) { surface.remove(); this.surfaces.delete(id); }
+    for (const node of groups) {
+      const group = existing.get(node.id) || document.createElement('section');
+      if (!group.isConnected) this.root.append(group);
+      group.className = `tab-group${node.id === this.focused ? ' focused' : ''}`; group.dataset.group = node.id;
+      if (!group.firstChild) group.innerHTML = '<div class="tab-strip"><span class="tab-control-slot tab-left-slot"></span><div class="tab-items" role="tablist" aria-label="Open tabs"></div><span class="tab-control-slot tab-right-slot"></span></div>';
+      const strip = group.querySelector('.tab-items');
+      strip.innerHTML = node.tabs.map(id => {
+        const tab = this.tabs.get(id);
+        return `<div class="tab ${id === node.active ? 'active' : ''}" draggable="true" data-tab-id="${esc(id)}"><button role="tab" aria-selected="${id === node.active}" data-tab-select="${esc(id)}" title="${esc(tab.title)}">${icon(tab.icon)}<span class="tab-label">${esc(tab.title)}</span>${tab.dirty ? '<span class="dirty-dot">•</span>' : ''}</button><button class="icon-button close-tab" data-tab-close="${esc(id)}" aria-label="Close ${esc(tab.title)}">${icon('close')}</button></div>`;
+      }).join('');
+      for (const id of node.tabs) {
+        const element = this.tabs.get(id).element;
+        let surface = this.surfaces.get(id);
+        if (!surface) {
+          surface = document.createElement('div'); surface.className = 'tab-surface';
+          surface.append(element); this.root.append(surface); this.surfaces.set(id, surface);
+        }
+        surface.dataset.ownerGroup = node.id;
+        surface.hidden = id !== node.active;
+        element.hidden = id !== node.active;
+      }
+    }
+    const branches = node => node.children ? [node, ...node.children.flatMap(branches)] : [];
+    const splits = branches(this.tree);
+    for (const [node, divider] of this.dividers) if (!splits.includes(node)) { divider.remove(); this.dividers.delete(node); }
+    for (const node of splits) {
+      if (this.dividers.has(node)) continue;
+      const divider = document.createElement('div'); divider.className = `split-divider ${node.axis}`; divider.tabIndex = 0;
+      divider.setAttribute('role', 'separator'); divider.setAttribute('aria-label', 'Resize split');
+      divider.setAttribute('aria-orientation', node.axis === 'horizontal' ? 'vertical' : 'horizontal');
+      const resize = ratio => { node.ratio = Math.max(.15, Math.min(.85, ratio)); this.position(); };
+      divider.addEventListener('pointerdown', e => { e.preventDefault(); divider.setPointerCapture(e.pointerId); });
+      divider.addEventListener('pointermove', e => {
+        if (!divider.hasPointerCapture(e.pointerId)) return;
+        const root = this.root.getBoundingClientRect(), rect = divider.region;
+        resize(node.axis === 'horizontal' ? (e.clientX - root.left - rect.x) / rect.width : (e.clientY - root.top - rect.y) / rect.height);
+      });
+      divider.addEventListener('pointerup', e => { if (divider.hasPointerCapture(e.pointerId)) divider.releasePointerCapture(e.pointerId); this.changed(); });
+      divider.addEventListener('keydown', e => {
+        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+        e.preventDefault(); resize(node.ratio + (['ArrowLeft', 'ArrowUp'].includes(e.key) ? -.05 : .05)); this.changed();
+      });
+      this.root.append(divider); this.dividers.set(node, divider);
+    }
+    this.position();
+    this.placeControls();
+  }
+  placeControls() {
+    const strip = this.root.querySelector(`[data-group="${this.focusedGroup().id}"] .tab-strip`);
+    if (!strip) return;
+    strip.querySelector('.tab-left-slot').append(this.leftControl);
+    strip.querySelector('.tab-right-slot').append(this.rightControl);
+    this.toolbar.remove();
+  }
+  position() {
+    const place = (el, x, y, width, height) => Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${Math.max(0, width)}px`, height: `${Math.max(0, height)}px` });
+    const visit = (node, x, y, width, height) => {
+      if (!node.children) {
+        const group = this.root.querySelector(`[data-group="${node.id}"]`);
+        if (group) place(group, x, y, width, height);
+        for (const id of node.tabs) { const surface = this.surfaces.get(id); if (surface) { place(surface, x, y + 36, width, height - 36); if (!surface.hidden) surface.querySelector('[data-ui="source"]')?.refresh?.(); } }
+        return;
+      }
+      const horizontal = node.axis === 'horizontal', size = Math.max(0, (horizontal ? width : height) - 5), first = size * node.ratio;
+      const divider = this.dividers.get(node);
+      if (divider) {
+        divider.region = { x, y, width, height };
+        divider.setAttribute('aria-valuenow', Math.round(node.ratio * 100));
+        place(divider, horizontal ? x + first : x, horizontal ? y : y + first, horizontal ? 5 : width, horizontal ? height : 5);
+      }
+      visit(node.children[0], x, y, horizontal ? first : width, horizontal ? height : first);
+      visit(node.children[1], horizontal ? x + first + 5 : x, horizontal ? y : y + first + 5, horizontal ? size - first : width, horizontal ? height : size - first);
+    };
+    visit(this.tree, 0, 0, this.root.clientWidth, this.root.clientHeight);
+  }
+}

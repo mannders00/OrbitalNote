@@ -1,0 +1,17 @@
+OrbitalNote
+Copyright (C) 2026 MA Software and OrbitalNote contributors
+
+The OrbitalNote client and its original source code are licensed under the GNU
+General Public License version 3 only (SPDX-License-Identifier: GPL-3.0-only).
+See LICENSE for the complete terms. This software is provided without warranty.
+
+Third-party dependencies retain their own copyright notices and licenses.
+The editor bundle's notices are in app/ui/vendor/LICENSES.txt. Binary packages
+include a licenses/ directory with Go and JavaScript dependency notices.
+
+The OrbitalNote name and logo identify the original project. No trademark rights
+are granted by the software license. See TRADEMARKS.md. This does not restrict
+any rights granted by the GPL to use, study, modify or redistribute the software.
+
+The separately maintained website and future hosted OrbitalNote Sync service are
+not part of this client distribution and are not licensed under this notice.

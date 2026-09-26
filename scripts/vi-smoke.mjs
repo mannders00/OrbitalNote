@@ -1,0 +1,60 @@
+// Run against the disposable development workspace on :9240.
+import { chromium } from 'playwright';
+import { strict as assert } from 'node:assert';
+const browser = await chromium.launch({executablePath:process.env.CHROMIUM || '/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+const page = await browser.newPage();
+const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+try {
+  await page.goto('http://127.0.0.1:9240');
+  await page.locator('#agenda').waitFor({state:'visible'});
+  await page.evaluate(async()=>{
+    const api=async(method,q={})=>(await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({method,...q})})).json();
+    const s=await api('Status');
+    const old=await api('Read',{id:s.id,path:'vi-test.org'});
+    await api('Save',{id:s.id,path:'vi-test.org',revision:old.revision || '',source:'* Notes\r\nalpha beta\r\ngamma delta\n'});
+  });
+  await page.locator('#tree [data-open="vi-test.org"]').waitFor();
+  await page.locator('[data-view="settings"]').click();
+  await page.locator('#vi-mode').check();
+  await page.reload(); await page.locator('#settings').waitFor({state:'visible'});
+  await page.locator('[data-view="settings"]').click();
+  assert.equal(await page.locator('#vi-mode').isChecked(),true);
+  await page.locator('#tree [data-open="vi-test.org"]').click();
+  await page.locator('#source').focus();
+  assert.equal(await page.locator('#vi-cursor-layer').isVisible(),true);
+  assert.equal(await page.locator('#source').evaluate(el=>getComputedStyle(el).caretColor),'rgba(0, 0, 0, 0)');
+  const cursorStart=await page.locator('.vi-block-cursor').evaluate(el=>el.getBoundingClientRect().top);
+  await page.keyboard.type('ggj');
+  assert.ok(await page.locator('.vi-block-cursor').evaluate(el=>el.getBoundingClientRect().top)>cursorStart);
+  assert.equal(await page.locator('#source').evaluate(el=>el.selectionStart),8);
+  await page.keyboard.type('dw');
+  assert.equal(await page.locator('#source').evaluate(el => el.value),'* Notes\nbeta\ngamma delta\n');
+  await page.keyboard.type('u');
+  assert.equal(await page.locator('#source').evaluate(el => el.value),'* Notes\nalpha beta\ngamma delta\n');
+  await page.keyboard.type('ggji');
+  assert.match(await page.locator('#vi-state').innerText(),/INSERT/);
+  assert.equal(await page.locator('#vi-cursor-layer').isVisible(),false);
+  await page.keyboard.type('new ');
+  await page.keyboard.press('Escape');
+  assert.match(await page.locator('#vi-state').innerText(),/NORMAL/);
+  assert.equal(await page.locator('#vi-cursor-layer').isVisible(),true);
+  await page.keyboard.press('Control+s');
+  await page.waitForFunction(()=>document.getElementById('save-state').textContent==='Saved to disk');
+  const raw=await page.evaluate(async()=>{
+    const api=async(method,q={})=>(await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({method,...q})})).json();
+    const s=await api('Status'); return (await api('Read',{id:s.id,path:'vi-test.org'})).source;
+  });
+  assert.equal(raw,'* Notes\r\nnew alpha beta\r\ngamma delta\n');
+  await page.keyboard.type('ggjyyjp');
+  assert.match(await page.locator('#source').evaluate(el => el.value),/gamma delta\nnew alpha beta\n/);
+  await page.keyboard.type('ggjvllx');
+  assert.match(await page.locator('#source').evaluate(el => el.value),/\n alpha beta\n/);
+  await page.keyboard.press('Control+s');
+  await page.locator('[data-view="settings"]').click(); await page.locator('#vi-mode').uncheck();
+  await page.locator('#tree [data-open="vi-test.org"]').click(); await page.locator('#source').focus();
+  await page.keyboard.type('j'); assert.match(await page.locator('#source').evaluate(el => el.value),/j/);
+  assert.equal(await page.locator('#vi-state').isVisible(),false);
+  assert.equal(await page.locator('#vi-cursor-layer').isVisible(),false);
+  assert.deepEqual(errors,[]);
+  console.log('PASS: persisted vi toggle, motions/operators, native undo, insert/escape, yank/paste, visual delete, mixed-newline saves, ordinary typing when disabled.');
+} finally { await browser.close(); }

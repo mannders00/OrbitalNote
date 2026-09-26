@@ -1,0 +1,17 @@
+#+TITLE: Inbox
+
+* TODO Make room for the next good idea :personal:
+SCHEDULED: <2026-09-24 Thu>
+
+An inbox is a place to put things down, not a list of things to worry about.
+
+* TODO Book a table for Friday :personal:
+DEADLINE: <2026-09-25 Fri>
+
+* A few things worth remembering
+- Your files are ordinary plaintext.
+- Save with Ctrl+S or Cmd+S.
+- Open commands with Ctrl+Shift+P or Cmd+Shift+P.
+- Open a note quickly with Ctrl+K or Cmd+K.
+
+See [[file:projects/workspace.org][the workspace project]].

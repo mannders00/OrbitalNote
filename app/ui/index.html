@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <title>OrbitalNote</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body spellcheck="false" autocorrect="off" autocapitalize="off">
+  <nav id="ribbon" aria-label="Navigation">
+    <button id="quick-open" class="icon-button" data-icon="files" title="Quick open (⌘ / Ctrl K)" aria-label="Quick open"></button>
+    <span class="ribbon-divider"></span>
+    <button data-view="agenda" class="icon-button" data-icon="agenda" title="Agenda" aria-label="Agenda"></button>
+    <button data-view="calendar" class="icon-button" data-icon="calendar" title="Calendar" aria-label="Calendar"></button>
+    <button data-view="search" class="icon-button" data-icon="search" title="Search" aria-label="Search"></button>
+    <button data-view="tags" class="icon-button" data-icon="tags" title="Tags" aria-label="Tags"></button>
+    <span class="ribbon-spacer"></span>
+    <button id="palette-button" class="icon-button" data-icon="command" title="Command palette (⌘ / Ctrl Shift P)" aria-label="Command palette"></button>
+    <button data-view="settings" class="icon-button" data-icon="settings" title="Settings" aria-label="Settings"></button>
+  </nav>
+  <aside id="sidebar" aria-label="Files">
+    <header class="sidebar-header">
+      <span class="panel-title">Files</span>
+      <button id="new-file" class="icon-button" data-icon="file-plus" title="New note" aria-label="New note"></button>
+      <button id="new-folder" class="icon-button" data-icon="folder-plus" title="New folder" aria-label="New folder"></button>
+      <button id="sidebar-close" class="icon-button" data-icon="panel-left" title="Hide left sidebar" aria-label="Hide left sidebar" aria-controls="sidebar"></button>
+    </header>
+    <div id="tree" class="tree"></div>
+    <button class="workspace-switch" id="open-workspace" title="Open workspace folder">
+      <span data-icon="folder"></span><strong id="workspace-name">Open workspace</strong><span data-icon="chevrons"></span>
+    </button>
+  </aside>
+  <button id="panel-scrim" aria-label="Close sidebar" tabindex="-1" hidden></button>
+  <main>
+    <header class="topbar">
+      <button id="menu" class="icon-button" data-icon="panel-left" title="Hide left sidebar" aria-label="Hide left sidebar" aria-expanded="true" aria-controls="sidebar"></button>
+      <button id="context-toggle" class="icon-button" data-icon="panel-right" title="Show right sidebar" aria-label="Show right sidebar" aria-expanded="false" aria-controls="context"></button>
+    </header>
+    <div id="notice" role="status" hidden></div>
+    <div id="tab-layout"></div>
+    <section id="welcome" class="welcome" hidden>
+      <span class="welcome-icon" data-icon="folder"></span>
+      <h1>Open a workspace</h1>
+      <p>Select a folder containing your Org files.</p>
+      <button class="primary" id="welcome-open">Open folder…</button>
+    </section>
+    <section id="document" hidden>
+      <div class="document-toolbar">
+        <h1 id="document-name"></h1>
+        <div class="actions">
+          <button id="preview-toggle" class="icon-button" data-icon="book" title="Read preview" aria-label="Read preview" aria-pressed="false"></button>
+          <button id="file-actions" class="icon-button" data-icon="more" title="File actions" aria-label="File actions"></button>
+        </div>
+      </div>
+      <div id="conflict" class="conflict" hidden><span>File changed on disk. Unsaved edits have been retained.</span><button id="save-copy">Save a copy</button><button id="reload-file">Reload disk version…</button></div>
+      <div class="document-body">
+        <div id="panes" data-mode="edit">
+          <div class="source-pane"></div>
+          <article id="preview" class="prose"></article>
+        </div>
+        <button id="context-scrim" class="context-scrim" aria-label="Close right sidebar" tabindex="-1" hidden></button>
+        <aside id="context" aria-label="Outline and backlinks">
+          <header class="context-header"><span data-icon="outline"></span><span class="panel-title">Outline</span><button id="context-close" class="icon-button" data-icon="panel-right" title="Hide right sidebar" aria-label="Hide right sidebar" aria-controls="context"></button></header>
+          <div id="outline"></div>
+          <div class="section-label"><span data-icon="links"></span>Backlinks</div><div id="backlinks"></div>
+          <div class="section-label"><span data-icon="sliders"></span>Properties</div><div id="properties"></div>
+        </aside>
+      </div>
+      <footer class="statusbar"><button id="save" class="save-status" title="Save now (⌘ / Ctrl S)"><span id="save-state">Saved</span></button><span id="vi-state" hidden aria-live="polite"></span><span id="cursor">Ln 1, Col 1</span><span class="status-detail">Org</span><span class="status-detail">UTF-8</span></footer>
+    </section>
+    <section id="agenda" class="page" hidden>
+      <div class="page-heading"><div><h1>Agenda <small id="agenda-count"></small></h1><p id="today-label"></p></div><button id="capture"><span data-icon="plus"></span>New task</button></div>
+      <div class="filterbar"><div class="segmented" id="agenda-filters"><button data-filter="today">Today</button><button data-filter="upcoming">Upcoming</button><button data-filter="overdue">Overdue</button><button data-filter="all">All tasks</button></div><select id="kind-filter" aria-label="Filter entry type"><option value="">All types</option><option value="scheduled">Scheduled</option><option value="deadline">Deadlines</option><option value="todo">Undated TODOs</option></select><input id="agenda-query" aria-label="Filter agenda" placeholder="Filter file, tag, or state…"></div>
+      <div id="agenda-list"></div>
+    </section>
+    <section id="calendar" class="page" hidden>
+      <div class="page-heading"><h1 id="calendar-title"></h1><button id="calendar-capture"><span data-icon="plus"></span>New task</button></div>
+      <div class="filterbar"><div class="calendar-nav"><button id="calendar-prev" class="icon-button" data-icon="left" title="Previous period" aria-label="Previous period"></button><button id="calendar-today">Today</button><button id="calendar-next" class="icon-button" data-icon="right" title="Next period" aria-label="Next period"></button></div><div class="segmented" id="calendar-modes"><button data-calendar="day">Day</button><button data-calendar="week">Week</button><button data-calendar="month">Month</button><button data-calendar="year">Year</button></div></div>
+      <div id="calendar-grid"></div>
+    </section>
+    <section id="search" class="page" hidden>
+      <div class="page-heading"><h1>Search</h1></div>
+      <input class="big-input" id="search-input" type="search" placeholder="Search workspace…" aria-label="Search workspace"><div id="search-results"></div>
+    </section>
+    <section id="tags" class="page" hidden><div class="page-heading"><h1>Tags</h1></div><div id="tag-list"></div></section>
+    <section id="settings" class="page" hidden>
+      <div class="page-heading"><h1>Settings</h1></div>
+      <div class="setting"><strong>Appearance</strong><select id="theme" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+      <div class="setting"><div><label for="vi-mode"><strong>Vi mode</strong></label><p id="vi-help">Vim-style keys in the source editor. Starts in Normal mode.<br>i / a: insert · Esc: normal · h j k l / w b: move<br>Ctrl D / Ctrl U: half-page down / up<br>v: select · dd / dw / x: delete · yy / p: copy / paste<br>u / Ctrl R: undo / redo · / and n / N: find<br>Use Cmd / Ctrl S to save. Basic bindings, not full Vim emulation.</p></div><input id="vi-mode" type="checkbox" role="switch" aria-describedby="vi-help"></div>
+      <div class="setting"><strong>Workspace folder</strong><button id="settings-open">Open folder…</button></div>
+      <div class="setting"><div><strong>Keyboard shortcuts</strong><p>Save: ⌘ / Ctrl S<br>Quick open: ⌘ / Ctrl K<br>Commands: ⌘ / Ctrl Shift P<br>Tabs in selected pane: ⌘ / Ctrl 1–9<br>Task details at heading: Alt T<br>Left sidebar: ⌘ / Ctrl Shift L<br>Right sidebar: ⌘ / Ctrl Shift R</p></div></div>
+      <div class="setting"><div><strong>OrbitalNote</strong><p>0.1.0 preview · Free and open source<br>Your notes are plaintext files on your computer. No account required.<br>OrbitalNote Sync is coming soon.</p></div></div>
+    </section>
+  </main>
+  <dialog id="modal" aria-labelledby="modal-title"><form method="dialog" id="modal-form"><div class="modal-heading"><h2 id="modal-title"></h2><button value="cancel" formnovalidate class="icon-button" data-icon="close" aria-label="Close dialog"></button></div><div id="modal-body"></div><div class="modal-actions"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="modal-submit" value="ok">Continue</button></div></form></dialog>
+  <dialog id="palette" aria-label="Find commands or files"><input id="palette-input" placeholder="Find a command…" aria-label="Find command or file"><div id="palette-results"></div><footer>↑ ↓ to navigate <span>↵ to open · esc to close</span></footer></dialog>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

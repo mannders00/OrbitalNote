@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "bun build.js" },
+  "dependencies": {
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.13",
+    "@codemirror/commands": "6.11.1"
+  }
+}

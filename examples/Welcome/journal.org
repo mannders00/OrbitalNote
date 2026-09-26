@@ -1,0 +1,17 @@
+#+TITLE: Journal
+
+* Thursday, September 24
+
+A place for the unfinished thought, the useful observation, the small win.
+
+Today I'm thinking about the difference between being busy and making progress.
+
+-----
+
+* Notes to come back to
+
+The [[file:projects/workspace.org][workspace project]] is taking shape.
+
+:NOTES:
+Custom drawers remain intact, even when the app does not understand them.
+:END:

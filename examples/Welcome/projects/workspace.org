@@ -1,0 +1,46 @@
+#+TITLE: A calmer workspace
+#+TODO: TODO NEXT WAITING | DONE
+
+* NEXT Shape the first release :work:product:
+SCHEDULED: <2026-09-24 Thu 10:00-11:00>
+:PROPERTIES:
+:ID: workspace-first-release
+:OWNER: You
+:END:
+
+A good tool should leave more room for your thoughts.
+
+** TODO Walk through the agenda :design:
+DEADLINE: <2026-09-24 Thu>
+
+- [X] Keep the source visible
+- [ ] Make the important things easy to find
+- [ ] Leave space to breathe
+
+** TODO Review the typography :design:
+SCHEDULED: <2026-09-25 Fri 14:00>
+
+Use *bold* for emphasis, /italic/ for a quiet aside, and ~code~ for the exact thing.
+
+#+begin_quote
+The simplest useful thing, thoughtfully made.
+#+end_quote
+
+| Principle | In practice |
+|-----------+-------------|
+| Ownership | Plain Org files |
+| Local first | No account required |
+| Clarity | One source of truth |
+
+#+begin_src go
+func idea() string {
+    return "Make something useful."
+}
+#+end_src
+
+** DONE Choose a plaintext foundation
+
+* Weekly review :personal:
+<2026-09-27 Sun 16:00 +1w>
+
+Repeaters are preserved and shown; automatic recurrence expansion is not enabled yet.

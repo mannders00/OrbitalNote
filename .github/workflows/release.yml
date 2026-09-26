@@ -1,0 +1,97 @@
+name: Desktop release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without v (must match a tag pointing at this commit)'
+        required: true
+        default: '0.1.0-preview.1'
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}-${{ inputs.version }}
+  cancel-in-progress: false
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]] || exit 1
+          test "$(git rev-parse "v$version^{commit}")" = "$(git rev-parse HEAD)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+  build:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            platform: darwin-arm64
+          - runner: macos-15-intel
+            platform: darwin-amd64
+          - runner: windows-2025
+            platform: windows-amd64
+          - runner: ubuntu-24.04
+            platform: linux-amd64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev xvfb
+      - name: Core tests
+        run: go test ./internal/...
+      - name: Package desktop client and license notices
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: bash scripts/package-local.sh
+      - if: runner.os == 'Linux'
+        name: Native WebView bridge smoke test
+        run: xvfb-run -a go run ./scripts/native-smoke ./examples/Welcome
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbitalnote-${{ matrix.platform }}
+          path: |
+            bin/*.zip
+            bin/*.tar.gz
+            bin/*.sha256
+          if-no-files-found: error
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Verify and publish preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          cd dist
+          for checksum in *.sha256; do
+            sed 's@bin/@@g' "$checksum" | sha256sum --check
+          done
+          cd ..
+          if ! gh release view "v$VERSION" >/dev/null 2>&1; then
+            gh release create "v$VERSION" --verify-tag --prerelease --title "OrbitalNote $VERSION" --notes-file docs/release-notes.md
+          fi
+          gh release upload "v$VERSION" dist/* --clobber
