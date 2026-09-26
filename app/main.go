@@ -56,7 +56,7 @@ func main() {
 		}
 	}
 	h := &Host{service: s}
-	a := application.New(application.Options{Name: "OrbitalNote", Description: "Your notes. Your calendar. Your files.", Services: []application.Service{application.NewService(s), application.NewService(h)}, Assets: application.AssetOptions{Handler: application.AssetFileServerFS(ui.Assets)}, Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true}, ShouldQuit: func() bool {
+	a := application.New(application.Options{Name: "OrbitalNote", Icon: appIcon, Description: "Your notes. Your calendar. Your files.", Services: []application.Service{application.NewService(s), application.NewService(h)}, Assets: application.AssetOptions{Handler: application.AssetFileServerFS(ui.Assets)}, Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true}, ShouldQuit: func() bool {
 		if h.allowQuit.Load() {
 			return true
 		}

@@ -29,7 +29,7 @@ func main() {
 			c.R = uint8(float64(c.R)*(1-blend) + 255*blend)
 			c.G = uint8(float64(c.G)*(1-blend) + 255*blend)
 			c.B = uint8(float64(c.B)*(1-blend) + 255*blend)
-			dot := math.Hypot(float64(x)-740, float64(y)-470) - 44
+			dot := math.Hypot(float64(x)-740, float64(y)-512) - 44
 			blend = math.Max(0, math.Min(1, .5-dot))
 			c.R = uint8(float64(c.R)*(1-blend) + 185*blend)
 			c.G = uint8(float64(c.G)*(1-blend) + 214*blend)

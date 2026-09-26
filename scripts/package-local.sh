@@ -14,6 +14,8 @@ out="bin/orbitalnote-${version}-${os}-${arch}"
 mkdir -p "$out"
 case "$os" in
   windows)
+    go run github.com/tc-hib/go-winres@v0.3.3 make --in app/build/windows.json --out app/orbitalnote_resources --arch "$arch" --file-version "${version%%-*}" --product-version "$version"
+    trap 'rm -f "app/orbitalnote_resources_windows_${arch}.syso"' EXIT
     go build -trimpath -tags production -ldflags='-s -w -H windowsgui' -o "$out/OrbitalNote.exe" ./app
     ;;
   linux)

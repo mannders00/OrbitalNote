@@ -4,3 +4,4 @@
 node_modules/
 .playwright-mcp/
 __pycache__/
+*.syso
