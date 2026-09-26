@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/assets/orbitalnote-banner.png" alt="OrbitalNote. Move forward. Stay centered. Your notes, calendar and files." width="1200"></p>
+<p align="center"><img src="docs/assets/orbitalnote-banner-solid.png" alt="OrbitalNote. Move forward. Stay centered. Your notes, calendar and files." width="1200"></p>
 
 # OrbitalNote
 
