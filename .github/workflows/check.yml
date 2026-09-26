@@ -34,4 +34,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev xvfb
       - run: go build -o bin/ -tags production ./app
       - if: runner.os == 'Linux'
-        run: xvfb-run -a go run ./scripts/native-smoke ./examples/Welcome
+        # GitHub's nested sandbox restricts WebKit's bubblewrap namespaces.
+        # This exception is only for the disposable CI probe, never the app.
+        env:
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: '1'
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          GTK_A11Y: none
+        run: dbus-run-session -- xvfb-run -a go run ./scripts/native-smoke ./examples/Welcome

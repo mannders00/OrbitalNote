@@ -61,7 +61,12 @@ jobs:
         run: bash scripts/package-local.sh
       - if: runner.os == 'Linux'
         name: Native WebView bridge smoke test
-        run: xvfb-run -a go run ./scripts/native-smoke ./examples/Welcome
+        env:
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: '1'
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          GTK_A11Y: none
+        run: dbus-run-session -- xvfb-run -a go run ./scripts/native-smoke ./examples/Welcome
       - uses: actions/upload-artifact@v4
         with:
           name: orbitalnote-${{ matrix.platform }}

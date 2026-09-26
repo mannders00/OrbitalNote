@@ -54,7 +54,9 @@ iconutil --convert icns --output "$bundle/Contents/Resources/AppIcon.icns" "$ico
 # signing, not Developer ID signing or notarization for public distribution.
 codesign --force --sign - "$bundle"
 codesign --verify --deep --strict --verbose=2 "$bundle"
-xcrun lipo -verify_arch "$GOARCH" "$bundle/Contents/MacOS/orbitalnote"
+native_arch="$GOARCH"
+if [ "$native_arch" = amd64 ]; then native_arch=x86_64; fi
+xcrun lipo "$bundle/Contents/MacOS/orbitalnote" -verify_arch "$native_arch"
 plutil -lint "$bundle/Contents/Info.plist"
 
 cp docs/macos-testing.md "$out/TESTING.md"

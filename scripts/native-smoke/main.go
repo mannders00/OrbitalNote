@@ -53,7 +53,7 @@ func main() {
  } catch(error) { Events.Emit('probe:result',{ok:false,error:String(error)}); }
 })()`)
 	})
-	timer := time.AfterFunc(20*time.Second, func() { log.Print("native probe timed out"); app.Quit() })
+	timer := time.AfterFunc(60*time.Second, func() { log.Print("native probe timed out"); app.Quit() })
 	defer timer.Stop()
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

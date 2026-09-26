@@ -17,7 +17,7 @@ Work proceeds in order. A prototype is not a release.
 
 See README for the current implementation and actual verification results.
 
-## Current checkpoint — September 24, 2026
+## Current checkpoint: September 24, 2026
 
 - Architecture investigation and design recorded.
 - Functional desktop MVP implemented; native Linux ARM64 and browser interaction

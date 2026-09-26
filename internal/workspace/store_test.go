@@ -23,11 +23,17 @@ func TestConditionalWritePreservesExternalEdits(t *testing.T) {
 	if err = os.Chmod(filepath.Join(dir, "test.org"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	// Windows exposes writable/read-only attributes, not POSIX mode bits.
+	// Preserve the actual platform mode rather than assuming chmod yields 0600.
+	before, err := os.Stat(filepath.Join(dir, "test.org"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err = d.Write("test.org", append(original, []byte("more\r\n")...), rev); err != nil {
 		t.Fatal(err)
 	}
 	info, _ := os.Stat(filepath.Join(dir, "test.org"))
-	if info.Mode().Perm() != 0600 {
+	if info.Mode().Perm() != before.Mode().Perm() {
 		t.Fatal("permissions changed")
 	}
 	external := []byte("External editor wins its own version\n")

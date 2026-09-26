@@ -75,6 +75,11 @@ const orgStyle = StateField.define({ create: decorations, update: (value, transa
 export function createEditor(host) {
   let silent = false;
   const extensions = [history(), drawSelection(), EditorView.lineWrapping, orgStyle,
+    EditorView.domEventHandlers({ drop(event) {
+      // Pane tab drops belong to TabLayout, not the editor's text-drop handler.
+      if (event.dataTransfer?.types.includes('application/x-orbitalnote-tab')) { event.preventDefault(); return true; }
+      return false;
+    } }),
     keymap.of([...historyKeymap, ...defaultKeymap]),
     EditorView.contentAttributes.of({ class: 'ui-source', 'aria-label': 'Org source editor', spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off', autocomplete: 'off', 'data-ui': 'source' }),
     EditorView.updateListener.of(update => {

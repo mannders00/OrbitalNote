@@ -93,6 +93,8 @@
 .tab-items { display: flex; align-items: stretch; flex: 1; min-width: 0; gap: 3px; overflow: auto; scrollbar-width: none; }
 .tab-strip .tab.active > button:focus:not(:focus-visible) { outline: none; }
 .completed { text-decoration: line-through; opacity: .65; }
+.calendar-event-title, .calendar-event-time { display: block; overflow: hidden; text-overflow: ellipsis; }
+.calendar-event-time { font-size: 9px; opacity: .8; margin-top: 2px; }
 
 /* Task scheduling controls use the same surfaces and accents as the workspace. */
 .task-location { font-size: 12px; color: var(--muted); }

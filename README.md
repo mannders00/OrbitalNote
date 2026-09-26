@@ -1,10 +1,12 @@
+<p align="center"><img src="docs/assets/orbitalnote-banner.png" alt="OrbitalNote. Move forward. Stay centered. Your notes, calendar and files." width="1200"></p>
+
 # OrbitalNote
 
 **Your notes. Your calendar. Your files.**
 
 OrbitalNote is a free, open-source home for notes, tasks and your calendar.
 Your notes are plaintext `.org` files in a folder on your computer. No account
-required. Open your existing Org vault, or create your first one—without learning
+required. Open your existing Org vault, or create your first one without learning
 an entire editor configuration first.
 
 [**Download the desktop preview**](https://github.com/mannders00/OrbitalNote/releases)

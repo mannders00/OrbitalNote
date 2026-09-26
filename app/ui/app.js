@@ -494,7 +494,7 @@ function monthGrid(year, month) {
   const weeks = Math.ceil(((first.getDay() + 6) % 7 + new Date(year, month + 1, 0).getDate()) / 7);
   for (let i = 0; i < weeks * 7; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i); const key = dateKey(d);
-    html += `<div class="calendar-cell ${d.getMonth() !== month ? 'outside' : ''} ${key === today() ? 'is-today' : ''}" data-drop-date="${key}"><button class="day-number" data-capture="${key}" title="Create task on ${key}">${d.getDate()}</button>${dayEntries(key).map(e => `<button class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entries.indexOf(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}">${esc(e.stamp.time || '')}${e.stamp.endTime ? '–' + esc(e.stamp.endTime) : ''} ${esc(e.title)}</button>`).join('')}</div>`;
+    html += `<div class="calendar-cell ${d.getMonth() !== month ? 'outside' : ''} ${key === today() ? 'is-today' : ''}" data-drop-date="${key}"><button class="day-number" data-capture="${key}" title="Create task on ${key}">${d.getDate()}</button>${dayEntries(key).map(e => `<button class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entries.indexOf(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}${e.stamp.time ? ' · ' + esc(e.stamp.time) : ''}"><span class="calendar-event-title">${esc(e.title)}</span>${e.stamp.time ? `<span class="calendar-event-time">${esc(e.stamp.time)}${e.stamp.endTime ? '–' + esc(e.stamp.endTime) : ''}</span>` : ''}</button>`).join('')}</div>`;
   }
   return html + '</div>';
 }
