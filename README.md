@@ -4,30 +4,134 @@
 
 **Your notes. Your calendar. Your files.**
 
-OrbitalNote is a free, open-source plaintext Org editor with a calendar and agenda.
-Your notes are plaintext `.org` files in a folder on your computer. No account
-required. Open your existing Org vault, or create your first one without learning
-an entire editor configuration first.
+I want a nice place to write notes, see what's coming up, and get things done.
+And I want the files to stay mine.
 
-[**Download the desktop preview**](https://github.com/mannders00/OrbitalNote/releases)
-· [Report an issue](https://github.com/mannders00/OrbitalNote/issues)
-· [Contribute](CONTRIBUTING.md)
+That's OrbitalNote. A free, open-source Org editor with a calendar and agenda,
+running as a native app on your desktop and Android. Open the Org folder you
+already use, or start a new notebook. You don't need an account to use the app,
+and you don't need to learn Org syntax before you can add your first task.
 
-The client is **GPL-3.0-only**; see [LICENSE](LICENSE), [NOTICE](NOTICE) and the
-[name/logo policy](TRADEMARKS.md). Third-party dependencies keep their licenses.
+**We're still in preview, but this is working software.** Notes, editing, calendar,
+agenda, and encrypted Sync are here. I've been using Sync between my Mac and
+Android phone, and it works on the real native apps.
 
-**OrbitalNote Sync is available as a paid preview.** Optional end-to-end encrypted
-`.org` note sync is $5/month or $48/year USD, including 1 GB. Create an account and
-subscribe through Stripe at [OrbitalNote Sync](https://sync.orbitalnote.org/).
-macOS ↔ Android Sync works on real native devices. Local use remains free and
-account-free. Attachments and history cleanup are not yet supported.
+[**Get OrbitalNote**](https://orbitalnote.org/#download)
+· [**Get Sync**](https://sync.orbitalnote.org/signup)
+· [See the website](https://orbitalnote.org/)
+· [Talk on Discord](https://discord.gg/TdXgh69gwP)
 
-**Status: desktop and Android preview, with iOS Simulator builds.** Android currently
-uses an app-private notebook; linked Android device folders are not available.
-Downloads are not yet Apple-notarized or Windows Authenticode-signed. See each
-release's notes for platform requirements and the current preview limitations.
+## Download and try it
 
-## Run the native application
+The app is free. These are direct downloads for **0.1.0-preview.5**, including
+Sync, task completion from the agenda, and the Cmd+W tab fix.
+
+| Your device | Download | Getting started |
+|---|---|---|
+| Mac with Apple Silicon | [Download for Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.5/orbitalnote-0.1.0-preview.5-darwin-arm64.zip) | M1 or newer. Unzip and move the app to Applications. |
+| Intel Mac | [Download for Intel Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.5/orbitalnote-0.1.0-preview.5-darwin-amd64.zip) | Unzip and move the app to Applications. |
+| Windows | [Download for Windows](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.5/orbitalnote-0.1.0-preview.5-windows-amd64.zip) | x64. Extract the ZIP and open OrbitalNote.exe. Requires WebView2. |
+| Linux | [Download for Linux](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.5/orbitalnote-0.1.0-preview.5-linux-amd64.tar.gz) | x64, Ubuntu 24.04-compatible. Requires GTK4 and WebKitGTK 6.0. |
+| Android | [Download the APK](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.5/orbitalnote-0.1.0-preview.5-android-arm64.apk) | Android 7+, ARM64. Open the APK and allow installation from your browser. |
+
+macOS builds aren't notarized yet; you may need to allow the app in System
+Settings → Privacy & Security after the first launch attempt. Windows builds
+aren't Authenticode-signed yet and may show a SmartScreen prompt.
+
+**iPhone and iPad:** the app builds and opens in the iOS simulator. An installable
+iPhone preview is still to come. Android is available now.
+
+[Release notes and checksums](https://github.com/mannders00/OrbitalNote/releases/tag/v0.1.0-preview.5)
+· [Find the newest downloads](https://orbitalnote.org/#download)
+
+## What's here today
+
+### Write, then get out of your own way
+
+Write in a formatted Org editor, or switch to reading preview. Notes save as you
+work. Headings, lists, checkboxes, tables, code blocks, and local images all have
+a place. Your source stays plaintext, so you can open it in another editor too.
+
+Already using Org with Emacs? Open your existing folder. There's no import or
+conversion step. New to Org? Start with a note or the calendar and learn the
+format as you go.
+
+### See your day next to your notes
+
+Keep the agenda or calendar beside the note you're working on. Drag a tab to
+split the window, resize the panes, and make the workspace yours.
+
+- **Agenda:** today, upcoming, overdue, and all tasks. Check a task off right
+  there and its Org heading changes to the done state.
+- **Calendar:** day, week, month, and year views. Schedule a task, give it a time,
+  or drag a simple event to another day. The actual Org timestamp updates.
+- **Live updates:** edit a note and see its tasks update in the other pane.
+
+### Find things without losing your place
+
+Search your notes, browse tags, jump through headings, or use quick-open to get
+back to a file. Keep multiple notes open in tabs. Light and dark themes,
+collapsible sidebars, keyboard shortcuts, and optional Vi controls are included.
+
+## Start on your desktop. Pick it up on your phone.
+
+This is the part I'm excited about. Plan something at your desk, walk away,
+open OrbitalNote on your phone later, and check it off. Come back to your desktop
+and the note reflects what you did.
+
+**OrbitalNote Sync is live as a paid preview.** It's end-to-end encrypted and
+works between macOS and Android. Updates happen automatically while the apps
+are open and connected. Android catches up when you reopen it; it doesn't yet
+sync while the app is closed.
+
+- **$5/month or $48/year USD** ($4/month when billed yearly).
+- **1 GB**, including retained encrypted revision history.
+- One workspace of `.org` notes in this preview.
+- Subscribe through Stripe. Manage or cancel from your account.
+
+Download the app, [create your Sync account](https://sync.orbitalnote.org/signup),
+then open **Settings → OrbitalNote Sync**. Connect your first workspace and save
+its recovery key. Use that key to connect your other device.
+
+[**Get Sync preview**](https://sync.orbitalnote.org/signup)
+· [Try the simulated desktop/phone demo](https://orbitalnote.org/#sync)
+· [Manage your account](https://sync.orbitalnote.org/)
+
+The app stays free and works offline without a subscription. Hosted Sync is
+optional. Attachments and history cleanup aren't available yet.
+
+## A preview, with room to grow
+
+I want people using this and telling me what feels good and what needs work.
+The current limits are worth knowing:
+
+- Android uses a private app notebook. Linking an existing device folder isn't
+  implemented yet. Updates preserve the notebook; uninstalling the app deletes it.
+- Org repeaters are preserved and displayed, but don't automatically advance.
+- This isn't a complete Emacs or Org agenda implementation. There's no Babel
+  execution, and some advanced Org constructs won't appear in reading preview.
+- iPhone distribution, desktop notarization, and automatic app updates are still
+  ahead. Don't buy Sync for iPhone expecting an installable app today.
+
+Found something? [Open an issue](https://github.com/mannders00/OrbitalNote/issues).
+Want to talk through an idea? [Join the Discord](https://discord.gg/TdXgh69gwP)
+or email [matt@masoftware.net](mailto:matt@masoftware.net).
+
+## Open source, ordinary files
+
+The native client is **GPL-3.0-only**. You can read it, build it, and contribute.
+Your notes stay ordinary `.org` files, and the hosted Sync service isn't required
+to build or use the app.
+
+[Contributing](CONTRIBUTING.md) · [License](LICENSE) · [Third-party notices](NOTICE)
+· [Name and logo policy](TRADEMARKS.md)
+
+## Building and technical details
+
+<details>
+<summary>Build from source, explore the full feature list, and run checks</summary>
+
+### Run the native application
 
 **Apple Silicon testing:** use `bash scripts/build-macos-arm64.sh` on your MacBook,
 or double-click `Build for Mac.command` in a source checkout. This creates
@@ -131,7 +235,8 @@ in-process bridge and do not start this HTTP server.
   to move them on disk. Open tabs retain unsaved edits and follow the new paths.
   Existing destinations are rejected. This is internal tree dragging, not OS file import.
 - Agenda: today, upcoming, overdue and all tasks; filter by planning type, file,
-  tag or state. Completed tasks are excluded. Entries navigate to source headings.
+  tag or state. Mark tasks done directly, respecting custom TODO sequences.
+  Completed tasks are excluded. Entries navigate to source headings.
 - Calendar: day/week time grids, month grid and year overview. Optional start/end
   times produce duration-sized, overlap-aware blocks backed by Org timestamps
   such as `<2026-09-26 09:00-10:30>`. Completed events remain visible with
@@ -168,6 +273,7 @@ in-process bridge and do not start this HTTP server.
 | Move subtree | Alt Up / Down |
 | Edit task at selected heading | Alt T |
 | Select tab in focused pane | Ctrl / Cmd 1–9 |
+| Close focused tab | Ctrl / Cmd W |
 | Indent / outdent | Tab / Shift Tab in source |
 
 All editor commands are also available through the mouse-accessible command
@@ -258,3 +364,5 @@ are no CDN scripts or frontend framework dependencies.
 
 Start with [architecture](docs/architecture.md), [delivery stages](docs/roadmap.md),
 and the [mobile feasibility gate](docs/mobile-feasibility.md).
+
+</details>
