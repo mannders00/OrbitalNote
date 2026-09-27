@@ -66,8 +66,9 @@ Chrome's `chrome://inspect/#devices` can inspect the debug WebView over USB.
 
 ## Encrypted Sync preview
 
-The updated app includes Settings → OrbitalNote Sync. Sign in on your private
-Sync service, approve the displayed device code, and connect using the recovery
-key from your desktop. See [server setup and the two-device test](../server/README.md).
+The updated app includes Settings → OrbitalNote Sync. Sign in to OrbitalNote,
+approve the displayed device code, and connect using the recovery
+key from your desktop. The app connects to `https://sync.orbitalnote.org/`
+automatically; no server address is needed.
 Sync uses the private notebook, works while the app is in the foreground, and
 reconciles on resume. For this first slice, only `.org` notes are transferred.

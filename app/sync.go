@@ -7,12 +7,23 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/mannders00/OrbitalNote/internal/syncclient"
 	"github.com/mannders00/OrbitalNote/internal/workspace"
 )
+
+const hostedSyncURL = "https://sync.orbitalnote.org"
+
+// Never send saved credentials from another service to the hosted endpoint.
+func hostedSyncAPI(credentials syncCredentials) (*syncclient.API, error) {
+	if strings.TrimRight(credentials.Server, "/") != hostedSyncURL {
+		return nil, errors.New("this connection uses a different Sync service; save its recovery key and disconnect before signing in to OrbitalNote Sync")
+	}
+	return syncclient.NewAPI(hostedSyncURL, credentials.Token)
+}
 
 type syncCredentials struct {
 	Server, Token, Recovery string
@@ -88,7 +99,7 @@ func (m *syncManager) connectEngine() error {
 	if m.credentials.Recovery == "" || !m.credentials.Ready {
 		return nil
 	}
-	api, err := syncclient.NewAPI(m.credentials.Server, m.credentials.Token)
+	api, err := hostedSyncAPI(m.credentials)
 	if err != nil {
 		return err
 	}
@@ -187,7 +198,7 @@ func (h *Host) SyncStatus() syncStatus {
 	defer h.sync.statusMu.Unlock()
 	return h.sync.status
 }
-func (h *Host) SyncStart(server string) (syncLogin, error) {
+func (h *Host) SyncStart() (syncLogin, error) {
 	m := h.sync
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -197,7 +208,10 @@ func (h *Host) SyncStart(server string) (syncLogin, error) {
 	if m.engine != nil {
 		return syncLogin{}, errors.New("disconnect the current Sync workspace before changing accounts")
 	}
-	api, err := syncclient.NewAPI(server, "")
+	if m.ws.Status().Key == "" {
+		return syncLogin{}, errors.New("open a notebook before signing in to Sync")
+	}
+	api, err := syncclient.NewAPI(hostedSyncURL, "")
 	if err != nil {
 		return syncLogin{}, err
 	}
@@ -255,7 +269,7 @@ func (h *Host) SyncCreate() (string, error) {
 	if m.engine != nil {
 		return "", errors.New("a Sync workspace is already connected")
 	}
-	api, err := syncclient.NewAPI(m.credentials.Server, m.credentials.Token)
+	api, err := hostedSyncAPI(m.credentials)
 	if err != nil {
 		return "", err
 	}
@@ -318,7 +332,7 @@ func (h *Host) SyncConnect(recovery string) error {
 	if err != nil {
 		return err
 	}
-	api, err := syncclient.NewAPI(m.credentials.Server, m.credentials.Token)
+	api, err := hostedSyncAPI(m.credentials)
 	if err != nil {
 		return err
 	}

@@ -92,6 +92,10 @@ Download the app, [create your Sync account](https://sync.orbitalnote.org/signup
 then open **Settings → OrbitalNote Sync**. Connect your first workspace and save
 its recovery key. Use that key to connect your other device.
 
+The app connects to OrbitalNote automatically; there is no server URL to enter.
+Choose **Sign in to OrbitalNote**, approve the device code in your browser, and
+return to the app. Sign-in finishes automatically.
+
 [**Get Sync preview**](https://sync.orbitalnote.org/signup)
 · [Try the simulated desktop/phone demo](https://orbitalnote.org/#sync)
 · [Manage your account](https://sync.orbitalnote.org/)

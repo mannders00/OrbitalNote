@@ -5,6 +5,9 @@ Calendar, timed tasks, draggable split panes, and a local folder workspace.
 Open an existing Org folder or start with the included example files.
 Mark tasks done directly in the agenda. Cmd+W closes the focused tab on macOS,
 using the existing save/discard handling.
+Sync connects directly to OrbitalNote's hosted service. Sign in, approve the
+device in your browser, and return to the app; sign-in completes automatically.
+There is no server URL to configure. Existing hosted connections keep working.
 
 ## Downloads
 

@@ -3,6 +3,7 @@
 set -euo pipefail
 destination="${1:?License destination required}"
 mkdir -p "$destination"
+chmod -R u+w "$destination"
 cp LICENSE NOTICE TRADEMARKS.md "$destination/"
 cp app/ui/vendor/LICENSES.txt "$destination/editor-LICENSES.txt"
 while read -r module directory; do
