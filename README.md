@@ -4,17 +4,16 @@
 
 **Your notes. Your calendar. Your files.**
 
-I want a nice place to write notes, see what's coming up, and get things done.
-And I want the files to stay mine.
+Write notes, see what's coming up, and get things done. Keep your files yours.
 
-That's OrbitalNote. A free, open-source Org editor with a calendar and agenda,
+OrbitalNote is a free, open-source Org editor with a calendar and agenda,
 running as a native app on your desktop and Android. Open the Org folder you
 already use, or start a new notebook. You don't need an account to use the app,
 and you don't need to learn Org syntax before you can add your first task.
 
-**We're still in preview, but this is working software.** Notes, editing, calendar,
-agenda, and encrypted Sync are here. I've been using Sync between my Mac and
-Android phone, and it works on the real native apps.
+**Still in preview, with working native apps.** Notes, editing, calendar,
+agenda, and encrypted Sync are available now. macOS ↔ Android Sync has been
+tested on real devices.
 
 [**Get OrbitalNote**](https://orbitalnote.org/#download)
 · [**Get Sync**](https://sync.orbitalnote.org/signup)
@@ -75,7 +74,7 @@ collapsible sidebars, keyboard shortcuts, and optional Vi controls are included.
 
 ## Start on your desktop. Pick it up on your phone.
 
-This is the part I'm excited about. Plan something at your desk, walk away,
+Plan something at your desk, walk away,
 open OrbitalNote on your phone later, and check it off. Come back to your desktop
 and the note reflects what you did.
 
@@ -102,8 +101,8 @@ optional. Attachments and history cleanup aren't available yet.
 
 ## A preview, with room to grow
 
-I want people using this and telling me what feels good and what needs work.
-The current limits are worth knowing:
+Feedback and contributions help shape the next release.
+Current preview limits:
 
 - Android uses a private app notebook. Linking an existing device folder isn't
   implemented yet. Updates preserve the notebook; uninstalling the app deletes it.
