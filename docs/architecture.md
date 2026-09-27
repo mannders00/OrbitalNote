@@ -174,7 +174,17 @@ headings. Calendar editing is a conditional source splice. Ambiguous ranges,
 repeaters or overlapping source spans must stay read-only until semantics are
 defined. Calendar never stores independent events.
 
-## Optional hosted sync (planned, not a local prerequisite)
+## Optional hosted sync (private prototype, not a local prerequisite)
+
+The first slice is now implemented in the independent `server/` module and
+`internal/syncclient/`, with native Settings integration. It uses encrypted
+opaque file identities, S3 ciphertext objects, SQLite metadata, browser device
+authorization, secure client credential storage, and manual test entitlements.
+See [the implemented v1 protocol](sync-protocol.md) and
+[deployment instructions](../server/README.md). Stripe, attachments, shared
+workspaces, cursor notifications, and retention management are future work.
+The paragraphs below describe the longer-term architecture rather than a claim
+that all of those features are implemented.
 
 One independent Go HTTP service, SQLite WAL for accounts/workspaces/revisions,
 S3-compatible storage for content-addressed blobs, Stripe Billing for paid

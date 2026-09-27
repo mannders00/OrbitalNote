@@ -16,6 +16,11 @@ import "github.com/wailsapp/wails/v3/pkg/application"
 func configureZoom(a *application.App) {
 	C.orgWorkspaceInputDefaults()
 	menu := application.DefaultApplicationMenu()
+	fileMenu := menu.FindByLabel("File").GetSubmenu()
+	fileMenu.Clear()
+	fileMenu.Add("Close Tab").SetAccelerator("Cmd+W").OnClick(func(_ *application.Context) {
+		a.Event.Emit("workspace:close-tab")
+	})
 	for label, direction := range map[string]int{"Actual Size": 0, "Zoom In": 1, "Zoom Out": -1} {
 		menu.FindByLabel(label).OnClick(func(_ *application.Context) {
 			application.InvokeSync(func() {

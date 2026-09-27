@@ -1,4 +1,4 @@
-import { call, chooseWorkspace, native, onClose, quit, openExternal, setNativeTheme } from './api.js';
+import { call, chooseWorkspace, native, onClose, onCloseTab, quit, openExternal, setNativeTheme } from './api.js';
 import { attachVi } from './vi.js';
 import { escapeHTML as esc, command, replaceSelection, updateRaw } from './editor.js';
 import { icon, mountIcons } from './icons.js';
@@ -6,11 +6,13 @@ import { TabLayout } from './tab-layout.js';
 import { createEditor } from './vendor/editor.js';
 import { taskDialog } from './task-dialog.js';
 import { timeGrid } from './calendar.js';
+import { setupSyncSettings } from './sync.js';
 
 let activeSurface = null, source = null, vi = null;
 let documentSerial = 0;
 const pageNames = { agenda: 'Agenda', calendar: 'Calendar', search: 'Search', tags: 'Tags', settings: 'Settings', welcome: 'Workspace' };
 const pages = new Map(Object.keys(pageNames).map(id => [id, document.getElementById(id)]));
+setupSyncSettings(pages.get('settings'));
 const $ = id => activeSurface?.querySelector(`[data-ui="${id}"]`) || document.getElementById(id) || pages.get(id) || [...pages.values()].map(page => page.querySelector(`#${id}`)).find(Boolean);
 const documentTemplate = $('document');
 documentTemplate.remove();
@@ -472,7 +474,17 @@ function entryColorStyle(e) {
   return tag ? `style="--tag-color:${tagColor(tag)}" data-color-tag="${esc(tag)}"` : '';
 }
 function entryHTML(e) {
-  return `<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-mark">${icon(e.stamp.kind === 'deadline' ? 'flag' : e.state ? 'square' : 'circle')}</span><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}${e.state ? ' · ' + esc(e.state) : ''}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(e.stamp.time || (e.stamp.date ? 'All day' : 'Unscheduled'))}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button>`;
+  return `<div class="agenda-row">${e.state ? `<button class="agenda-complete icon-button" data-complete="${entries.indexOf(e)}" aria-label="Mark ${esc(e.title)} as done">${icon('square')}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}${e.state ? ' · ' + esc(e.state) : ''}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(e.stamp.time || (e.stamp.date ? 'All day' : 'Unscheduled'))}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button></div>`;
+}
+async function completeAgendaEntry(item) {
+  if (!item) return;
+  if (dirty(tabs.get(item.path)) || tabs.get(item.path)?.saving) { notify('Save your edits before completing this task.'); return; }
+  const id = workspace.id;
+  const note = await call('Read', { id, path: item.path });
+  if (note.revision !== item.revision) { await refresh(); notify('This task changed. Please try again.'); return; }
+  const source = await call('Edit', { source: note.source, line: item.line, operation: 'complete' });
+  await call('Save', { id, path: item.path, source, revision: item.revision });
+  await refresh(); notify('Task completed.');
 }
 function renderAgenda() {
   document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('active', b.dataset.filter === agendaFilter));
@@ -626,6 +638,7 @@ document.addEventListener('click', run(async e => {
     colors[b.dataset.colorName] = b.dataset.color;
     localStorage.setItem(key, JSON.stringify(colors)); renderTags(); renderAgenda(); renderCalendar(); return;
   }
+  if (b.dataset.complete !== undefined) return completeAgendaEntry(entries[Number(b.dataset.complete)]);
   if (b.dataset.open) return openNote(b.dataset.open, Number(b.dataset.line) || undefined);
   if (b.dataset.close) return closeTab(b.dataset.close);
   if (b.dataset.folder) { e.preventDefault(); return folderActions(b.dataset.folder); }
@@ -667,6 +680,7 @@ document.addEventListener('keydown', run(async e => {
   if (mod && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); const id = layout.focusedGroup().tabs[Number(e.key) - 1]; if (id) layout.select(id); return; }
   if (mod && e.shiftKey && ['l', 'r'].includes(e.key.toLowerCase())) { e.preventDefault(); toggleSidebar(e.key.toLowerCase() === 'l' ? 'left' : 'right'); }
   else if (e.key === 'Escape' && (mobileLeftOpen || mobileRightOpen)) { const trigger = mobileRightOpen ? 'context-toggle' : 'menu'; closeMobileSidebars(); $(trigger).focus(); }
+  else if (mod && !e.shiftKey && e.key.toLowerCase() === 'w') { e.preventDefault(); await closeActiveTab(); }
   else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); await save(); }
   else if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette('files'); }
   else if (mod && e.shiftKey && e.key.toLowerCase() === 'p') { e.preventDefault(); openPalette('commands'); }
@@ -677,6 +691,12 @@ document.addEventListener('keydown', run(async e => {
   }
 }));
 window.addEventListener('beforeunload', e => { if ([...tabs.values()].some(dirty)) { e.preventDefault(); e.returnValue = ''; } });
+async function closeActiveTab() {
+  if ($('modal').open || $('palette').open) return;
+  const id = layout.focusedGroup().active;
+  if (id) await (id.startsWith('file:') ? closeTab(id.slice(5)) : closeViewTab(id));
+}
+await onCloseTab(run(closeActiveTab));
 await onClose(run(async () => {
   const results = await Promise.allSettled([...tabs.keys()].map(path => save(path)));
   for (const result of results) if (result.status === 'rejected') fail(result.reason);

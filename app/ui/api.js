@@ -26,14 +26,29 @@ export async function chooseWorkspace() {
   return (await wails()).Call.ByName('main.Host.ChooseWorkspace');
 }
 export async function onClose(handler) { if (native) (await wails()).Events.On('workspace:request-close', handler); }
+export async function onCloseTab(handler) { if (native) (await wails()).Events.On('workspace:close-tab', handler); }
 export async function quit() { if (native) return (await wails()).Call.ByName('main.Host.Quit'); }
+export async function syncCall(method, ...args) {
+  if (!native) throw new Error('Sync settings are available in the native desktop and Android apps.');
+  if (!['Status', 'Start', 'Finish', 'Create', 'Connect', 'Recovery', 'Disconnect'].includes(method)) throw new Error('Unknown Sync action');
+  return (await wails()).Call.ByName(`main.Host.Sync${method}`, ...args);
+}
 export async function setNativeTheme(dark) {
   if (!native) return;
+  if (window.OrbitalNoteAndroid) {
+    window.OrbitalNoteAndroid.setTheme(dark);
+    return;
+  }
   const shade = dark ? 30 : 255;
   return (await wails()).Window.SetBackgroundColour(shade, shade, shade, 255);
 }
 export async function openExternal(url) {
   if (!/^(https?:|mailto:)/i.test(url)) throw new Error('Unsupported link scheme');
+  if (native && window.OrbitalNoteAndroid) {
+    const error = window.OrbitalNoteAndroid.openURL(url);
+    if (error) throw new Error(error);
+    return;
+  }
   if (native) return (await wails()).Call.ByName('main.Host.OpenURL', url);
   window.open(url, '_blank', 'noopener,noreferrer');
 }

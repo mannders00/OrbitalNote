@@ -1,8 +1,10 @@
 OrbitalNote is free. Your notes are plaintext files on your computer. No account required.
 
-This desktop preview brings a source-preserving Org editor, live Agenda and
+This native preview brings a source-preserving Org editor, live Agenda and
 Calendar, timed tasks, draggable split panes, and a local folder workspace.
 Open an existing Org folder or start with the included example files.
+Mark tasks done directly in the agenda. Cmd+W closes the focused tab on macOS,
+using the existing save/discard handling.
 
 ## Downloads
 
@@ -10,6 +12,8 @@ Open an existing Org folder or start with the included example files.
 - **macOS Intel:** `darwin-amd64.zip`
 - **Windows x64:** `windows-amd64.zip` (requires Microsoft WebView2)
 - **Linux x64:** `linux-amd64.tar.gz` (Ubuntu 24.04-compatible; requires GTK4 and WebKitGTK 6.0)
+- **Android ARM64:** `android-arm64.apk` (Android 7+, signed preview; private notebook)
+- **iOS ARM64 Simulator:** `ios-simulator-arm64.zip` (developers only; not installable on iPhone)
 
 Extract the archive before opening the app. Each download has a SHA-256 checksum
 and includes GPLv3 and third-party license notices. The exact client source is
@@ -20,8 +24,13 @@ macOS may require allowing the app in System Settings → Privacy & Security aft
 the first launch attempt. Windows builds are not Authenticode-signed and may
 show SmartScreen's unrecognized-app prompt. Download only from this repository.
 
-Org repeaters are preserved but not automatically expanded. Mobile clients and
-OrbitalNote Sync are not available yet. Sync is coming soon as an optional hosted
-service; the app works offline today with no account or subscription.
+Org repeaters are preserved but not automatically expanded. Optional end-to-end
+encrypted Sync is available at https://sync.orbitalnote.org/ for $5/month or
+$48/year USD, including 1 GB. macOS ↔ Android Sync has been tested on real devices.
+Sync handles .org notes in one workspace; attachments and history cleanup are
+not yet available. Mobile Sync runs while foregrounded. iOS device distribution
+and real-device validation are still pending. The app works offline without an
+account or subscription. Android release signing may differ from developer builds;
+do not uninstall a debug build without first preserving its notebook.
 
 Questions or interest in Sync: **matt@masoftware.net**.

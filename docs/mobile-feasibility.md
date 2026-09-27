@@ -53,10 +53,15 @@ write as truncate-then-write against the only authoritative copy.
 
 ## Current evidence and decision
 
-The Linux native host and shared core are implemented. No mobile adapter,
-simulator, physical-device, signing or store-package verification has occurred.
-An iOS proof needs macOS/Xcode; Android needs an installed SDK/NDK/emulator or
-device. A responsive screenshot is only a frontend layout test.
+The Linux native host and shared core are implemented. On September 27, 2026,
+an ARM64 Android debug APK was built and installed on a physical Pixel 9a.
+Native service calls, note creation, editor input, saving, rendered preview,
+and persistence across a force-stop/cold relaunch were verified using the app's
+private test notebook. See [Android testing](android-testing.md).
+
+This does not pass the linked-folder gate: no Android document-provider adapter,
+iOS device proof, or signed store release has been implemented. The local Android
+build uses the standard debug signing key. An iOS proof still needs macOS/Xcode.
 
 Keep Wails v3 provisionally. The gate remains **open**, not passed. Failure to
 establish a maintainable native integration is a reason to revisit the host

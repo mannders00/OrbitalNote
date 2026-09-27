@@ -1,4 +1,10 @@
 /* Neutral surfaces, compact chrome, blue reserved for actions and links. */
+.sync-setting > div { width: 100%; min-width: 0; }
+.sync-setting input { width: 100%; margin: 8px 0; }
+.sync-setting label { display: block; margin-top: 16px; }
+.sync-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+#sync-key-dialog { max-width: min(600px, 92vw); }
+#sync-key { width: 100%; margin-bottom: 16px; overflow-wrap: anywhere; }
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
@@ -413,6 +419,9 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .agenda-group h2 small { font-size: 11px; font-weight: 400; color: var(--faint); }
 .agenda-group.overdue h2 { color: var(--warn); }
 .agenda-entry { display: flex; width: 100%; align-items: center; gap: 12px; padding: 13px 6px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; text-align: left; }
+.agenda-row { display: flex; align-items: center; gap: 6px; }
+.agenda-row .agenda-entry { min-width: 0; }
+.agenda-complete { flex: 0 0 44px; min-height: 44px; }
 .entry-mark { display: flex; align-items: center; color: var(--faint); }
 .entry-mark .icon { width: 17px; height: 17px; }
 .entry-main { min-width: 0; flex: 1; }

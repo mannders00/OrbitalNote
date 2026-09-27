@@ -90,8 +90,23 @@
       <div class="setting"><strong>Appearance</strong><select id="theme" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
       <div class="setting"><div><label for="vi-mode"><strong>Vi mode</strong></label><p id="vi-help">Vim-style keys in the source editor. Starts in Normal mode.<br>i / a: insert · Esc: normal · h j k l / w b: move<br>Ctrl D / Ctrl U: half-page down / up<br>v: select · dd / dw / x: delete · yy / p: copy / paste<br>u / Ctrl R: undo / redo · / and n / N: find<br>Use Cmd / Ctrl S to save. Basic bindings, not full Vim emulation.</p></div><input id="vi-mode" type="checkbox" role="switch" aria-describedby="vi-help"></div>
       <div class="setting"><strong>Workspace folder</strong><button id="settings-open">Open folder…</button></div>
+      <div class="setting sync-setting"><div><strong>OrbitalNote Sync · private preview</strong>
+        <p id="sync-status" role="status">Sync is not connected.</p><p id="sync-usage"></p>
+        <div id="sync-controls">
+          <label for="sync-server">Sync server</label><input id="sync-server" type="url" placeholder="https://sync.example.com" autocomplete="off">
+          <div class="sync-actions"><button id="sync-start">Sign in on website</button><button id="sync-finish">Check sign-in</button></div>
+          <p id="sync-code"></p>
+          <p>First device: create an encrypted workspace from this local folder. Other devices: enter its recovery key to combine their local notes with the same workspace. Conflicting versions are preserved.</p>
+          <button id="sync-create">Create encrypted workspace</button>
+          <label for="sync-join-key">Recovery key from your first device</label><input id="sync-join-key" type="password" autocomplete="off" spellcheck="false">
+          <div class="sync-actions"><button id="sync-connect">Connect this folder</button><button id="sync-recovery">Show recovery key</button><button id="sync-disconnect">Disconnect</button></div>
+          <p>This preview syncs .org notes while the app is running. Attachments and empty folders are not synced yet. Local files remain available offline. Save the recovery key somewhere safe: the server cannot recover it.</p>
+          <p id="sync-action-message" role="status"></p>
+        </div>
+      </div></div>
+      <dialog id="sync-key-dialog" aria-labelledby="sync-key-title"><form method="dialog"><h2 id="sync-key-title">Save your recovery key</h2><p>This key unlocks your encrypted workspace. Keep it in a password manager. Enter it in OrbitalNote on your other devices, never on the website.</p><textarea id="sync-key" readonly rows="4" spellcheck="false" aria-label="Recovery key"></textarea><button>Done</button></form></dialog>
       <div class="setting"><div><strong>Keyboard shortcuts</strong><p>Save: ⌘ / Ctrl S<br>Quick open: ⌘ / Ctrl K<br>Commands: ⌘ / Ctrl Shift P<br>Tabs in selected pane: ⌘ / Ctrl 1–9<br>Task details at heading: Alt T<br>Left sidebar: ⌘ / Ctrl Shift L<br>Right sidebar: ⌘ / Ctrl Shift R</p></div></div>
-      <div class="setting"><div><strong>OrbitalNote</strong><p>0.1.0 preview · Free and open source<br>Your notes are plaintext files on your computer. No account required.<br>OrbitalNote Sync is coming soon.</p></div></div>
+      <div class="setting"><div><strong>OrbitalNote</strong><p>0.1.0 preview · Free and open source<br>Your notes are plaintext files on your device. No account required for local use.<br>OrbitalNote Sync is in private testing.</p></div></div>
     </section>
   </main>
   <dialog id="modal" aria-labelledby="modal-title"><form method="dialog" id="modal-form"><div class="modal-heading"><h2 id="modal-title"></h2><button value="cancel" formnovalidate class="icon-button" data-icon="close" aria-label="Close dialog"></button></div><div id="modal-body"></div><div class="modal-actions"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="modal-submit" value="ok">Continue</button></div></form></dialog>

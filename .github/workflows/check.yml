@@ -3,6 +3,43 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
+  mobile:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runner: ubuntu-24.04
+          - platform: ios
+            runner: macos-14
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - if: matrix.platform == 'android'
+        uses: android-actions/setup-android@v3
+      - if: matrix.platform == 'android'
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
+      - name: Build native mobile preview
+        run: |
+          if [ '${{ matrix.platform }}' = android ]; then
+            export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          fi
+          bash scripts/build-${{ matrix.platform }}.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-development-preview
+          path: |
+            bin/*.apk
+            bin/*ios-simulator*.zip
+          if-no-files-found: error
   core:
     runs-on: ubuntu-24.04
     steps:

@@ -16,11 +16,14 @@ an entire editor configuration first.
 The client is **GPL-3.0-only**; see [LICENSE](LICENSE), [NOTICE](NOTICE) and the
 [name/logo policy](TRADEMARKS.md). Third-party dependencies keep their licenses.
 
-**OrbitalNote Sync is coming soon.** It will be a separate, optional hosted
-service. Use your own filesystem sync today; local use will remain free and
-account-free. Interested in Sync? Email [matt@masoftware.net](mailto:matt@masoftware.net).
+**OrbitalNote Sync is available as a paid preview.** Optional end-to-end encrypted
+`.org` note sync is $5/month or $48/year USD, including 1 GB. Create an account and
+subscribe through Stripe at [OrbitalNote Sync](https://sync.orbitalnote.org/).
+macOS ↔ Android Sync works on real native devices. Local use remains free and
+account-free. Attachments and history cleanup are not yet supported.
 
-**Status: desktop preview.** Native mobile apps and hosted Sync are not available.
+**Status: desktop and Android preview, with iOS Simulator builds.** Android currently
+uses an app-private notebook; linked Android device folders are not available.
 Downloads are not yet Apple-notarized or Windows Authenticode-signed. See each
 release's notes for platform requirements and the current preview limitations.
 
@@ -53,6 +56,25 @@ OS user configuration directory. All note writes happen only in the workspace.
 macOS needs Xcode command-line tools. Windows needs the current Wails v3 build
 prerequisites and WebView2. See [Wails installation](https://v3.wails.io/quick-start/installation/).
 The dependency is pinned to **v3.0.0-beta.25**, not Wails v2.
+
+### Android device testing
+
+With an Android SDK/NDK, Java 21, and a USB-debugging-authorized ARM64 phone:
+
+```sh
+bash scripts/build-android.sh --install
+```
+
+This builds and installs a standalone debug APK with a persistent **Test Notebook**
+on the device. See [Android testing](docs/android-testing.md) for setup and limitations.
+
+### iOS simulator and mobile releases
+
+With Xcode installed, run `bash scripts/build-ios.sh` to create an ARM64 iOS
+Simulator bundle. The app launches with a persistent private notebook. Real iPhone
+distribution needs Apple signing and TestFlight setup. GitHub Actions produces
+Android and iOS Simulator artifacts; see [mobile releases](docs/mobile-releases.md)
+for Android release-signing secrets and distribution details.
 
 ### Browser development host
 
@@ -170,14 +192,15 @@ palette. Scheduling, deadlines, timestamps and links use dialogs.
 - Revision rechecks cannot provide atomic compare-and-swap against uncooperative
   external processes on a normal filesystem. There remains a small check/rename
   race. File-provider/mobile atomicity needs separate implementation and tests.
-- Responsive layout is implemented; **native iOS/Android workspaces are not**.
+- Responsive layout and an Android private-notebook preview are implemented;
+  **linked iOS/Android device folders are not**.
   Upstream mobile pickers import copies and do not meet linked-folder requirements.
 - Installer integration, signing/notarization, auto-update, screen-reader auditing,
-  mobile device testing and release performance gates remain open.
+  comprehensive mobile device testing and release performance gates remain open.
 
 Use your preferred external editor or filesystem sync tool with the workspace.
 On external changes, clean tabs reload and dirty tabs retain their buffers.
-Hosted sync will be a separate, optional convenience, maintained independently
+Hosted sync is a separate, optional convenience, maintained independently
 of this GPL client. It is not needed to build or use OrbitalNote.
 
 ## Checks

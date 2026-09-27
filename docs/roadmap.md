@@ -17,7 +17,19 @@ Work proceeds in order. A prototype is not a release.
 
 See README for the current implementation and actual verification results.
 
-## Current checkpoint: September 24, 2026
+## Sync checkpoint: September 27, 2026
+
+- Independent Go account/API service, SQLite metadata and S3 ciphertext storage.
+- Native app Settings: website device authorization, secure credential storage,
+  create/join an encrypted workspace using a recovery key, and sync status.
+- Durable client checkpoints, idempotent revision commits, encrypted tombstones,
+  conflict copies, manual test entitlements, and a 1 GB retained-data quota.
+- Real-server integration tests cover two local workspaces, offline conflicts,
+  delete/edit races, lost responses, revocation, quotas, and restart persistence.
+- EC2/systemd packages are provided. A live AWS deployment and physical-device
+  Sync run remain to be verified. Public billing and production hardening remain open.
+
+## Earlier checkpoint: September 24, 2026
 
 - Architecture investigation and design recorded.
 - Functional desktop MVP implemented; native Linux ARM64 and browser interaction

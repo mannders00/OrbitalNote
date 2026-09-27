@@ -1,4 +1,4 @@
-name: Desktop release
+name: Native preview release
 on:
   push:
     tags: ['v*']
@@ -75,8 +75,65 @@ jobs:
             bin/*.tar.gz
             bin/*.sha256
           if-no-files-found: error
+  android:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
+      - name: Build signed Android preview
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_BUILD_TYPE: release
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo 'Configure the persistent Android signing secrets before releasing.'; exit 1; }
+          export ANDROID_KEYSTORE="$RUNNER_TEMP/orbitalnote.keystore"
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          trap 'rm -f "$ANDROID_KEYSTORE"' EXIT
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE"
+          bash scripts/build-android.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbitalnote-android-arm64
+          path: |
+            bin/*.apk
+            bin/*.sha256
+          if-no-files-found: error
+  ios:
+    needs: version
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build iOS simulator preview
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: bash scripts/build-ios.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-preview
+          path: |
+            bin/*ios-simulator*.zip
+            bin/*ios-simulator*.sha256
+          if-no-files-found: error
   publish:
-    needs: [version, build]
+    needs: [version, build, android]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -85,6 +142,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: orbitalnote-*
           merge-multiple: true
       - name: Verify and publish preview
         env:
@@ -97,6 +155,7 @@ jobs:
           done
           cd ..
           if ! gh release view "v$VERSION" >/dev/null 2>&1; then
-            gh release create "v$VERSION" --verify-tag --prerelease --title "OrbitalNote $VERSION" --notes-file docs/release-notes.md
+             gh release create "v$VERSION" --verify-tag --draft --prerelease --title "OrbitalNote $VERSION" --notes-file docs/release-notes.md
           fi
-          gh release upload "v$VERSION" dist/* --clobber
+           gh release upload "v$VERSION" dist/* --clobber
+           gh release edit "v$VERSION" --draft=false
