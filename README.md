@@ -7,7 +7,7 @@
 Write notes, see what's coming up, and get things done. Keep your files yours.
 
 OrbitalNote is a free, open-source Org editor with a calendar and agenda,
-running as a native app on your desktop and Android. Open the Org folder you
+running as a native app on desktop and mobile. Open the Org folder you
 already use, or start a new notebook. You don't need an account to use the app,
 and you don't need to learn Org syntax before you can add your first task.
 
@@ -79,7 +79,7 @@ open OrbitalNote on your phone later, and check it off. Come back to your deskto
 and the note reflects what you did.
 
 **OrbitalNote Sync is live as a paid preview.** It's end-to-end encrypted and
-works between macOS and Android. Updates happen automatically while the apps
+works across desktop and mobile. Updates happen automatically while the apps
 are open and connected. Android catches up when you reopen it; it doesn't yet
 sync while the app is closed.
 
