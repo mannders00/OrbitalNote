@@ -25,6 +25,9 @@ jobs:
           java-version: '17'
       - if: matrix.platform == 'android'
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
       - if: matrix.platform == 'android'
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
       - name: Build native mobile preview
