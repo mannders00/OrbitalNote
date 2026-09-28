@@ -1,5 +1,8 @@
 OrbitalNote is free. Your notes are plaintext files on your computer. No account required.
 
+New Open notebook branding across the native app, launcher icons, and project images:
+a pale-blue notebook and orbit on a dark navy background.
+
 This native preview brings a source-preserving Org editor, live Agenda and
 Calendar, timed tasks, draggable split panes, and a local folder workspace.
 Open an existing Org folder or start with the included example files.

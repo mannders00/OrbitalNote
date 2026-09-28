@@ -21,6 +21,9 @@ xcrun --sdk iphonesimulator clang -target "$target" -isysroot "$sdk" \
   -framework CoreMotion -framework SystemConfiguration -lresolv \
   "$wails/internal/commands/build_assets/ios/main.m" -Wl,-force_load,"$out/OrbitalNote.a" \
   -o "$out/OrbitalNote.app/orbitalnote"
+for spec in 'Icon60@2x:120' 'Icon60@3x:180' 'Icon76@2x:152' 'Icon83.5@2x:167'; do
+  sips -z "${spec#*:}" "${spec#*:}" app/build/icon-ios.png --out "$out/OrbitalNote.app/${spec%:*}.png" >/dev/null
+done
 python3 - "$out/OrbitalNote.app" "$version" <<'PY'
 import pathlib, plistlib, sys
 bundle=pathlib.Path(sys.argv[1])
@@ -29,6 +32,8 @@ with (bundle/'Info.plist').open('wb') as f:
         CFBundleDisplayName='OrbitalNote', CFBundleExecutable='orbitalnote', CFBundlePackageType='APPL',
         CFBundleShortVersionString=sys.argv[2].split('-')[0], CFBundleVersion='1',
         MinimumOSVersion='15.0', LSRequiresIPhoneOS=True, UIDeviceFamily=[1,2],
+        CFBundleIcons={'CFBundlePrimaryIcon': {'CFBundleIconFiles': ['Icon60']}},
+        **{'CFBundleIcons~ipad': {'CFBundlePrimaryIcon': {'CFBundleIconFiles': ['Icon60', 'Icon76', 'Icon83.5']}}},
         UILaunchScreen={}, UISupportedInterfaceOrientations=['UIInterfaceOrientationPortrait',
         'UIInterfaceOrientationLandscapeLeft','UIInterfaceOrientationLandscapeRight']), f)
 PY
