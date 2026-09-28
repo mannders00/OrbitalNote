@@ -1,4 +1,5 @@
-import { call, chooseWorkspace, native, onClose, onCloseTab, quit, openExternal, setNativeTheme } from './api.js';
+import { call, chooseWorkspace, native, onClose, onCloseTab, quit, openExternal, setNativeTheme, zoomNative } from './api.js';
+import { createShortcuts } from './shortcuts.js';
 import { attachVi } from './vi.js';
 import { escapeHTML as esc, command, replaceSelection, updateRaw } from './editor.js';
 import { icon, mountIcons } from './icons.js';
@@ -329,6 +330,25 @@ function setPreview(t, html) {
   // share a window, including their in-document links.
   for (const el of preview.querySelectorAll('[id]')) el.id = prefix + el.id;
   for (const link of preview.querySelectorAll('a[href^="#"]')) link.setAttribute('href', '#' + prefix + link.getAttribute('href').slice(1));
+  t.previewFolds ||= new Set();
+  for (const heading of preview.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
+    const body = heading.nextElementSibling;
+    if (!body?.className.startsWith('outline-text-') || !body.textContent.trim()) continue;
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'preview-heading-fold';
+    const title = heading.textContent.trim();
+    button.setAttribute('aria-controls', body.id);
+    button.updateFold = collapsed => {
+      body.hidden = collapsed;
+      button.textContent = collapsed ? '▸' : '▾';
+      button.setAttribute('aria-expanded', String(!collapsed));
+      button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} heading: ${title}`);
+      if (collapsed) t.previewFolds.add(heading.id); else t.previewFolds.delete(heading.id);
+    };
+    button.updateFold(t.previewFolds.has(heading.id));
+    heading.addEventListener('click', () => { t.previewHeading = heading.id; });
+    button.addEventListener('click', e => { e.preventDefault(); button.updateFold(!body.hidden); });
+    heading.prepend(button);
+  }
 }
 function updateStatus(t = current()) {
   if (!t?.surface) return;
@@ -609,21 +629,62 @@ async function editorCommand(name) {
   }
   command(source, name, extra);
 }
-const commands = [
-  ['Toggle left sidebar', '⌘ / Ctrl Shift L', () => toggleSidebar('left')], ['Toggle right sidebar', '⌘ / Ctrl Shift R', () => toggleSidebar('right')],
-  ['New note', '⌘ / Ctrl N', createFile], ['Open workspace', '', openWorkspace], ['Save note', '⌘ / Ctrl S', save],
-  ['Go to agenda', '', () => setView('agenda')], ['Go to calendar', '', () => setView('calendar')], ['Search workspace', '', () => setView('search')],
-  ['Create heading', 'Alt Enter', () => editorCommand('heading')], ['Promote heading', 'Alt ←', () => editorCommand('promote')], ['Demote heading', 'Alt →', () => editorCommand('demote')],
-  ['Move heading up', 'Alt ↑', () => editorCommand('move-up')], ['Move heading down', 'Alt ↓', () => editorCommand('move-down')],
-  ['Toggle TODO', 'Alt T', () => editorCommand('todo')], ['Toggle checkbox', '', () => editorCommand('checkbox')],
-  ['Insert timestamp', '', () => editorCommand('timestamp')], ['Schedule heading', '', () => editorCommand('schedule')], ['Set deadline', '', () => editorCommand('deadline')], ['Insert link', '', () => editorCommand('link')],
-  ['Indent line', 'Tab', () => editorCommand('indent')], ['Outdent line', 'Shift Tab', () => editorCommand('outdent')], ['Preview document', '', () => setMode('preview')], ['Edit source', '', () => setMode('edit')], ['Settings', '', () => setView('settings')],
-];
+function headingFoldCommand(action) {
+  const t = current();
+  if (!t) { notify('Open a note to fold its headings.'); return; }
+  if (t.mode === 'preview') {
+    const buttons = [...t.surface.querySelectorAll('.preview-heading-fold')];
+    if (action.endsWith('-all')) {
+      for (const button of buttons) button.updateFold(action === 'fold-all');
+    } else {
+      const button = buttons.find(b => b.parentElement.id === t.previewHeading) || buttons.find(b => b.getClientRects().length);
+      if (button) button.updateFold(action === 'fold' ? true : action === 'unfold' ? false : button.getAttribute('aria-expanded') === 'true');
+    }
+    return;
+  }
+  if (!source.foldHeading(action)) notify('No foldable heading here.');
+  source.focus();
+}
+const actionDefinitions = [
+  ['settings', 'Settings', 'Mod+,', () => setView('settings')],
+  ['commands', 'Run command', 'Mod+P', () => openPalette('commands')],
+  ['files', 'Find file', 'Mod+O', () => openPalette('files')],
+  ['close-tab', 'Close focused tab', 'Mod+W', closeActiveTab],
+  ['fold-toggle', 'Toggle heading folding', '', () => headingFoldCommand('toggle')],
+  ['fold', 'Collapse current heading', '', () => headingFoldCommand('fold')],
+  ['unfold', 'Expand current heading', '', () => headingFoldCommand('unfold')],
+  ['fold-all', 'Fold all headings', '', () => headingFoldCommand('fold-all')],
+  ['unfold-all', 'Unfold all headings', '', () => headingFoldCommand('unfold-all')],
+  ['left-sidebar', 'Toggle left sidebar', 'Mod+Shift+L', () => toggleSidebar('left')],
+  ['right-sidebar', 'Toggle right sidebar', 'Mod+Shift+R', () => toggleSidebar('right')],
+  ['new-note', 'New note', 'Mod+N', createFile], ['open-workspace', 'Open workspace', '', openWorkspace], ['save', 'Save note', 'Mod+S', save],
+  ['agenda', 'Go to agenda', '', () => setView('agenda')], ['calendar', 'Go to calendar', '', () => setView('calendar')], ['search', 'Search workspace', '', () => setView('search')],
+  ...[
+    ['heading', 'Create heading', 'Alt+Enter'], ['promote', 'Promote heading', 'Alt+ArrowLeft'], ['demote', 'Demote heading', 'Alt+ArrowRight'],
+    ['move-up', 'Move heading up', 'Alt+ArrowUp'], ['move-down', 'Move heading down', 'Alt+ArrowDown'],
+    ['todo', 'Edit task at heading', 'Alt+T'], ['checkbox', 'Toggle checkbox', ''],
+    ['timestamp', 'Insert timestamp', ''], ['schedule', 'Schedule heading', ''], ['deadline', 'Set deadline', ''], ['link', 'Insert link', ''],
+    ['indent', 'Indent line', 'Tab'], ['outdent', 'Outdent line', 'Shift+Tab'],
+  ].map(([id, label, key]) => [id, label, key, () => editorCommand(id), 'editor']),
+  ['undo', 'Undo edit', 'Mod+Z', () => source?.undo(), 'editor'],
+  ['redo', 'Redo edit', 'Mod+Shift+Z', () => source?.redo(), 'editor'],
+  ['preview', 'Preview document', '', () => setMode('preview')], ['edit', 'Edit source', '', () => setMode('edit')],
+  ['zoom-in', 'Zoom in', 'Mod+=', () => zoomNative(1)], ['zoom-out', 'Zoom out', 'Mod+-', () => zoomNative(-1)], ['zoom-reset', 'Actual size', 'Mod+0', () => zoomNative(0)],
+  ...Array.from({ length: 9 }, (_, i) => [`tab-${i + 1}`, `Select tab ${i + 1}`, `Mod+${i + 1}`, () => { const id = layout.focusedGroup().tabs[i]; if (id) layout.select(id); }]),
+].map(([id, label, key, execute, scope = 'app']) => ({ id, label, key, execute, scope }));
+const shortcuts = createShortcuts(actionDefinitions, $('keyboard-settings'), updateShortcutHints);
+function updateShortcutHints() {
+  for (const [id, action] of [['quick-open', 'files'], ['palette-button', 'commands'], ['context-toggle', 'right-sidebar'], ['menu', 'left-sidebar']]) {
+    document.getElementById(id).title = `${actionDefinitions.find(d => d.id === action).label} (${shortcuts.label(action)})`;
+  }
+  if ($('palette').open) renderPalette();
+}
+updateShortcutHints();
 function fuzzy(text, query) { let i = 0; for (const c of text.toLowerCase()) if (c === query[i]) i++; return i === query.length; }
 function openPalette(kind) { paletteKind = kind; $('palette-input').value = ''; $('palette-input').placeholder = kind === 'files' ? 'Open a file…' : 'Find a command…'; $('palette').showModal(); $('palette-input').focus(); renderPalette(); }
 function renderPalette() {
   const q = $('palette-input').value.toLowerCase().trim();
-  const items = paletteKind === 'files' ? workspace.files.filter(f => !f.directory).sort((a, b) => (recent.indexOf(a.path) < 0 ? 999 : recent.indexOf(a.path)) - (recent.indexOf(b.path) < 0 ? 999 : recent.indexOf(b.path))).map(f => [f.path, recent.includes(f.path) ? 'Recent' : '', () => openNote(f.path)]) : commands;
+  const items = paletteKind === 'files' ? workspace.files.filter(f => !f.directory).sort((a, b) => (recent.indexOf(a.path) < 0 ? 999 : recent.indexOf(a.path)) - (recent.indexOf(b.path) < 0 ? 999 : recent.indexOf(b.path))).map(f => [f.path, recent.includes(f.path) ? 'Recent' : '', () => openNote(f.path)]) : actionDefinitions.map(d => [d.label, shortcuts.binding(d.id) ? shortcuts.label(d.id) : '', d.execute]);
   paletteItems = items.filter(item => fuzzy(item[0], q)); paletteSelection = 0; drawPalette();
 }
 function drawPalette() { $('palette-results').innerHTML = paletteItems.map((item, i) => `<button data-command-index="${i}" class="${i === paletteSelection ? 'selected' : ''}">${esc(item[0])}<kbd>${esc(item[1])}</kbd></button>`).join('') || '<p class="empty">No matches</p>'; }
@@ -675,21 +736,15 @@ listen('theme', 'change', () => { localStorage.setItem('org-theme', $('theme').v
 $('vi-mode').checked = localStorage.getItem('org-vi-mode') === 'true';
 listen('vi-mode', 'change', () => { localStorage.setItem('org-vi-mode', String($('vi-mode').checked)); for (const t of tabs.values()) t.vi?.setEnabled($('vi-mode').checked); });
 document.addEventListener('keydown', run(async e => {
-  if ($('modal').open || $('palette').open) return;
-  const mod = e.metaKey || e.ctrlKey;
-  if (mod && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); const id = layout.focusedGroup().tabs[Number(e.key) - 1]; if (id) layout.select(id); return; }
-  if (mod && e.shiftKey && ['l', 'r'].includes(e.key.toLowerCase())) { e.preventDefault(); toggleSidebar(e.key.toLowerCase() === 'l' ? 'left' : 'right'); }
-  else if (e.key === 'Escape' && (mobileLeftOpen || mobileRightOpen)) { const trigger = mobileRightOpen ? 'context-toggle' : 'menu'; closeMobileSidebars(); $(trigger).focus(); }
-  else if (mod && !e.shiftKey && e.key.toLowerCase() === 'w') { e.preventDefault(); await closeActiveTab(); }
-  else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); await save(); }
-  else if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette('files'); }
-  else if (mod && e.shiftKey && e.key.toLowerCase() === 'p') { e.preventDefault(); openPalette('commands'); }
-  else if (mod && e.key.toLowerCase() === 'n') { e.preventDefault(); await createFile(); }
-  else if (source && !e.target.closest('button') && (e.target === source || source.contains(e.target))) {
-    const name = e.key === 'Tab' ? e.shiftKey ? 'outdent' : 'indent' : e.altKey ? { Enter: 'heading', ArrowLeft: 'promote', ArrowRight: 'demote', ArrowUp: 'move-up', ArrowDown: 'move-down', t: 'todo' }[e.key] || (e.code === 'KeyT' ? 'todo' : null) : null;
-    if (name) { e.preventDefault(); await editorCommand(name); }
+  if (shortcuts.capture(e) || e.isComposing || document.querySelector('dialog[open]')) return;
+  const action = shortcuts.match(e);
+  const editing = source && current()?.mode === 'edit' && !e.target.closest('button') && (e.target === source || source.contains(e.target));
+  if (action && (action.scope !== 'editor' || editing)) {
+    e.preventDefault(); e.stopImmediatePropagation(); await action.execute();
+  } else if (e.key === 'Escape' && (mobileLeftOpen || mobileRightOpen)) {
+    const trigger = mobileRightOpen ? 'context-toggle' : 'menu'; closeMobileSidebars(); $(trigger).focus();
   }
-}));
+}), true);
 window.addEventListener('beforeunload', e => { if ([...tabs.values()].some(dirty)) { e.preventDefault(); e.returnValue = ''; } });
 async function closeActiveTab() {
   if ($('modal').open || $('palette').open) return;

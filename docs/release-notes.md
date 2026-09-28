@@ -3,6 +3,13 @@ OrbitalNote is free. Your notes are plaintext files on your computer. No account
 New Open notebook branding across the native app, launcher icons, and project images:
 a pale-blue notebook and orbit on a dark navy background.
 
+Headings now fold in editing and reading views, with inline collapse buttons and
+palette commands for individual headings or the full document. The document's
+reading/edit controls stay to the left of the expanded right sidebar.
+
+Application shortcuts are configurable in Settings → Keyboard shortcuts. Defaults:
+Cmd/Ctrl+, opens Settings, Cmd/Ctrl+P opens Run command, and Cmd/Ctrl+O finds a file.
+
 This native preview brings a source-preserving Org editor, live Agenda and
 Calendar, timed tasks, draggable split panes, and a local folder workspace.
 Open an existing Org folder or start with the included example files.

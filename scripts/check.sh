@@ -5,5 +5,5 @@ test -z "$(gofmt -l app internal scripts/native-smoke scripts/appicon)"
 go test ./...
 go vet ./...
 if command -v bun >/dev/null; then
-  bun test app/ui/editor.test.js app/ui/calendar.test.js
+  bun test app/ui/editor.test.js app/ui/calendar.test.js app/editor/headings.test.js
 fi

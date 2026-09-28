@@ -18,7 +18,8 @@ type Host struct {
 	allowQuit atomic.Bool
 }
 
-func (h *Host) Quit() { h.allowQuit.Store(true); application.Get().Quit() }
+func (h *Host) Quit()              { h.allowQuit.Store(true); application.Get().Quit() }
+func (h *Host) Zoom(direction int) { zoomWindow(direction) }
 func (h *Host) OpenURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil {

@@ -28,6 +28,7 @@ export async function chooseWorkspace() {
 export async function onClose(handler) { if (native) (await wails()).Events.On('workspace:request-close', handler); }
 export async function onCloseTab(handler) { if (native) (await wails()).Events.On('workspace:close-tab', handler); }
 export async function quit() { if (native) return (await wails()).Call.ByName('main.Host.Quit'); }
+export async function zoomNative(direction) { if (native) return (await wails()).Call.ByName('main.Host.Zoom', direction); }
 export async function syncCall(method, ...args) {
   if (!native) throw new Error('Sync settings are available in the native desktop and Android apps.');
   if (!['Status', 'Start', 'Finish', 'Create', 'Connect', 'Recovery', 'Disconnect'].includes(method)) throw new Error('Unknown Sync action');

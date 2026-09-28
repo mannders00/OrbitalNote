@@ -18,10 +18,17 @@ func configureZoom(a *application.App) {
 	menu := application.DefaultApplicationMenu()
 	fileMenu := menu.FindByLabel("File").GetSubmenu()
 	fileMenu.Clear()
-	fileMenu.Add("Close Tab").SetAccelerator("Cmd+W").OnClick(func(_ *application.Context) {
+	fileMenu.Add("Close Tab").OnClick(func(_ *application.Context) {
 		a.Event.Emit("workspace:close-tab")
 	})
+	// WebView shortcuts use the same configurable registry as the palette.
+	for _, role := range []application.Role{application.Undo, application.Redo} {
+		if item := menu.FindByRole(role); item != nil {
+			item.RemoveAccelerator()
+		}
+	}
 	for label, direction := range map[string]int{"Actual Size": 0, "Zoom In": 1, "Zoom Out": -1} {
+		menu.FindByLabel(label).RemoveAccelerator()
 		menu.FindByLabel(label).OnClick(func(_ *application.Context) {
 			application.InvokeSync(func() {
 				if window := a.Window.Current(); window != nil {
@@ -31,4 +38,15 @@ func configureZoom(a *application.App) {
 		})
 	}
 	a.Menu.Set(menu)
+}
+
+func zoomWindow(direction int) {
+	if direction < -1 || direction > 1 {
+		return
+	}
+	application.InvokeSync(func() {
+		if window := application.Get().Window.Current(); window != nil {
+			C.orgWorkspaceZoom(window.NativeWindow(), C.int(direction))
+		}
+	})
 }

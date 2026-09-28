@@ -11,14 +11,14 @@
 </head>
 <body spellcheck="false" autocorrect="off" autocapitalize="off">
   <nav id="ribbon" aria-label="Navigation">
-    <button id="quick-open" class="icon-button" title="Quick open (⌘ / Ctrl K)" aria-label="Quick open"><img src="/mark.svg" width="30" height="30" alt=""></button>
+    <button id="quick-open" class="icon-button" title="Find file (⌘ / Ctrl O)" aria-label="Quick open"><img src="/mark.svg" width="30" height="30" alt=""></button>
     <span class="ribbon-divider"></span>
     <button data-view="agenda" class="icon-button" data-icon="agenda" title="Agenda" aria-label="Agenda"></button>
     <button data-view="calendar" class="icon-button" data-icon="calendar" title="Calendar" aria-label="Calendar"></button>
     <button data-view="search" class="icon-button" data-icon="search" title="Search" aria-label="Search"></button>
     <button data-view="tags" class="icon-button" data-icon="tags" title="Tags" aria-label="Tags"></button>
     <span class="ribbon-spacer"></span>
-    <button id="palette-button" class="icon-button" data-icon="command" title="Command palette (⌘ / Ctrl Shift P)" aria-label="Command palette"></button>
+    <button id="palette-button" class="icon-button" data-icon="command" title="Run command (⌘ / Ctrl P)" aria-label="Command palette"></button>
     <button data-view="settings" class="icon-button" data-icon="settings" title="Settings" aria-label="Settings"></button>
   </nav>
   <aside id="sidebar" aria-label="Files">
@@ -48,6 +48,8 @@
       <button class="primary" id="welcome-open">Open folder…</button>
     </section>
     <section id="document" hidden>
+      <div class="document-body">
+      <div class="document-main">
       <div class="document-toolbar">
         <h1 id="document-name"></h1>
         <div class="actions">
@@ -56,11 +58,11 @@
         </div>
       </div>
       <div id="conflict" class="conflict" hidden><span>File changed on disk. Unsaved edits have been retained.</span><button id="save-copy">Save a copy</button><button id="reload-file">Reload disk version…</button></div>
-      <div class="document-body">
         <div id="panes" data-mode="edit">
           <div class="source-pane"></div>
           <article id="preview" class="prose"></article>
         </div>
+      </div>
         <button id="context-scrim" class="context-scrim" aria-label="Close right sidebar" tabindex="-1" hidden></button>
         <aside id="context" aria-label="Outline and backlinks">
           <header class="context-header"><span data-icon="outline"></span><span class="panel-title">Outline</span><button id="context-close" class="icon-button" data-icon="panel-right" title="Hide right sidebar" aria-label="Hide right sidebar" aria-controls="context"></button></header>
@@ -109,7 +111,7 @@
         </div>
       </div></div>
       <dialog id="sync-key-dialog" aria-labelledby="sync-key-title"><form method="dialog"><h2 id="sync-key-title">Save your recovery key</h2><p>This key unlocks your encrypted workspace. Keep it in a password manager. Enter it in OrbitalNote on your other devices, never on the website.</p><textarea id="sync-key" readonly rows="4" spellcheck="false" aria-label="Recovery key"></textarea><button>Done</button></form></dialog>
-      <div class="setting"><div><strong>Keyboard shortcuts</strong><p>Save: ⌘ / Ctrl S<br>Quick open: ⌘ / Ctrl K<br>Commands: ⌘ / Ctrl Shift P<br>Tabs in selected pane: ⌘ / Ctrl 1–9<br>Task details at heading: Alt T<br>Left sidebar: ⌘ / Ctrl Shift L<br>Right sidebar: ⌘ / Ctrl Shift R</p></div></div>
+      <section id="keyboard-settings" class="keyboard-settings" aria-labelledby="keyboard-title"><h2 id="keyboard-title">Keyboard shortcuts</h2><p>Click a shortcut and press your preferred keys. Changes apply immediately and stay on this device. Clear a binding to disable it.</p><div class="shortcut-tools"><input data-shortcut-filter type="search" aria-label="Filter keyboard shortcuts" placeholder="Find an action…"><button data-shortcut-reset type="button">Restore default shortcuts</button></div><p data-shortcut-message role="status"></p><div data-shortcut-list></div></section>
       <div class="setting"><div><strong>OrbitalNote</strong><p>0.1.0 preview · Free and open source<br>Your notes are plaintext files on your device. No account required for local use.<br>Optional encrypted Sync is available as a paid preview.</p></div></div>
     </section>
   </main>

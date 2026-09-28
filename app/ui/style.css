@@ -298,6 +298,15 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .segmented button:hover { color: var(--text); }
 .segmented button.active { background: var(--selected); color: var(--text); }
 .document-body { position: relative; display: flex; flex: 1; min-height: 0; }
+.document-main { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.keyboard-settings { padding: 22px 0; }
+.keyboard-settings > p { color: var(--muted); font-size: 13px; margin: 12px 0; }
+.shortcut-tools { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+.shortcut-row { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(100px, 180px) auto; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.shortcut-row button { min-height: 34px; font-size: 12px; }
+.editor-heading-fold, .preview-heading-fold { display: inline-flex; align-items: center; justify-content: center; width: 26px; min-height: 28px; padding: 0; margin-right: 5px; border: 0; background: transparent; color: var(--muted); font: 16px/1 sans-serif; vertical-align: middle; cursor: pointer; }
+.editor-heading-fold:hover, .preview-heading-fold:hover { background: var(--hover); color: var(--text); }
+.cm-foldPlaceholder { background: var(--hover); color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; cursor: pointer; }
 .ui-panes { display: flex; flex: 1; min-width: 0; overflow: hidden; }
 .source-pane { position: relative; flex: 1; min-width: 0; overflow: hidden; }
 .ui-source, .ui-highlight, .vi-cursor-layer {

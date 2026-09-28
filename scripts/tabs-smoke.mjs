@@ -6,9 +6,10 @@ import { strict as assert } from 'node:assert';
 const browser = process.env.BROWSER === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ executablePath: process.env.CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
 const errors = [];
+const base = process.env.BASE_URL || 'http://127.0.0.1:9240';
 page.on('pageerror', error => errors.push(error.message));
 const api = async (method, q = {}) => {
-  const response = await page.request.post('http://127.0.0.1:9240/api', { data: { method, ...q } });
+  const response = await page.request.post(base + '/api', { data: { method, ...q } });
   assert.ok(response.ok(), await response.text());
   return response.json();
 };
@@ -28,7 +29,7 @@ const drag = async (id, target, edge) => {
 };
 try {
   await page.clock.setFixedTime(new Date(2026, 8, 24, 12));
-  await page.goto('http://127.0.0.1:9240');
+  await page.goto(base);
   await page.locator('#agenda').waitFor({ state: 'visible' });
   const state = await api('Status');
   const initial = '* TODO Split fixture\r\nSCHEDULED: <2026-09-24 Thu>\r\n\n' + 'Wrapped paragraph with words '.repeat(60) + '\n';

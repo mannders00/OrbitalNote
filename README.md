@@ -267,8 +267,9 @@ in-process bridge and do not start this HTTP server.
 | Action | Shortcut |
 |---|---|
 | Save | Ctrl / Cmd S |
-| Quick open | Ctrl / Cmd K |
-| Command palette | Ctrl / Cmd Shift P |
+| Find file | Ctrl / Cmd O |
+| Run command | Ctrl / Cmd P |
+| Settings | Ctrl / Cmd , |
 | New note | Ctrl / Cmd N |
 | Toggle left / right sidebar | Ctrl / Cmd Shift L / R |
 | New heading | Alt Enter |
@@ -281,6 +282,10 @@ in-process bridge and do not start this HTTP server.
 
 All editor commands are also available through the mouse-accessible command
 palette. Scheduling, deadlines, timestamps and links use dialogs.
+Application shortcuts can be reassigned or cleared in Settings → Keyboard shortcuts.
+The palette and button hints reflect your saved bindings. Use the heading chevrons
+or the palette's fold/unfold commands to collapse a heading and its subtree in
+editing or reading mode. Folding changes only the view, never the Org source.
 
 ## Boundaries and known limitations
 

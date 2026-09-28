@@ -84,7 +84,7 @@ try {
   await page.locator('#modal-submit').click();
   await page.locator('.calendar-event', { hasText:'Captured through calendar' }).waitFor();
   await page.screenshot({ path: '/tmp/opencode/orbitalnote-calendar.png' });
-  await page.keyboard.press('Control+k');
+  await page.keyboard.press('ControlOrMeta+o');
   await page.locator('#palette-input').fill('jrn');
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => document.getElementById('document-name')?.textContent === 'journal');

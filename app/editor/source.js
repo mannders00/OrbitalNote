@@ -1,6 +1,35 @@
 import { EditorState, EditorSelection, StateField } from '@codemirror/state';
 import { EditorView, Decoration, WidgetType, keymap, drawSelection } from '@codemirror/view';
-import { history, historyKeymap, defaultKeymap, undo, redo } from '@codemirror/commands';
+import { history, defaultKeymap, undo, redo } from '@codemirror/commands';
+import { codeFolding, foldService, foldEffect, unfoldEffect, foldedRanges, unfoldAll } from '@codemirror/language';
+import { headingRanges } from './headings.js';
+
+function isFolded(state, from) {
+  let folded = false;
+  foldedRanges(state).between(from, from, start => { if (start === from) folded = true; });
+  return folded;
+}
+function foldHeading(view, heading, collapse = !isFolded(view.state, heading.from)) {
+  if (heading.to <= heading.from) return false;
+  const head = view.state.selection.main.head;
+  view.dispatch({ effects: (collapse ? foldEffect : unfoldEffect).of(heading),
+    ...(collapse && head > heading.from && head <= heading.to ? { selection: { anchor: heading.start } } : {}) });
+  return true;
+}
+class HeadingFold extends WidgetType {
+  constructor(heading, collapsed) { super(); this.heading = heading; this.collapsed = collapsed; }
+  eq(other) { return this.collapsed === other.collapsed && this.heading.from === other.heading.from && this.heading.to === other.heading.to && this.heading.title === other.heading.title; }
+  toDOM(view) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'editor-heading-fold';
+    button.textContent = this.collapsed ? '▸' : '▾';
+    button.setAttribute('aria-expanded', String(!this.collapsed));
+    button.setAttribute('aria-label', `${this.collapsed ? 'Expand' : 'Collapse'} heading: ${this.heading.title}`);
+    button.addEventListener('mousedown', e => e.preventDefault());
+    button.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); foldHeading(view, this.heading); });
+    return button;
+  }
+  ignoreEvent() { return true; }
+}
 
 class TaskBox extends WidgetType {
   constructor(line, done) { super(); this.line = line; this.done = done; }
@@ -20,6 +49,9 @@ class TaskBox extends WidgetType {
 
 function decorations(state) {
   const ranges = [], source = state.doc.toString();
+  for (const heading of headingRanges(source)) {
+    if (heading.to > heading.from) ranges.push(Decoration.widget({ widget: new HeadingFold(heading, isFolded(state, heading.from)), side: -2 }).range(heading.start));
+  }
   const keywords = source.match(/^#\+TODO:\s*(.+)$/im)?.[1] || 'TODO | DONE';
   const [pending, finished = 'DONE'] = keywords.split('|');
   const words = text => text.trim().split(/\s+/).map(word => word.replace(/\(.*\)/, ''));
@@ -70,17 +102,19 @@ function decorations(state) {
   }
   return Decoration.set(ranges, true);
 }
-const orgStyle = StateField.define({ create: decorations, update: (value, transaction) => transaction.docChanged ? decorations(transaction.state) : value, provide: field => EditorView.decorations.from(field) });
+const orgStyle = StateField.define({ create: decorations, update: (value, transaction) => transaction.docChanged || foldedRanges(transaction.startState) !== foldedRanges(transaction.state) ? decorations(transaction.state) : value, provide: field => EditorView.decorations.from(field) });
 
 export function createEditor(host) {
   let silent = false;
-  const extensions = [history(), drawSelection(), EditorView.lineWrapping, orgStyle,
+  const extensions = [history(), drawSelection(), EditorView.lineWrapping,
+    codeFolding({ placeholderText: ' … ' }),
+    foldService.of((state, from) => headingRanges(state.doc.toString()).find(h => h.start === from && h.to > h.from) || null), orgStyle,
     EditorView.domEventHandlers({ drop(event) {
       // Pane tab drops belong to TabLayout, not the editor's text-drop handler.
       if (event.dataTransfer?.types.includes('application/x-orbitalnote-tab')) { event.preventDefault(); return true; }
       return false;
     } }),
-    keymap.of([...historyKeymap, ...defaultKeymap]),
+    keymap.of(defaultKeymap),
     EditorView.contentAttributes.of({ class: 'ui-source', 'aria-label': 'Org source editor', spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off', autocomplete: 'off', 'data-ui': 'source' }),
     EditorView.updateListener.of(update => {
       if (update.docChanged && !silent) queueMicrotask(() => update.view.contentDOM.dispatchEvent(new Event('editor-input', { bubbles: true })));
@@ -103,6 +137,20 @@ export function createEditor(host) {
   };
   editor.replaceText = (text, from = editor.selectionStart, to = editor.selectionEnd) => { view.focus(); view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length }, scrollIntoView: true, userEvent: 'input' }); };
   editor.undo = () => undo(view); editor.redo = () => redo(view);
+  editor.foldHeading = action => {
+    if (action === 'unfold-all') return unfoldAll(view);
+    const headings = headingRanges(view.state.doc.toString()).filter(h => h.to > h.from);
+    if (action === 'fold-all') {
+      const head = view.state.selection.main.head;
+      const parent = headings.find(h => h.from < head && h.to >= head);
+      view.dispatch({ effects: headings.map(h => foldEffect.of(h)), ...(parent ? { selection: { anchor: parent.start } } : {}) });
+      return headings.length > 0;
+    }
+    const head = view.state.selection.main.head;
+    const heading = headings.find(h => h.start <= head && h.from >= head) || headings.filter(h => h.start <= head && h.to >= head).at(-1);
+    if (!heading) return false;
+    return foldHeading(view, heading, action === 'fold' ? true : action === 'unfold' ? false : undefined);
+  };
   editor.reveal = () => view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: 'nearest' }) });
   editor.halfPage = direction => {
     const head = view.state.selection.main.head, at = view.coordsAtPos(head);
