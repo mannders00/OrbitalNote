@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/assets/orbitalnote-banner-solid.png" alt="OrbitalNote. Move forward. Stay centered. Your notes, calendar and files." width="1200"></p>
+<p align="center"><img src="docs/assets/orbitalnote-banner-solid.png" alt="OrbitalNote. Org mode. A modern interface. Desktop and mobile, with optional encrypted Sync." width="1200"></p>
 
 # OrbitalNote
 
@@ -10,14 +10,14 @@
 [Project board](https://github.com/users/mannders00/projects/1) ·
 [Roadmap and work history](docs/roadmap.md) · [Contribute](CONTRIBUTING.md)
 
-**Your notes. Your calendar. Your files.**
+**Org mode. A modern interface.**
 
-Write notes, see what's coming up, and get things done. Keep your files yours.
+OrbitalNote is a polished, free, open-source Org client for desktop and mobile.
+Notes, tasks, and a visual calendar, built on your own `.org` files.
+Open your existing Org folder or start fresh. No Emacs required.
 
-OrbitalNote is a free, open-source Org editor with a calendar and agenda,
-running as a native app on desktop and mobile. Open the Org folder you
-already use, or start a new notebook. You don't need an account to use the app,
-and you don't need to learn Org syntax before you can add your first task.
+Work offline without an account. Add optional end-to-end encrypted Sync to
+keep your desktop and phone together.
 
 **Still in preview, with working native apps.** Notes, editing, calendar,
 agenda, and encrypted Sync are available now. macOS ↔ Android Sync has been
