@@ -24,6 +24,8 @@ The board uses **Todo → In Progress → Done**. `stage: local` means local imp
 
 ## Completed work
 
+- [Community: public Kanban, work history, Discussions, and contribution templates](https://github.com/mannders00/OrbitalNote/issues/27)
+- [Downloads: correct README links to preview.8 binaries](https://github.com/mannders00/OrbitalNote/issues/28)
 - [Foundation: local-first architecture and source preservation](https://github.com/mannders00/OrbitalNote/issues/1)
 - [Workspace: files, search, watching, and conflict handling](https://github.com/mannders00/OrbitalNote/issues/3)
 - [Editor: rich Org editing and reading preview](https://github.com/mannders00/OrbitalNote/issues/4)

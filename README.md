@@ -5,6 +5,7 @@
 [Ask a question](https://github.com/mannders00/OrbitalNote/discussions) ·
 [Request an improvement](https://github.com/mannders00/OrbitalNote/issues/new?template=improvement.yml) ·
 [Report a bug](https://github.com/mannders00/OrbitalNote/issues/new?template=bug.yml) ·
+[Project board](https://github.com/users/mannders00/projects/1) ·
 [Roadmap and work history](docs/roadmap.md) · [Contribute](CONTRIBUTING.md)
 
 **Your notes. Your calendar. Your files.**
