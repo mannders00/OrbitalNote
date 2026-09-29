@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and community discussion
+    url: https://github.com/mannders00/OrbitalNote/discussions
+    about: Ask for help, discuss workflows, or share ideas before opening a concrete request.
+  - name: Security report
+    url: https://github.com/mannders00/OrbitalNote/blob/main/SECURITY.md
+    about: Report vulnerabilities privately using the contact in SECURITY.md.

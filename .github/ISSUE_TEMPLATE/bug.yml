@@ -1,0 +1,29 @@
+name: Bug report
+description: Something is not working as expected
+title: "[Bug] "
+labels: [bug, needs-triage]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: App version and platform
+      placeholder: "preview.8, macOS 15 / Android 15 / Windows 11…"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include a small synthetic Org example if relevant. Do not include private notes or recovery keys.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Screenshots or additional context

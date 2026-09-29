@@ -1,0 +1,32 @@
+name: Improvement request
+description: Propose a feature or improve an existing workflow
+title: "[Idea] "
+labels: [enhancement, needs-triage]
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What are you trying to do?
+      description: Describe the workflow and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would improve it?
+      description: Examples, sketches, and comparisons are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Current workaround or alternatives
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Would you like to help?
+      options:
+        - "Sharing the idea"
+        - "Testing or giving feedback"
+        - "Documentation or design"
+        - "Implementation"

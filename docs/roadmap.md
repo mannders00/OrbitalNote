@@ -1,48 +1,43 @@
-# Delivery stages
+# Work history and roadmap
 
-Work proceeds in order. A prototype is not a release.
+[Open the project board](https://github.com/users/mannders00/projects/1) · [Community discussions](https://github.com/mannders00/OrbitalNote/discussions)
 
-1. **Architecture:** inspect pinned Wails and parser APIs, record boundaries and
-   preservation guarantees.
-2. **Functional local MVP:** safe folder access, source/preview, in-memory index,
-   search, agenda, calendar, watching, conflict handling and focused tests.
-3. **Polished local application:** complete editor commands, file navigation,
-   recovery history, accessibility, performance and native platform verification.
-4. **Hosted sync:** protocol conflict tests first, then independent Go/SQLite/S3
-   service, authentication, billing and tested backup/restore.
-5. **Mobile:** persistent iOS/SAF adapters, lifecycle and touch editing, physical
-   device tests. Never disguise imports as live folders.
-6. **Packaging/release:** signed artifacts and CI matrix, reproducible builds,
-   licensing, release notes, upgrade/rollback verification.
+The board uses **Todo → In Progress → Done**. `stage: local` means local implementation/testing, not a published release. Earlier work is recorded retrospectively; issue creation dates are the import date, not the original development dates. Backlog placement is not a release commitment.
 
-See README for the current implementation and actual verification results.
+## Local iteration — not released
 
-## Sync checkpoint: September 27, 2026
+- [Polish: folding, task hover editing, modal save, and time selection](https://github.com/mannders00/OrbitalNote/issues/15)
+- [Appearance: resizable sidebars, connected tabs, and CSS themes](https://github.com/mannders00/OrbitalNote/issues/16)
+- [Brand: apply selected Ion Blue across product assets](https://github.com/mannders00/OrbitalNote/issues/17)
 
-- Independent Go account/API service, SQLite metadata and S3 ciphertext storage.
-- Native app Settings: website device authorization, secure credential storage,
-  create/join an encrypted workspace using a recovery key, and sync status.
-- Durable client checkpoints, idempotent revision commits, encrypted tombstones,
-  conflict copies, manual test entitlements, and a 1 GB retained-data quota.
-- Real-server integration tests cover two local workspaces, offline conflicts,
-  delete/edit races, lost responses, revocation, quotas, and restart persistence.
-- EC2/systemd packages are provided. A live AWS deployment and physical-device
-  Sync run remain to be verified. Public billing and production hardening remain open.
+## Open improvements
 
-## Earlier checkpoint: September 24, 2026
+- [iOS: physical-device signing, distribution, and Sync validation](https://github.com/mannders00/OrbitalNote/issues/18)
+- [Reliability: durable local recovery and richer conflict resolution](https://github.com/mannders00/OrbitalNote/issues/19)
+- [Planning: repeater semantics and complete event resizing](https://github.com/mannders00/OrbitalNote/issues/20)
+- [Accessibility: keyboard, screen-reader, and touch audit](https://github.com/mannders00/OrbitalNote/issues/21)
+- [Performance: profile large notebooks and workspaces](https://github.com/mannders00/OrbitalNote/issues/22)
+- [Sync: attachment support and retained-history cleanup](https://github.com/mannders00/OrbitalNote/issues/23)
+- [Accounts: enable verification/reset after email provisioning](https://github.com/mannders00/OrbitalNote/issues/24)
+- [Distribution: notarization, signing, and official mobile channels](https://github.com/mannders00/OrbitalNote/issues/25)
+- [Docs: improve first-run and platform setup instructions](https://github.com/mannders00/OrbitalNote/issues/26)
 
-- Architecture investigation and design recorded.
-- Functional desktop MVP implemented; native Linux ARM64 and browser interaction
-  probes pass. Source preservation, conditional writes, parser/date behavior,
-  subtree edits, directory operations and watcher tests pass.
-- Local polish underway, not complete. Next correctness work: durable recovery,
-  the unavoidable external-writer check/rename race, richer conflict resolution,
-  recurrence semantics and large-workspace profiling. Next UX work: keyboard/
-  screen-reader audit, complete event resizing and native platform verification.
-- Mobile feasibility gate is documented in `mobile-feasibility.md` and remains
-  open. It must be proved before committing to native mobile delivery.
-- Hosted sync implementation has not started. Its module boundary and protocol
-  design are documented; no billing/service dependency is present in the client.
-- Unsigned native packaging script and desktop CI build matrix are present.
-  A Linux ARM64 artifact was built locally. CI on other operating systems,
-  signing, store distribution and production release remain unverified.
+## Completed work
+
+- [Foundation: local-first architecture and source preservation](https://github.com/mannders00/OrbitalNote/issues/1)
+- [Workspace: files, search, watching, and conflict handling](https://github.com/mannders00/OrbitalNote/issues/3)
+- [Editor: rich Org editing and reading preview](https://github.com/mannders00/OrbitalNote/issues/4)
+- [Workspace: tabs, split panes, autosave, and layout restoration](https://github.com/mannders00/OrbitalNote/issues/5)
+- [Planning: agenda, calendar, task capture, and task completion](https://github.com/mannders00/OrbitalNote/issues/6)
+- [Sync: encrypted native workspace protocol and conflict tests](https://github.com/mannders00/OrbitalNote/issues/7)
+- [Sync: hosted accounts, billing, and real-device verification](https://github.com/mannders00/OrbitalNote/issues/8)
+- [Mobile: Android preview and iOS Simulator groundwork](https://github.com/mannders00/OrbitalNote/issues/9)
+- [Releases: desktop matrix, signed Android APK, and iOS artifacts](https://github.com/mannders00/OrbitalNote/issues/10)
+- [Onboarding: hosted Sync endpoint and device approval flow](https://github.com/mannders00/OrbitalNote/issues/11)
+- [Brand and website: Open notebook identity and product positioning](https://github.com/mannders00/OrbitalNote/issues/12)
+- [Editor: heading/subtree folding and palette commands](https://github.com/mannders00/OrbitalNote/issues/13)
+- [Settings: configurable application shortcuts](https://github.com/mannders00/OrbitalNote/issues/14)
+
+## Add your request
+
+Search for an existing issue, then use the bug or improvement template. Describe your workflow and expected behavior. Use Discussions for questions or early ideas; maintainers triage concrete requests into the project.
