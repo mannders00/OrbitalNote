@@ -12,7 +12,7 @@ import { icon, mountIcons } from './icons.js';
 import { TabLayout } from './tab-layout.js';
 import { createEditor } from './vendor/editor.js';
 import { taskDialog } from './task-dialog.js';
-import { timeGrid } from './calendar.js';
+import { timeGrid, bindCalendarGestures } from './calendar.js';
 import { setupSyncSettings } from './sync.js';
 
 let activeSurface = null, source = null, vi = null;
@@ -328,7 +328,6 @@ function showDocument() {
   $('document-name').textContent = active.replace(/\.org$/i, '');
   renderContext(t); updateStatus(); setMode(mode);
   const path = active, id = workspace.id;
-  call('Backlinks', { id, path }).then(results => { if (active !== path || workspace.id !== id || !activeSurface) return; setHTML($('backlinks'), results.map(r => `<button data-open="${esc(r.path)}" data-line="${r.line}">${esc(r.path)}</button>`).join('') || '<p class="empty">No backlinks</p>'); }).catch(fail);
 }
 function renderDocument(t) {
   if (!t.surface) return;
@@ -356,7 +355,7 @@ function renderContext(doc, surface = activeSurface) {
     stack.at(-1).element.append(details); stack.push({ level: h.level, element: details });
   }
   if (!doc.headings.length) outline.innerHTML = '<p class="empty">No headings</p>';
-  setHTML(surface.querySelector('[data-ui="properties"]'), doc.headings.flatMap(h => Object.entries(h.properties).map(([k, v]) => `<div><strong>${esc(k)}</strong> ${esc(v)}</div>`)).join('') || '<span>No properties</span>');
+  setHTML(surface.querySelector('[data-ui="properties"]'), Object.entries(doc.properties || {}).map(([k, v]) => `<button data-file-property="${esc(k)}" title="Edit ${esc(k)}"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + '<button data-file-property="">+ Add property</button>');
 }
 function setHTML(element, html) { if (element.renderedHTML !== html) { element.innerHTML = html; element.renderedHTML = html; } }
 function setPreview(t, html) {
@@ -464,7 +463,7 @@ async function updatePreview(path = active) {
   const seq = t.previewSequence = (t.previewSequence || 0) + 1, buffer = t.buffer;
   const doc = await call('Preview', { source: buffer });
   if (seq !== t.previewSequence || t.buffer !== buffer || tabs.get(path) !== t) return;
-  t.html = doc.html; t.headings = doc.headings;
+  t.html = doc.html; t.headings = doc.headings; t.properties = doc.properties;
   setPreview(t, doc.html); hydrateImages(t); renderContext(doc, t.surface); if (doc.warning) notify(doc.warning);
 }
 function relativePath(target, path = active) {
@@ -506,7 +505,7 @@ async function saveNote(path) {
     const note = await call('Save', { id, path, source: raw, revision: t.revision });
     if (workspace.id !== id || tabs.get(path) !== t) return;
     t.revision = note.revision; t.saved = buffer; t.conflict = false;
-    if (t.buffer === buffer) { t.html = note.html; t.headings = note.headings; setPreview(t, t.html); renderContext(t, t.surface); if (t.mode === 'preview') hydrateImages(t); }
+    if (t.buffer === buffer) { t.html = note.html; t.headings = note.headings; t.properties = note.properties; setPreview(t, t.html); renderContext(t, t.surface); if (t.mode === 'preview') hydrateImages(t); }
     notify(''); await refreshData();
   } catch (err) { t.saveError = true; if (String(err).includes('changed on disk')) t.conflict = true; throw err; }
   finally { t.saving = false; renderTabs(); updateStatus(t); if (!t.saveError && !t.conflict && tabs.get(path) === t && dirty(t)) scheduleSave(t); }
@@ -629,9 +628,9 @@ async function clockHeading() {
 }
 function renderClocks() {
   const clocks = runningClocks();
-  const html = clocks.map(e => `<button data-clock="${entries.indexOf(e)}" title="Clock out">◷ ${esc(e.title)} <small>since ${esc(e.clock.slice(-6, -1))}</small> · Stop</button>`).join('');
-  $('calendar-clock').innerHTML = html; $('calendar-clock').hidden = !clocks.length;
-  for (const t of tabs.values()) { const slot = t.surface?.querySelector('[data-ui="note-clock"]'); if (slot) { slot.innerHTML = html; slot.hidden = !clocks.length; } }
+  const text = clocks.map(e => `${e.title} · since ${e.clock.slice(-6, -1)}`).join(' · ');
+  $('calendar-clock').textContent = text; $('calendar-clock').hidden = !clocks.length;
+  for (const t of tabs.values()) { const slot = t.surface?.querySelector('[data-ui="note-clock"]'); if (slot) { slot.textContent = text; slot.hidden = !clocks.length; } }
 }
 async function completeAgendaEntry(item) {
   if (!item) return;
@@ -708,9 +707,9 @@ function shiftCalendar(delta) {
   else calendarDate.setDate(calendarDate.getDate() + delta * (calendarMode === 'week' ? 7 : 1));
   renderCalendar();
 }
-async function capture(date = today(), time = '') {
+async function capture(date = today(), time = '', endTime = '') {
   const files = workspace.files.filter(f => !f.directory);
-  const data = await taskDialog(dialog, { date, time, path: files.some(f => f.path === 'inbox.org') ? 'inbox.org' : files[0]?.path || 'inbox.org' });
+  const data = await taskDialog(dialog, { date, time, endTime, path: files.some(f => f.path === 'inbox.org') ? 'inbox.org' : files[0]?.path || 'inbox.org' });
   if (!data) return;
   const path = data.get('path').trim();
   if (dirty(tabs.get(path))) { notify('Save your open edits to this file before capturing a task into it.'); return; }
@@ -782,6 +781,16 @@ async function editorCommand(name) {
     replaceSelection(source, changed.slice(start, changedEnd), start, end); return;
   }
   command(source, name, extra);
+}
+async function fileProperty(name) {
+  const t = current(), editor = source, path = active;
+  if (!t || view !== 'document') return;
+  const buffer = t.buffer, doc = await call('Preview', { source: buffer });
+  const data = await dialog(name ? 'Edit file property' : 'Add file property', `<p>Stored in the property drawer at the top of this Org file.</p><label>Property name<input name="name" required pattern="[A-Za-z0-9_@#%+\\-]+" value="${esc(name)}" ${name ? 'readonly' : ''} placeholder="CATEGORY"></label><label>Value<input name="value" value="${esc(doc.properties?.[name] || '')}"></label>${name ? '<label><input type="checkbox" name="remove"> Remove this property</label>' : ''}`, 'Save property');
+  if (!data || active !== path || tabs.get(path) !== t || t.buffer !== buffer) return;
+  const changed = await call('Edit', { source: buffer, operation: 'file-property', value: JSON.stringify({ name: data.get('name'), value: data.get('value'), remove: data.has('remove') }) });
+  if (active !== path || tabs.get(path) !== t || t.buffer !== buffer) return;
+  applySource(editor, buffer, changed);
 }
 async function headingAction(operation) {
   const t = current(), editor = source, path = active;
@@ -942,6 +951,7 @@ async function executePalette(i) { const item = paletteItems[i]; if (!item) retu
 
 document.addEventListener('click', run(async e => {
   const b = e.target.closest('button, [data-month]'); if (!b) return;
+  if (b.dataset.fileProperty !== undefined) return fileProperty(b.dataset.fileProperty);
   if (b.dataset.colorName !== undefined) {
     const key = 'org-tag-colors-' + workspace.key;
     let colors; try { colors = JSON.parse(localStorage.getItem(key) || '{}'); } catch {}
@@ -978,7 +988,7 @@ listen('quick-open', 'click', () => openPalette('files')); listen('palette-butto
 listen('palette-input', 'input', renderPalette);
 listen('palette-input', 'keydown', async e => { const key = e.ctrlKey && !e.altKey && !e.metaKey ? ({ n: 'ArrowDown', p: 'ArrowUp' }[e.key.toLowerCase()] || e.key) : e.key; if (key === 'ArrowDown' || key === 'ArrowUp') { e.preventDefault(); paletteSelection = Math.max(0, Math.min(paletteItems.length - 1, paletteSelection + (key === 'ArrowDown' ? 1 : -1))); drawPalette(); $('palette-results').querySelector('.selected')?.scrollIntoView({ block: 'nearest' }); } else if (key === 'Enter') { e.preventDefault(); await executePalette(paletteSelection); } });
 listen('palette', 'click', e => { const r = $('palette').getBoundingClientRect(); if (e.target === $('palette') && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) $('palette').close(); });
-listen('agenda-minimal', 'click', () => { const enabled = $('agenda').classList.toggle('minimal'); $('agenda-minimal').setAttribute('aria-pressed', String(enabled)); $('agenda-minimal').textContent = enabled ? 'Full view' : 'Minimal view'; });
+listen('agenda-minimal', 'click', () => { const enabled = $('agenda').classList.toggle('minimal'), label = enabled ? 'Exit minimal view' : 'Enter minimal view'; $('agenda-minimal').setAttribute('aria-pressed', String(enabled)); $('agenda-minimal').setAttribute('aria-label', label); $('agenda-minimal').title = label; });
 const calendarView = $('calendar-view');
 document.querySelector('#calendar .filterbar').append(calendarView);
 listen('calendar-view', 'change', renderCalendar);
@@ -1071,15 +1081,23 @@ $('calendar-grid').addEventListener('dragstart', e => {
   if (entries[Number(b.dataset.entry)]?.stamp.kind === 'completed') { e.preventDefault(); return; }
   draggedEntry = entries[Number(b.dataset.entry)]; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', draggedEntry.title);
 });
+async function moveCalendarEntry(item, value) {
+  if (dirty(tabs.get(item.path)) || tabs.get(item.path)?.saving) { notify('Save your edits before moving this event.'); return; }
+  await call('Reschedule', { id: workspace.id, path: item.path, revision: item.revision, start: item.stamp.start, end: item.stamp.end, value: typeof value === 'string' ? value : JSON.stringify(value) });
+  await refresh();
+}
+bindCalendarGestures($('calendar-grid'), {
+  entry: index => entries[index],
+  create: (date, time, endTime) => capture(date, time, endTime).catch(fail),
+  change: (item, value) => moveCalendarEntry(item, value).catch(fail),
+});
 $('calendar-grid').addEventListener('dragover', e => { if (draggedEntry && e.target.closest('[data-drop-date]')) e.preventDefault(); });
 $('calendar-grid').addEventListener('dragend', () => { draggedEntry = null; });
 $('calendar-grid').addEventListener('drop', run(async e => {
   const cell = e.target.closest('[data-drop-date]'), item = draggedEntry; draggedEntry = null;
   if (!cell || !item) return; e.preventDefault(); const date = cell.dataset.dropDate;
   if (date === item.stamp.date) return;
-  if (dirty(tabs.get(item.path)) || tabs.get(item.path)?.saving) { notify('Save your edits before moving this event.'); return; }
-  await call('Reschedule', { id: workspace.id, path: item.path, revision: item.revision, start: item.stamp.start, end: item.stamp.end, value: date });
-  await refresh(); notify(`Updated the plaintext timestamp in ${item.path} to ${date}.`);
+  await moveCalendarEntry(item, date);
 }));
 async function restoreLayout() {
   let saved;

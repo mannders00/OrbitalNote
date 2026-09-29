@@ -30,12 +30,13 @@ type Link struct {
 	Line   int    `json:"line"`
 }
 type Document struct {
-	FileTags []string  `json:"fileTags"`
-	Source   string    `json:"source"`
-	HTML     string    `json:"html"`
-	Headings []Heading `json:"headings"`
-	Links    []Link    `json:"links"`
-	Warning  string    `json:"warning,omitempty"`
+	Properties map[string]string `json:"properties"`
+	FileTags   []string          `json:"fileTags"`
+	Source     string            `json:"source"`
+	HTML       string            `json:"html"`
+	Headings   []Heading         `json:"headings"`
+	Links      []Link            `json:"links"`
+	Warning    string            `json:"warning,omitempty"`
 }
 
 var headingRE = regexp.MustCompile(`^(\*+)\s+(.+)$`)
@@ -51,7 +52,21 @@ func config() *org.Configuration {
 }
 
 func Parse(source string) Document {
-	d := Document{Source: source, Headings: []Heading{}, Links: []Link{}}
+	d := Document{Source: source, Headings: []Heading{}, Links: []Link{}, Properties: map[string]string{}}
+	fileLines := strings.Split(source[filePropertyStart(source):], "\n")
+	if len(fileLines) > 0 && strings.EqualFold(strings.TrimSpace(fileLines[0]), ":PROPERTIES:") {
+		for _, line := range fileLines[1:] {
+			if strings.EqualFold(strings.TrimSpace(line), ":END:") {
+				break
+			}
+			if headingRE.MatchString(line) {
+				break
+			}
+			if p := propertyRE.FindStringSubmatch(strings.TrimSpace(line)); p != nil {
+				d.Properties[strings.ToUpper(p[1])] = p[2]
+			}
+		}
+	}
 	c := config()
 	ast := c.Parse(strings.NewReader(source), "")
 	// Use the mature parser for heading semantics; use source scanning only for

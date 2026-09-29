@@ -1,6 +1,7 @@
 package orgdoc
 
 import (
+	"encoding/json"
 	"errors"
 	"regexp"
 	"strings"
@@ -12,6 +13,18 @@ import (
 // EditHeading applies an explicit command to source spans, never an AST export.
 // line is one-based and may point into the heading's body.
 func EditHeading(source string, line int, operation, value string) (string, error) {
+	if operation == "file-property" {
+		at := filePropertyStart(source)
+		prefix := "* File\n"
+		if strings.Contains(source, "\r\n") {
+			prefix = "* File\r\n"
+		}
+		changed, err := editMetadata(prefix+source[at:], Heading{Line: 1}, "property", value)
+		if err != nil {
+			return "", err
+		}
+		return source[:at] + strings.TrimPrefix(changed, prefix), nil
+	}
 	if operation == "checkbox" {
 		return toggleCheckbox(source, line)
 	}
@@ -213,6 +226,30 @@ var stampDateRE = regexp.MustCompile(`^([<\[])\d{4}-\d{2}-\d{2}(?:\s+[A-Za-z]+)?
 
 // MoveTimestamp validates that the indexed span still denotes one simple event.
 func MoveTimestamp(source string, start, end int, date string) (string, error) {
+	var timing *struct {
+		Date    string `json:"date"`
+		Time    string `json:"time"`
+		EndTime string `json:"endTime"`
+	}
+	if strings.HasPrefix(date, "{") {
+		if err := json.Unmarshal([]byte(date), &timing); err != nil || timing == nil {
+			return "", errors.New("invalid calendar range")
+		}
+		date = timing.Date
+		if timing.Time == "" && timing.EndTime != "" {
+			return "", errors.New("end time requires start time")
+		}
+		for _, clock := range []string{timing.Time, timing.EndTime} {
+			if clock != "" {
+				if _, err := time.Parse("15:04", clock); err != nil {
+					return "", errors.New("invalid calendar time")
+				}
+			}
+		}
+		if timing.EndTime != "" && timing.EndTime <= timing.Time {
+			return "", errors.New("end time must follow start time")
+		}
+	}
 	if !orgdate.ValidDate(date) || start < 0 || end > len(source) || start >= end {
 		return "", errors.New("invalid timestamp edit")
 	}
@@ -226,10 +263,21 @@ func MoveTimestamp(source string, start, end int, date string) (string, error) {
 			}
 		}
 	}
-	if stamp == nil || !stamp.Active || stamp.Repeater != "" || stamp.EndDate != "" {
-		return "", errors.New("only a single active, non-repeating timestamp can be moved")
+	if stamp == nil || !stamp.Active || stamp.Kind == "completed" || stamp.EndDate != "" || (timing == nil && stamp.Repeater != "") {
+		return "", errors.New("only a single active timestamp can be moved")
 	}
 	day, _ := time.Parse("2006-01-02", date)
 	replacement := stampDateRE.ReplaceAllString(stamp.Raw, "<"+date+" "+day.Format("Mon"))
+	if timing != nil {
+		prefix := regexp.MustCompile(`^<\d{4}-\d{2}-\d{2}(?:\s+[A-Za-z]+)?(?:\s+\d{2}:\d{2}(?:-\d{2}:\d{2})?)?`)
+		header := "<" + date + " " + day.Format("Mon")
+		if timing.Time != "" {
+			header += " " + timing.Time
+			if timing.EndTime != "" {
+				header += "-" + timing.EndTime
+			}
+		}
+		replacement = prefix.ReplaceAllString(stamp.Raw, header)
+	}
 	return source[:start] + replacement + source[end:], nil
 }

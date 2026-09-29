@@ -46,7 +46,10 @@ try {
   assert.equal(await page.locator('.calendar-event').filter({hasText:'Other task'}).count(),0);
   await page.locator('[data-tab-select="file:interaction.org"]').click();
   assert.ok(await doc.locator('[data-ui="note-clock"]').isVisible());
-  await doc.locator('[data-ui="note-clock"] button').click();
+  assert.equal(await doc.locator('[data-ui="note-clock"] button').count(),0);
+  await page.locator('#ribbon [data-view="agenda"]').click();
+  await page.getByRole('button',{name:'Clock out of Focus task',exact:true}).first().click();
+  await page.locator('[data-tab-select="file:interaction.org"]').click();
   await doc.locator('[data-ui="note-clock"]').waitFor({state:'hidden'});
   assert.match((await api('Read',{id:state.id,path})).source,/\]--\[.*\] => /);
   await doc.locator('[data-ui="preview-toggle"]').click();
@@ -70,7 +73,7 @@ try {
   await editor.evaluate(el=>{el.focus();el.setSelectionRange(0,0);});
   const before=await editor.evaluate(el=>el.selectionStart);
   await page.keyboard.press('Control+d');
-  assert.equal(await editor.evaluate(el=>el.selectionStart),before);
+  assert.ok(await editor.evaluate(el=>el.selectionStart)>before);
   assert.ok(await editor.evaluate(el=>el.scrollTop>0));
   await page.keyboard.press('Control+u');
   await editor.evaluate(el=>{el.setSelectionRange(el.value.indexOf('Focus task'),el.value.indexOf('Focus task')+5);});
@@ -93,8 +96,10 @@ try {
   assert.match((await api('Read',{id:state.id,path})).source,/DEADLINE: <2026-10-01/);
   await page.locator('[data-calendar="week"]').click();
   assert.ok(await page.locator('.time-day-header.is-today').isVisible());
-  await page.locator('.calendar-event').filter({hasText:'Other task'}).first().dispatchEvent('dragstart',{dataTransfer:transfer});
-  await page.locator('.all-day-row [data-drop-date="2026-09-30"]').dispatchEvent('drop',{dataTransfer:transfer});
+  const eventBox = await page.locator('.calendar-event').filter({hasText:'Other task'}).first().boundingBox();
+  const dayBox = await page.locator('.all-day-row [data-drop-date="2026-09-30"]').boundingBox();
+  await page.mouse.move(eventBox.x + eventBox.width / 2, eventBox.y + eventBox.height / 2);
+  await page.mouse.down(); await page.mouse.move(dayBox.x + dayBox.width / 2, dayBox.y + dayBox.height / 2, { steps: 8 }); await page.mouse.up();
   await page.waitForFunction(()=>document.querySelector('.all-day-row [data-drop-date="2026-09-30"]')?.textContent.includes('Other task'));
   await page.locator('#tree [data-open="repeat-review.org"]').click();
   const repeat=page.locator('.ui-document[data-path="repeat-review.org"]');

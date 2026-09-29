@@ -12,6 +12,19 @@ var tagNameRE = regexp.MustCompile(`^[\pL\pN_@#%]+$`)
 var propertyNameRE = regexp.MustCompile(`^[A-Za-z0-9_@#%+-]+$`)
 var priorityRE = regexp.MustCompile(`\[#[A-Za-z0-9]\]\s*`)
 
+// File drawers may follow initial blank lines and comments, before keywords/body.
+func filePropertyStart(source string) int {
+	at := 0
+	for _, line := range strings.SplitAfter(source, "\n") {
+		text := strings.TrimSpace(line)
+		if text != "" && text != "#" && !strings.HasPrefix(text, "# ") {
+			break
+		}
+		at += len(line)
+	}
+	return at
+}
+
 // Metadata edits splice only the selected heading line or property entry.
 func editMetadata(source string, h Heading, operation, value string) (string, error) {
 	lines := strings.SplitAfter(source, "\n")

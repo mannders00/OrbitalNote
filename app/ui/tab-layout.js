@@ -20,6 +20,7 @@ export class TabLayout {
     this.rightControl = document.getElementById('context-toggle');
     this.toolbar = document.querySelector('.topbar');
     new ResizeObserver(() => this.position()).observe(root);
+    this.stripObserver = new ResizeObserver(() => this.position());
     root.addEventListener('pointerdown', e => {
       const group = e.target.closest('[data-group], [data-owner-group]');
       const id = group?.dataset.group || group?.dataset.ownerGroup;
@@ -188,13 +189,17 @@ export class TabLayout {
     // geometry and ownership, preserving editor state, focus and undo history.
     const existing = new Map([...this.root.querySelectorAll('[data-group]')].map(el => [el.dataset.group, el]));
     const groups = this.groups();
-    for (const [id, el] of existing) if (!groups.some(group => group.id === id)) { el.remove(); existing.delete(id); }
+    for (const [id, el] of existing) if (!groups.some(group => group.id === id)) { this.stripObserver.unobserve(el.querySelector('.tab-strip')); el.remove(); existing.delete(id); }
     for (const [id, surface] of this.surfaces) if (!this.tabs.has(id)) { surface.remove(); this.surfaces.delete(id); }
     for (const node of groups) {
       const group = existing.get(node.id) || document.createElement('section');
       if (!group.isConnected) this.root.append(group);
       group.className = `tab-group${node.id === this.focused ? ' focused' : ''}`; group.dataset.group = node.id;
-      if (!group.firstChild) group.innerHTML = '<div class="tab-strip"><span class="tab-control-slot tab-left-slot"></span><div class="tab-items" role="tablist" aria-label="Open tabs"></div><span class="tab-control-slot tab-right-slot"></span></div>';
+      if (!group.firstChild) {
+        group.innerHTML = '<div class="tab-strip"><span class="tab-control-slot tab-left-slot"></span><div class="tab-items" role="tablist" aria-label="Open tabs"></div><span class="tab-control-slot tab-right-slot"></span></div>';
+        this.stripObserver.observe(group.firstChild);
+        group.querySelector('.tab-items').addEventListener('scroll', () => this.updateTabBaselines());
+      }
       const strip = group.querySelector('.tab-items');
       strip.innerHTML = node.tabs.map(id => {
         const tab = this.tabs.get(id);
@@ -245,6 +250,22 @@ export class TabLayout {
     strip.querySelector('.tab-left-slot').append(this.leftControl);
     strip.querySelector('.tab-right-slot').append(this.rightControl);
     this.toolbar.remove();
+    this.updateTabBaselines();
+  }
+  updateTabBaselines() {
+    for (const strip of this.root.querySelectorAll('.tab-strip')) {
+      const active = strip.querySelector('.tab.active'), bounds = strip.getBoundingClientRect();
+      let start = 0, end = 0;
+      if (active && bounds.width) {
+        const tab = active.getBoundingClientRect(), viewport = strip.querySelector('.tab-items').getBoundingClientRect();
+        const left = Math.max(viewport.left, Math.min(viewport.right, tab.left));
+        const right = Math.max(left, Math.min(viewport.right, tab.right));
+        start = (left - bounds.left) / bounds.width * 100;
+        end = (right - bounds.left) / bounds.width * 100;
+      }
+      strip.style.setProperty('--active-tab-start', `${start}%`);
+      strip.style.setProperty('--active-tab-end', `${end}%`);
+    }
   }
   position() {
     const place = (el, x, y, width, height) => Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${Math.max(0, width)}px`, height: `${Math.max(0, height)}px` });
@@ -252,7 +273,8 @@ export class TabLayout {
       if (!node.children) {
         const group = this.root.querySelector(`[data-group="${node.id}"]`);
         if (group) place(group, x, y, width, height);
-        for (const id of node.tabs) { const surface = this.surfaces.get(id); if (surface) { place(surface, x, y + 36, width, height - 36); if (!surface.hidden) surface.querySelector('[data-ui="source"]')?.refresh?.(); } }
+        const stripHeight = group ? parseFloat(getComputedStyle(group.querySelector('.tab-strip')).height) || 36 : 36;
+        for (const id of node.tabs) { const surface = this.surfaces.get(id); if (surface) { place(surface, x, y + stripHeight, width, height - stripHeight); if (!surface.hidden) surface.querySelector('[data-ui="source"]')?.refresh?.(); } }
         return;
       }
       const horizontal = node.axis === 'horizontal', size = Math.max(0, (horizontal ? width : height) - 5), first = size * node.ratio;
@@ -266,5 +288,6 @@ export class TabLayout {
       visit(node.children[1], horizontal ? x + first + 5 : x, horizontal ? y : y + first + 5, horizontal ? size - first : width, horizontal ? height : size - first);
     };
     visit(this.tree, 0, 0, this.root.clientWidth, this.root.clientHeight);
+    this.updateTabBaselines();
   }
 }

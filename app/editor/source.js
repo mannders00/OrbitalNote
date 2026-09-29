@@ -136,11 +136,12 @@ export function createEditor(host) {
     } }),
     keymap.of([{ key: 'Enter', run(view) {
       const selection = view.state.selection.main; if (!selection.empty) return false;
-      const line = view.state.doc.lineAt(selection.head), match = /^(\s*)([-+]|\d+[.)])\s+\[[ Xx-]\]\s*(.*)$/.exec(line.text);
-      if (!match || selection.head < line.from + line.text.indexOf(']') + 1) return false;
-      if (!match[3]) { view.dispatch({ changes: { from: line.from, to: line.to, insert: '' } }); return true; }
+      const line = view.state.doc.lineAt(selection.head), match = /^(\s*)([-+*]|\d+[.)])[ \t]+(\[[ Xx-]\][ \t]*)?(.*)$/.exec(line.text);
+      // A column-zero star is an Org heading, not a list bullet.
+      if (!match || (match[2] === '*' && !match[1]) || selection.head < line.to - match[4].length) return false;
+      if (!match[4]) { view.dispatch({ changes: { from: line.from, to: line.to, insert: '' }, userEvent: 'input' }); return true; }
       const marker = /^\d/.test(match[2]) ? String(parseInt(match[2]) + 1) + match[2].slice(-1) : match[2];
-      const insert = '\n' + match[1] + marker + ' [ ] ';
+      const insert = '\n' + match[1] + marker + (match[3] ? ' [ ] ' : ' ');
       view.dispatch({ changes: { from: selection.head, insert }, selection: { anchor: selection.head + insert.length }, scrollIntoView: true, userEvent: 'input' }); return true;
     } }, ...defaultKeymap]),
     EditorView.contentAttributes.of({ class: 'ui-source', 'aria-label': 'Org source editor', spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off', autocomplete: 'off', 'data-ui': 'source' }),
@@ -184,8 +185,21 @@ export function createEditor(host) {
     return foldHeading(view, heading, action === 'fold' ? true : action === 'unfold' ? false : undefined);
   };
   editor.reveal = () => view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: 'nearest' }) });
-  editor.halfPage = direction => {
-    view.scrollDOM.scrollTop += direction * view.scrollDOM.clientHeight / 2;
+  editor.scrollVi = (direction, halfPage, count = 1) => {
+    const scroller = view.scrollDOM, head = view.state.selection.main.head;
+    const caret = view.coordsAtPos(head), bounds = scroller.getBoundingClientRect();
+    const amount = direction * count * (halfPage ? scroller.clientHeight / 2 : view.defaultLineHeight);
+    const top = Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, scroller.scrollTop + amount));
+    const delta = top - scroller.scrollTop;
+    if (caret && delta) {
+      const y = (caret.top + caret.bottom) / 2, inset = (caret.bottom - caret.top) / 2;
+      const target = halfPage ? y + delta : Math.max(bounds.top + inset, Math.min(bounds.bottom - inset, y - delta)) + delta;
+      if (Math.abs(target - y) > .5) {
+        const next = view.posAtCoords({ x: caret.left, y: target }, false);
+        if (next != null) view.dispatch({ selection: { anchor: next }, userEvent: 'select' });
+      }
+    }
+    scroller.scrollTop = top;
   };
   editor.setLineNumbers = mode => {
     numberMode = mode;

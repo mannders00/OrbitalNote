@@ -91,7 +91,7 @@ export function attachVi(editor, status, findPrompt) {
   editor.addEventListener('keydown', e => {
     if (e.target.closest('button')) return;
     if (!enabled || e.isComposing || e.altKey || e.metaKey) return;
-    if (e.ctrlKey && !(['r', 'd', 'u'].includes(e.key.toLowerCase()) && mode !== 'insert')) return;
+    if (e.ctrlKey && !(['r', 'd', 'u', 'e', 'y'].includes(e.key.toLowerCase()) && mode !== 'insert')) return;
     if (mode==='insert' && e.key!=='Escape') return;
     if (e.key.length>1 && !['Escape','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Backspace','Enter','Delete'].includes(e.key)) return;
     e.preventDefault(); e.stopPropagation();
@@ -100,10 +100,11 @@ export function attachVi(editor, status, findPrompt) {
     if (key==='Escape') { reset(); move(p); return; }
      if (pending !== 'R' && (/^[1-9]$/.test(key) || (key==='0' && count))) { count=(count+key).slice(0,4); report(); return; }
     const n=Math.min(Number(count)||1,999); count='';
-    if (e.ctrlKey && ['d', 'u'].includes(key)) {
+    if (e.ctrlKey && ['d', 'u', 'e', 'y'].includes(key)) {
       pending = '';
-       if (editor.halfPage) { for (let i = 0; i < n; i++) editor.halfPage(key === 'd' ? 1 : -1); }
-      else move(motion(key === 'd' ? 'j' : 'k', p, Math.max(1, Math.floor(editor.clientHeight / parseFloat(getComputedStyle(editor).lineHeight) / 2)) * n));
+      const direction = ['d', 'e'].includes(key) ? 1 : -1, halfPage = ['d', 'u'].includes(key);
+      if (editor.scrollVi) editor.scrollVi(direction, halfPage, n);
+      else move(motion(direction > 0 ? 'j' : 'k', p, (halfPage ? Math.max(1, Math.floor(editor.clientHeight / parseFloat(getComputedStyle(editor).lineHeight) / 2)) : 1) * n));
       report(); return;
     }
      if (pending === 'R') {

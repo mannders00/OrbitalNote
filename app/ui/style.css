@@ -109,9 +109,9 @@
 .rich-vi-cursor { position: absolute; inset: 0; padding: 0 !important; pointer-events: none; z-index: 5; overflow: hidden !important; }
 .rich-vi-cursor .vi-block-cursor::after { top: 0; bottom: auto; height: 100%; }
 .tab-control-slot { display: flex; flex: 0 0 30px; width: 30px; align-self: center; }
-/* Overlap the strip's baseline so fractional zoom cannot expose it below the
-   active tab. The strip clips the overlap; padding keeps labels in place. */
-.tab-items { display: flex; align-items: stretch; flex: 1; min-width: 0; gap: 3px; margin-bottom: -2px; overflow: auto; scrollbar-width: none; }
+/* The strip baseline has a real gap beneath the active tab. Its measured stops
+   follow scrolling/resizing; no covered border can bleed through at fractional zoom. */
+.tab-items { display: flex; align-items: stretch; flex: 1; min-width: 0; gap: 3px; overflow: auto; scrollbar-width: none; }
 .tab-strip .tab.active > button:focus:not(:focus-visible) { outline: none; }
 .completed { text-decoration: line-through; opacity: .65; }
 .calendar-event-title, .calendar-event-time { display: block; overflow: hidden; text-overflow: ellipsis; }
@@ -140,7 +140,8 @@
 
 .time-calendar { min-width: 280px; }
 .time-day-headers, .all-day-row, .time-grid { display: grid; grid-template-columns: 48px repeat(var(--days), minmax(0, 1fr)); gap: 0; }
-.time-day-headers { position: sticky; top: 0; z-index: 5; background: var(--side); border-bottom: 1px solid var(--border); }
+.calendar-pinned-header { position: sticky; top: 0; z-index: 5; background: var(--side); }
+.time-day-headers { background: var(--side); border-bottom: 1px solid var(--border); }
 .time-day-headers > button { min-width: 0; margin: 0; font-size: 11px; border-radius: 0; border: 0; border-left: 1px solid var(--border); padding: 8px 2px; background: none; }
 .time-day-headers > :last-child, .all-day-row > :last-child, .time-grid > :last-child { border-right: 1px solid var(--border); }
 #calendar:has(.time-calendar) .filterbar { margin-bottom: 0; }
@@ -296,8 +297,8 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 #tab-layout { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
 .tab-group { position: absolute; z-index: 2; min-width: 0; min-height: 0; overflow: hidden; pointer-events: none; }
 .tab-surface { position: absolute; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; container-type: inline-size; }
-.tab-strip { display: flex; align-items: stretch; min-width: 0; height: 36px; flex-shrink: 0; gap: 3px; padding: 4px 5px 0; overflow: auto; scrollbar-width: none; background: linear-gradient(var(--border), var(--border)) bottom / 100% 1px no-repeat, var(--side); pointer-events: auto; }
-.tab-strip .tab { display: flex; align-items: center; max-width: 230px; min-width: 100px; padding-bottom: 2px; flex-shrink: 0; border-radius: 6px 6px 0 0; color: var(--muted); }
+.tab-strip { display: flex; align-items: stretch; min-width: 0; height: 36px; flex-shrink: 0; gap: 3px; padding: 4px 5px 0; overflow: auto; scrollbar-width: none; background: linear-gradient(to right, var(--border) 0 var(--active-tab-start, 0%), transparent var(--active-tab-start, 0%) var(--active-tab-end, 0%), var(--border) var(--active-tab-end, 0%) 100%) bottom / 100% 1px no-repeat, var(--side); pointer-events: auto; }
+.tab-strip .tab { display: flex; align-items: center; max-width: 230px; min-width: 100px; flex-shrink: 0; border-radius: 6px 6px 0 0; color: var(--muted); }
 .tab-strip .tab.active { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-bottom: 0; }
 .tab-group.focused > .tab-strip .tab.active { background: var(--bg); }
 .tab-strip .tab > button { border: 0; background: none; font-size: 12px; }
@@ -448,7 +449,7 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .prose li.unchecked::before { content: '☐'; }
 .prose li.indeterminate::before { content: '⊟'; }
 .prose li.interactive-checkbox::before { content: none; }
-.preview-checkbox { position: absolute; left: -1.6em; top: .3em; width: 16px; height: 16px; padding: 0; border: 1px solid var(--muted); border-radius: 4px; color: var(--bg); line-height: 14px; font-size: 12px; }
+.preview-checkbox { position: absolute; left: -1.6em; top: calc(.5lh - 8px); width: 16px; height: 16px; padding: 0; border: 1px solid var(--muted); border-radius: 4px; color: var(--bg); line-height: inherit; font-size: inherit; }
 .preview-checkbox[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
 .source-checkbox { cursor: pointer; color: var(--accent); border-radius: 3px; }
 .source-checkbox:hover { background: var(--hover); }
@@ -530,13 +531,25 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .calendar-cell.is-today, .time-day.is-today, .time-day-header.is-today { background-color: var(--blue-soft); }
 .mini-grid button.is-today { background: var(--accent); color: var(--bg); }
 .heading-actions-menu:focus { outline: none; }
-.agenda-minimal-toggle { float: right; margin-bottom: 12px; font-size: 12px; }
-#agenda.minimal > :is(.page-heading, .filterbar, #agenda-results-count) { display: none; }
-#agenda.minimal #agenda-list { clear: both; }
+.agenda-actions { flex-shrink: 0; }
+#agenda.minimal > :is(.filterbar, #agenda-results-count), #agenda.minimal .page-heading > :first-child, #agenda.minimal #capture { display: none; }
+#agenda.minimal .page-heading { justify-content: flex-end; margin-bottom: 8px; }
 .monospace-mode :is(.cm-content, .ui-preview, .ui-preview h1, .ui-preview h2, .ui-preview h3, .ui-preview h4, .ui-preview h5, .ui-preview h6) { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-.ui-context { margin-top: 6px; }
-.clock-status { text-align: center; flex: 1; min-width: 0; }
-.clock-status button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--accent); }
+.clock-status { text-align: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+.time-calendar .time-slot, .time-calendar [data-entry] { touch-action: none; }
+.event-resize { position: absolute; left: 0; right: 0; height: 7px; cursor: ns-resize; z-index: 2; touch-action: none; }
+.event-resize.start { top: 0; }
+.event-resize.end { bottom: 0; }
+.event-resize:hover { background: var(--accent); opacity: .5; }
+.calendar-dragging { user-select: none; cursor: grabbing; }
+.calendar-drag-preview { position: absolute; left: 0; right: 0; z-index: 4; pointer-events: none; background: var(--blue-soft); border: 1px solid var(--accent); color: var(--text); font-size: 12px; padding: 2px 4px; }
+.all-day-row > div { position: relative; min-height: 30px; }
+.all-day-row .calendar-drag-preview { inset: 0; }
+.document-toolbar:has(.clock-status:not([hidden])) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr); }
+.document-toolbar:has(.clock-status:not([hidden])) .actions { justify-self: end; }
+#calendar-clock { padding: 10px 0; margin-bottom: 8px; }
+#calendar.page { padding-top: 0; }
+#calendar > .page-heading { padding-top: 30px; }
 .task-clock { flex-shrink: 0; padding: 4px; border: 0; background: transparent; color: var(--muted); }
 .clocked { border-bottom: 1px solid var(--border); }
 .ui-outline details details { margin-left: 12px; }
@@ -545,7 +558,7 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .ui-outline details[open] > summary::before { content: '⌄'; }
 .ui-outline details:not(:has(details)) > summary::before { content: ''; }
 @media (max-width: 760px) {
-  #sidebar, .ui-context { margin-top: 6px; }
+  #sidebar { margin-top: 6px; }
   .cm-content { padding-left: 28px !important; }
   .ui-preview { padding-left: 30px; }
 }
@@ -632,6 +645,8 @@ dialog::backdrop { background: #0006; }
   .filterbar select { max-width: 150px; }
   .segmented button { padding: 5px 8px; font-size: 11px; }
   .document-toolbar { padding: 6px 9px; gap: 7px; flex-wrap: wrap; }
+  .document-toolbar:has(.clock-status:not([hidden])) { grid-template-columns: minmax(0, 1fr) auto; }
+  .document-toolbar:has(.clock-status:not([hidden])) .clock-status { grid-column: 1 / -1; grid-row: 2; }
   .document-toolbar h1 { flex: 1; min-width: 85px; }
   .actions { gap: 5px; }
   .ui-preview, .ui-panes[data-mode="preview"] .ui-preview { padding: 15px 20px 40px; }

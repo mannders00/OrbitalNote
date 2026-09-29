@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.0-preview.11 — 2026-09-29
+
+- Agenda minimal mode uses an aligned book icon beside New task. Running clocks
+  use centered text; the calendar status has vertical padding.
+- Tab baselines have an actual gap beneath the active tab at fractional zoom.
+  The outline sidebar connects directly to the tab bar.
+- Preview checkboxes align with the first text line. Enter continues ordinary
+  bullets and numbered lists as well as checklists.
+- Vi Ctrl+E/Y scroll by lines, keeping the cursor visible; Ctrl+D/U move the cursor
+  and viewport together by half a page.
+- Add, edit, and remove file-level Org properties from the right sidebar.
+  Backlinks are removed from the sidebar.
+- Day/week Calendar supports drag-to-create time ranges, event movement,
+  start/end resizing, and conversion between all-day and timed events. Changes
+  update Org timestamps, preserving planning type and repeater metadata.
+- Weekday headers and all-day events pin together flush beneath the tab bar.
+
 ## 0.1.0-preview.10 — 2026-09-29
 
 - Inactive tabs are inert and relinquish editor focus; delayed edits cannot focus

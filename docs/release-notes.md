@@ -1,31 +1,30 @@
-# OrbitalNote 0.1.0-preview.10
+# OrbitalNote 0.1.0-preview.11
 
-Safer tab focus, Org task clocks, clickable checklists, and repeating tasks.
+Direct calendar editing, file properties, and refined editor interactions.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.9
+## What's new since preview.10
 
-### Editor and focus
-- Inactive tabs relinquish focus and become inert, preventing invisible typing in hidden notes.
-- Absolute or relative line numbers, plus a monospace setting that preserves heading sizes.
-- Click checklist markers in source or reading view. Enter continues the checklist and its indentation.
-- Outline sections collapse individually or together. Moving the cursor no longer opens folds.
-- Vi Ctrl+D/U scroll the viewport without moving the cursor; R/r replaces characters or selections.
+### Calendar
+- Drag across empty day/week time slots to create a task with a time range.
+- Move single-day events between dates and times; resize either edge to adjust the start or end.
+- Move events between all-day and timed slots. Changes update the Org timestamp while preserving scheduled/deadline type and repeater metadata.
+- Weekday headers and all-day events pin together directly beneath the tab bar while scrolling.
+- Current-clock status is plain, centered text with vertical padding.
 
-### Tasks and planning
-- Clock in/out beside agenda task states or through heading actions. Standard Org LOGBOOK entries record time; running tasks appear in a Clocked agenda section and in note/calendar status areas.
-- Completing a task stops its clock and adds CLOSED. Reopening removes CLOSED.
-- Edit task repeaters using +, ++, or .+ intervals. Repeating completion advances the date, retains the pending task, and records a completed occurrence in LOGBOOK for calendar history.
-- Minimal agenda mode hides its controls while retaining the query. Select saved agenda views in Calendar.
-- Drag deadlines to another date in month or day/week views. The current day is highlighted.
+### Org editing and properties
+- Add, edit, and remove file-level properties through the right sidebar. They are stored in a top-of-file Org property drawer; heading properties remain separate.
+- Backlinks have been removed from the sidebar for now.
+- Enter continues ordinary bullets and numbered lists as well as checklists, preserving indentation. Preview checkboxes align with the first line of text.
+- Vi Ctrl+E/Y scroll by lines, moving the cursor only as needed to keep it visible. Ctrl+D/U move the cursor and viewport together by half a page.
 
 ### Navigation and appearance
-- Ctrl+N/P moves through command/file pickers and action menus. Click outside the picker to close it; action menus no longer initially select their first item.
-- Nested files are visibly indented. Split dividers are thinner, the active-tab seam stays connected at fractional zoom, and mobile fold/sidebar spacing is improved.
-- Hide app ribbon command; the ribbon remains visible when the left sidebar is open.
-- Android uses a full-bleed adaptive launcher icon instead of a padded desktop image, avoiding legacy launcher white surrounds. Older Android versions receive properly sized opaque icons.
+- Agenda minimal mode is an aligned book icon beside New task.
+- Running-clock status in notes is plain, centered text without a card or Stop button. Clock-out remains available in agenda and heading actions.
+- Tab baselines have an actual gap beneath the active tab to avoid border bleed at fractional zoom.
+- The outline sidebar connects directly to the tab bar without a strip of note background above it.
 
-The [showcase vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.10/examples/Showcase) includes the research workflow featured in the refreshed project banner.
+The [showcase vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.11/examples/Showcase) includes the research workflow featured in the refreshed project banner.
 See the [changelog](CHANGELOG.md) and [interaction notes](docs/interaction-update.md) for details.
 
 Default shortcuts remain Cmd/Ctrl+, for Settings, Cmd/Ctrl+P for Run command,
@@ -57,7 +56,8 @@ executed. Image paste/import and resize controls remain future work.
 Saved views and appearance preferences are device-local.
 
 Repeater history shows recorded completions, not invented past occurrences.
-Multi-day repeating ranges still require source editing. Optional end-to-end
+Calendar drag/resize currently edits single-day events; multi-day ranges require
+source editing. Optional end-to-end
 encrypted Sync is available at https://sync.orbitalnote.org/ for $5/month or
 $48/year USD, including 1 GB. macOS ↔ Android Sync has been tested on real devices.
 Sync handles .org notes in one workspace; attachments and history cleanup are

@@ -71,15 +71,13 @@
           <header class="context-header"><span data-icon="outline"></span><span class="panel-title">Outline</span><button id="context-close" class="icon-button" data-icon="panel-right" title="Hide right sidebar" aria-label="Hide right sidebar" aria-controls="context"></button></header>
           <div id="outline"></div>
           <button id="outline-toggle-all" type="button">Collapse all</button>
-          <div class="section-label"><span data-icon="links"></span>Backlinks</div><div id="backlinks"></div>
-          <div class="section-label"><span data-icon="sliders"></span>Properties</div><div id="properties"></div>
+          <div class="section-label"><span data-icon="sliders"></span>File properties</div><div id="properties"></div>
         </aside>
       </div>
       <footer class="statusbar"><button id="save" class="save-status" title="Save now (⌘ / Ctrl S)"><span id="save-state">Saved</span></button><span id="vi-state" hidden aria-live="polite"></span><span id="cursor">Ln 1, Col 1</span><span class="status-detail">Org</span><span class="status-detail">UTF-8</span></footer>
     </section>
     <section id="agenda" class="page" hidden>
-      <button id="agenda-minimal" class="agenda-minimal-toggle" aria-pressed="false">Minimal view</button>
-      <div class="page-heading"><div><h1>Agenda <small id="agenda-count"></small></h1><p id="today-label"></p></div><button id="capture"><span data-icon="plus"></span>New task</button></div>
+      <div class="page-heading"><div><h1>Agenda <small id="agenda-count"></small></h1><p id="today-label"></p></div><div class="actions agenda-actions"><button id="agenda-minimal" class="icon-button" data-icon="book" aria-label="Enter minimal view" title="Enter minimal view" aria-pressed="false"></button><button id="capture"><span data-icon="plus"></span>New task</button></div></div>
       <div class="filterbar agenda-filterbar"><div class="segmented" id="agenda-filters"><button data-filter="today">Today</button><button data-filter="upcoming">Upcoming</button><button data-filter="overdue">Overdue</button><button data-filter="all">All tasks</button></div><div class="agenda-query-input"><input id="agenda-query" aria-label="Filter agenda" placeholder="Search tasks…"><div id="agenda-query-builder"></div></div><select id="kind-filter" aria-label="Filter entry type" hidden><option value="">All types</option><option value="scheduled">Scheduled</option><option value="deadline">Deadlines</option><option value="todo">Undated TODOs</option></select></div>
       <div id="agenda-results-count" role="status"></div>
       <div id="agenda-list"></div>
