@@ -1,0 +1,12 @@
+/* OrbitalNote Theme v1: Field Notes
+ * A warm notebook for research: serif reading and ruled headings.
+ * Base appearance: dark. Self-contained; paste into Custom theme CSS.
+ */
+:root { --bg:#18231d; --side:#223229; --ribbon:#223229; --panel:#223229; --text:#dce9df; --accent:#91c9a0; --button:#347ed7; --muted:color-mix(in srgb, #dce9df 65%, #18231d); --faint:color-mix(in srgb, #dce9df 45%, #18231d); --border:color-mix(in srgb, #dce9df 16%, #18231d); --hover:color-mix(in srgb, #dce9df 9%, #18231d); --selected:color-mix(in srgb, #91c9a0 18%, #18231d); --blue-soft:color-mix(in srgb, #91c9a0 12%, #18231d); --code:#91c9a0; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+
+.ui-preview { font-family: Georgia, serif; font-size: 17px; line-height: 1.85; }
+.ui-preview h2 { padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.ui-preview blockquote { border-left: 3px solid var(--accent); font-style: italic; }
+.page-heading h1 { font-family: Georgia, serif; font-weight: 500; }
+.tag-button, .entry-tag { border-radius: 2px; }

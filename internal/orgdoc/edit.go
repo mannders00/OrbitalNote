@@ -50,6 +50,8 @@ func EditHeading(source string, line int, operation, value string) (string, erro
 		eol = "\r\n"
 	}
 	switch operation {
+	case "tags", "property", "priority":
+		return editMetadata(source, h, operation, value)
 	case "task":
 		return editTask(source, h, value)
 	case "promote", "demote":

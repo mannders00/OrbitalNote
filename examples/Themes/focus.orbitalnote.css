@@ -1,0 +1,13 @@
+/* OrbitalNote Theme v1: Focus
+ * Quieter controls, generous leading, and calmer reading.
+ * Base appearance: dark. Self-contained; paste into Custom theme CSS.
+ */
+:root { --bg:#101827; --side:#182338; --ribbon:#182338; --panel:#182338; --text:#dce7f7; --accent:#8bb9ff; --button:#347ed7; --muted:color-mix(in srgb, #dce7f7 65%, #101827); --faint:color-mix(in srgb, #dce7f7 45%, #101827); --border:color-mix(in srgb, #dce7f7 16%, #101827); --hover:color-mix(in srgb, #dce7f7 9%, #101827); --selected:color-mix(in srgb, #8bb9ff 18%, #101827); --blue-soft:color-mix(in srgb, #8bb9ff 12%, #101827); --code:#8bb9ff; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+
+:root { --document-size: 15px; --document-leading: 1.95; }
+.document-toolbar h1 { opacity: .65; }
+.ui-preview { font-size: 17px; line-height: 1.95; }
+.ui-preview :is(h1,h2,h3) { font-weight: 500; letter-spacing: -.02em; }
+.tree button[data-open] { padding-block: 8px; }
+.statusbar { font-size: 10px; }

@@ -41,6 +41,18 @@ try {
   await page.locator('#tree [data-open="tabs-smoke.org"]').click();
   await page.locator('#ribbon [data-view="calendar"]').click();
   await page.locator('[data-tab-select="file:tabs-smoke.org"]').click();
+  const transfer = await page.evaluateHandle(() => new DataTransfer());
+  const beforeTab = page.locator('[data-tab-id="file:tabs-smoke.org"]'), beforeBox = await beforeTab.boundingBox();
+  await page.locator('[data-tab-id="view:calendar"]').dispatchEvent('dragstart', { dataTransfer: transfer });
+  await beforeTab.dispatchEvent('dragover', { dataTransfer: transfer, clientX: beforeBox.x + 2, clientY: beforeBox.y + 12 });
+  assert.ok(await page.locator('.tab-insertion-marker').isVisible());
+  const marker = await page.locator('.tab-insertion-marker').boundingBox();
+  assert.ok(Math.abs(marker.x - beforeBox.x) < 3);
+  await beforeTab.dispatchEvent('drop', { dataTransfer: transfer, clientX: beforeBox.x + 2, clientY: beforeBox.y + 12 });
+  assert.ok(await page.locator('.tab-insertion-marker').isHidden());
+  const order = await page.locator('.tab-items [data-tab-id]').evaluateAll(nodes => nodes.map(n => n.dataset.tabId));
+  assert.equal(order.indexOf('view:calendar') + 1, order.indexOf('file:tabs-smoke.org'));
+  await page.locator('[data-tab-select="file:tabs-smoke.org"]').click();
   await drag('view:calendar', page.locator('.tab-group'), 'right');
   assert.equal(await page.locator('.tab-group').count(), 2);
   assert.ok(await page.locator('#calendar').isVisible());

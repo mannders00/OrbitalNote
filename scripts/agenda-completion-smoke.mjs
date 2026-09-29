@@ -3,12 +3,13 @@ import { chromium } from 'playwright';
 import { strict as assert } from 'node:assert';
 const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
 try {
+  const base = process.env.BASE_URL || 'http://127.0.0.1:9240';
   const page = await browser.newPage();
   const api = async (method, q = {}) => {
-    const response = await page.request.post('http://127.0.0.1:9240/api', { data: { method, ...q } });
+    const response = await page.request.post(base + '/api', { data: { method, ...q } });
     assert.ok(response.ok(), await response.text()); return response.json();
   };
-  await page.goto('http://127.0.0.1:9240');
+  await page.goto(base);
   const { id } = await api('Status'), path = 'completion.org';
   const source = '#+TODO: NEXT WAIT | FINISHED\r\n* NEXT Complete from agenda\r\nBody stays untouched.\r\n';
   const existing = await api('Status');

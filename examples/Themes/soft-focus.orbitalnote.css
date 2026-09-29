@@ -1,0 +1,14 @@
+/* OrbitalNote Theme v1: Soft Focus
+ * Readable, roomy controls for relaxed everyday use.
+ * Base appearance: light. Self-contained; paste into Custom theme CSS.
+ */
+:root { --bg:#fff6f8; --side:#f2e5e9; --ribbon:#f2e5e9; --panel:#f2e5e9; --text:#49323c; --accent:#ad4671; --button:#ad4671; --muted:color-mix(in srgb, #49323c 65%, #fff6f8); --faint:color-mix(in srgb, #49323c 45%, #fff6f8); --border:color-mix(in srgb, #49323c 16%, #fff6f8); --hover:color-mix(in srgb, #49323c 9%, #fff6f8); --selected:color-mix(in srgb, #ad4671 18%, #fff6f8); --blue-soft:color-mix(in srgb, #ad4671 12%, #fff6f8); --code:#ad4671; --todo:#bd3535; --done:#287943; --warn:#956726; --warn-bg:#fbf2e3; --shadow:#0002; color-scheme:light; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+
+:root { font-size: 15px; --document-size: 15px; --document-leading: 1.9; }
+button, input, select { min-height: 34px; }
+.icon-button { min-height: 30px; }
+.tree button[data-open] { min-height: 34px; }
+.agenda-entry { padding-block: 17px; }
+.ui-preview { font-size: 17px; line-height: 1.9; }
+.segmented { padding: 4px; border-radius: 10px; }

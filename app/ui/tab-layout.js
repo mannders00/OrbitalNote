@@ -12,6 +12,8 @@ export class TabLayout {
     this.tree = this.group();
     this.focused = this.tree.id;
     this.dragged = null;
+    this.dropMarker = document.createElement('div'); this.dropMarker.className = 'tab-insertion-marker'; this.dropMarker.hidden = true;
+    this.dropMarker.setAttribute('aria-hidden', 'true'); root.append(this.dropMarker);
     this.surfaces = new Map();
     this.dividers = new Map();
     this.leftControl = document.getElementById('menu');
@@ -46,7 +48,15 @@ export class TabLayout {
       if (!this.dragged) return;
       const target = this.dropTarget(e); if (!target) return;
       e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-      this.clearDrop(); target.element.dataset.drop = target.edge;
+      this.clearDrop();
+      if (target.strip) {
+        const rect = target.strip.getBoundingClientRect();
+        this.dropMarker.hidden = false;
+        this.dropMarker.style.cssText = `left:${target.x}px;top:${rect.top + 5}px;height:${rect.height - 7}px`;
+        const items = target.strip.querySelector('.tab-items'), box = items.getBoundingClientRect();
+        if (e.clientX < box.left + 24) items.scrollLeft -= 12;
+        else if (e.clientX > box.right - 24) items.scrollLeft += 12;
+      } else target.element.dataset.drop = target.edge;
     });
     root.addEventListener('dragleave', e => { if (!root.contains(e.relatedTarget)) this.clearDrop(); });
     root.addEventListener('dragend', () => { this.dragged = null; this.clearDrop(); });
@@ -138,9 +148,16 @@ export class TabLayout {
       const nearest = Object.keys(distances).sort((a, b) => distances[a] - distances[b])[0];
       if (distances[nearest] < .25) edge = nearest;
     }
-    return { element, group: element.dataset.group, edge, before: strip ? e.target.closest('[data-tab-id]')?.dataset.tabId : undefined };
+    if (strip) {
+      const tabs = [...strip.querySelectorAll('[data-tab-id]')].filter(tab => tab.dataset.tabId !== this.dragged);
+      const next = tabs.find(tab => { const r = tab.getBoundingClientRect(); return e.clientX < r.left + r.width / 2; });
+      const box = strip.querySelector('.tab-items').getBoundingClientRect();
+      const x = next ? next.getBoundingClientRect().left : tabs.at(-1)?.getBoundingClientRect().right || box.left;
+      return { element, group: element.dataset.group, edge, strip, before: next?.dataset.tabId, x: Math.max(box.left, Math.min(box.right, x)) };
+    }
+    return { element, group: element.dataset.group, edge };
   }
-  clearDrop() { this.root.querySelectorAll('[data-drop]').forEach(el => delete el.dataset.drop); }
+  clearDrop() { this.dropMarker.hidden = true; this.root.querySelectorAll('[data-drop]').forEach(el => delete el.dataset.drop); }
   changed() { this.callbacks.changed?.(this.snapshot()); }
   snapshot() { return { tree: this.tree, focused: this.focused }; }
   restore(saved) {

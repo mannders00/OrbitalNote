@@ -1,0 +1,44 @@
+#+TITLE: Rich notes · Fieldwork
+#+FILETAGS: :showcase:design:
+
+* A notebook for the whole idea
+Write in *bold*, think in /italics/, keep ~code~ precise, and make room for
+_important details_. This is still an ordinary Org file, with a local attachment.
+
+#+CAPTION: Fieldwork — observations become useful decisions.
+[[file:attachments/fieldwork.png]]
+
+** From observation to action
+Diagrams belong beside the decisions they explain. Open Source below the diagram
+to inspect the original Mermaid text, or return to editing mode to change it.
+
+#+begin_src mermaid
+flowchart LR
+  A[Observe] --> B[Capture a note]
+  B --> C{What comes next?}
+  C --> D[Schedule a task]
+  C --> E[Develop the idea]
+  D --> F[Review together]
+  E --> F
+#+end_src
+
+** Put the reasoning in the note
+A simple model helps us decide what to work on: \(V = \frac{I \times C}{E}\),
+where impact and confidence are weighed against effort.
+
+#+begin_src latex
+\operatorname{priority} = \frac{\operatorname{impact}\times\operatorname{confidence}}{\operatorname{effort}}
+#+end_src
+
+| Idea                 | Impact | Confidence | Effort |
+|----------------------+--------+------------+--------|
+| A clearer first run  |      8 |       0.90 |      3 |
+| Faster task capture  |      7 |       0.85 |      2 |
+| Better review notes  |      5 |       0.95 |      1 |
+
+** Keep context close
+#+begin_quote
+A useful note brings together the observation, the reasoning, and the next step.
+#+end_quote
+
+See [[file:02 Fieldwork.org][the project plan]] for tasks, or [[file:03 Research.org][the research notebook]] for more math.

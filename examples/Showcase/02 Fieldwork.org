@@ -1,0 +1,47 @@
+#+TITLE: Fieldwork · Project plan
+#+TODO: TODO NEXT WAITING | DONE CANCELLED
+#+FILETAGS: :showcase:fieldwork:
+
+* TODO [#A] Review the field notes :research:
+SCHEDULED: <2026-09-28 Mon 09:00-10:00>
+:PROPERTIES:
+:CUSTOM_ID: review-field-notes
+:OWNER: Morgan
+:EFFORT: 1:00
+:CATEGORY: Research
+:END:
+Bring the strongest observations into [[file:01 Rich notes.org][the project notebook]].
+Use the heading menu to change tags, edit OWNER, or adjust the priority.
+
+** TODO Compare the two interview groups :analysis:
+- [X] Gather observations
+- [ ] Mark surprising patterns
+- [ ] Write the one-paragraph summary
+
+* TODO Sketch the onboarding flow :design:
+SCHEDULED: <2026-09-29 Tue 10:30-11:30>
+:PROPERTIES:
+:OWNER: Taylor
+:END:
+Make the next step obvious without hiding useful context.
+
+* WAITING Get feedback from the team :review:
+DEADLINE: <2026-09-30 Wed>
+Share the sketch and ask which step still feels uncertain.
+
+* TODO Publish the short project brief :writing:
+SCHEDULED: <2026-10-01 Thu 14:00-15:00>
+DEADLINE: <2026-10-02 Fri>
+Keep the goals, evidence, and next actions together.
+
+* DONE Set up the shared vocabulary :research:
+CLOSED: [2026-09-27 Sun]
+Observation, insight, decision, action. A small vocabulary makes reviews easier.
+
+* Project reference
+:PROPERTIES:
+:CUSTOM_ID: project-reference
+:EXTERNAL_SYSTEM_KEY: preserve-this-value
+:END:
+This custom property is intentionally unfamiliar. Edit another property and it
+should stay exactly where it is. Folding this heading changes only the view.

@@ -1,0 +1,12 @@
+/* OrbitalNote Theme v1: Nord
+ * Cool, low-contrast surfaces with a familiar developer-tool layout.
+ * Base appearance: dark. Self-contained; paste into Custom theme CSS.
+ */
+:root { --bg:#2e3440; --side:#3b4252; --ribbon:#3b4252; --panel:#3b4252; --text:#eceff4; --accent:#88c0d0; --button:#347ed7; --muted:color-mix(in srgb, #eceff4 65%, #2e3440); --faint:color-mix(in srgb, #eceff4 45%, #2e3440); --border:color-mix(in srgb, #eceff4 16%, #2e3440); --hover:color-mix(in srgb, #eceff4 9%, #2e3440); --selected:color-mix(in srgb, #88c0d0 18%, #2e3440); --blue-soft:color-mix(in srgb, #88c0d0 12%, #2e3440); --code:#88c0d0; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+
+:root { --document-font: "SFMono-Regular", Menlo, Consolas, monospace; }
+.ui-preview { font-family: -apple-system, sans-serif; line-height: 1.8; }
+button, input, select, textarea { border-radius: 4px; }
+.tab-strip .tab { border-radius: 3px 3px 0 0; }
+.calendar-event, .timed-event { border-radius: 2px; }

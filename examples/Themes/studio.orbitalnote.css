@@ -1,0 +1,15 @@
+/* OrbitalNote Theme v1: Studio
+ * Airy, rounded controls for planning and visual notes.
+ * Base appearance: dark. Self-contained; paste into Custom theme CSS.
+ */
+:root { --bg:#261e2d; --side:#34283e; --ribbon:#34283e; --panel:#34283e; --text:#eddfef; --accent:#cc9de7; --button:#347ed7; --muted:color-mix(in srgb, #eddfef 65%, #261e2d); --faint:color-mix(in srgb, #eddfef 45%, #261e2d); --border:color-mix(in srgb, #eddfef 16%, #261e2d); --hover:color-mix(in srgb, #eddfef 9%, #261e2d); --selected:color-mix(in srgb, #cc9de7 18%, #261e2d); --blue-soft:color-mix(in srgb, #cc9de7 12%, #261e2d); --code:#cc9de7; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+
+button, input, select, textarea { border-radius: 9px; }
+.segmented { border-radius: 12px; padding: 4px; }
+.segmented button { border-radius: 8px; }
+.tab-strip { height: 40px; }
+.tab-strip .tab { border-radius: 12px 12px 0 0; }
+.agenda-row { margin-bottom: 8px; background: var(--side); border-radius: 12px; padding-inline: 8px; }
+.agenda-entry { border-bottom: 0; }
+.ui-preview img { border-radius: 14px; }

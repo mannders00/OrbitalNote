@@ -15,7 +15,7 @@ try {
   await page.keyboard.press('ControlOrMeta+o');
   assert.equal(await page.locator('#palette-input').getAttribute('placeholder'), 'Open a file…');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Change shortcut: Find file', exact: true }).click();
+  await page.getByRole('button', { name: 'Change shortcut: Find file by name', exact: true }).click();
   await page.keyboard.press('ControlOrMeta+p');
   assert.match(await page.locator('[data-shortcut-message]').textContent(), /Already assigned to Run command/);
   assert.ok(!(await page.locator('#palette').evaluate(el => el.open)));
@@ -33,8 +33,8 @@ try {
   assert.ok(await page.locator('#palette').evaluate(el => el.open));
   await page.keyboard.press('Escape');
   await page.keyboard.press('ControlOrMeta+,');
-  await page.getByRole('button', { name: 'Clear shortcut: Find file', exact: true }).click();
-  assert.equal(await page.getByRole('button', { name: 'Change shortcut: Find file', exact: true }).textContent(), 'Not assigned');
+  await page.getByRole('button', { name: 'Clear shortcut: Find file by name', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'Change shortcut: Find file by name', exact: true }).textContent(), 'Not assigned');
   await page.getByRole('button', { name: 'Restore default shortcuts', exact: true }).click();
   await page.keyboard.press('ControlOrMeta+o');
   assert.ok(await page.locator('#palette').evaluate(el => el.open));

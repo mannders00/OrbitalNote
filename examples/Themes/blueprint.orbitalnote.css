@@ -1,0 +1,13 @@
+/* OrbitalNote Theme v1: Blueprint
+ * Structured technical notes with grid-like tables and crisp headings.
+ * Base appearance: light. Self-contained; paste into Custom theme CSS.
+ */
+:root { --bg:#f2fafc; --side:#e2eff3; --ribbon:#e2eff3; --panel:#e2eff3; --text:#203f4b; --accent:#147e98; --button:#147e98; --muted:color-mix(in srgb, #203f4b 65%, #f2fafc); --faint:color-mix(in srgb, #203f4b 45%, #f2fafc); --border:color-mix(in srgb, #203f4b 16%, #f2fafc); --hover:color-mix(in srgb, #203f4b 9%, #f2fafc); --selected:color-mix(in srgb, #147e98 18%, #f2fafc); --blue-soft:color-mix(in srgb, #147e98 12%, #f2fafc); --code:#147e98; --todo:#bd3535; --done:#287943; --warn:#956726; --warn-bg:#fbf2e3; --shadow:#0002; color-scheme:light; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+
+.ui-preview :is(h1,h2,h3), .page-heading h1 { font-family: "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: -.04em; }
+.ui-preview h2 { border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+.ui-preview table { border-collapse: collapse; width: 100%; }
+.ui-preview :is(th,td) { border: 1px solid var(--border); padding: 8px 12px; }
+.tab-strip .tab, button, input, select { border-radius: 2px; }
+.ui-preview blockquote { border-left: 3px solid var(--accent); background: var(--side); padding: 12px 18px; }

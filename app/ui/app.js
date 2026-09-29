@@ -1,5 +1,11 @@
 import { call, chooseWorkspace, native, onClose, onCloseTab, quit, openExternal, setNativeTheme, zoomNative } from './api.js';
 import { createShortcuts } from './shortcuts.js';
+import { setupAppearance, resizeSidebar } from './appearance.js';
+import { createAgendaQuery } from './agenda-query.js';
+document.addEventListener('appearance-change', () => {
+  const previews = [...document.querySelectorAll('.ui-preview')].filter(p => p.querySelector('.src-mermaid'));
+  if (previews.length) import('./vendor/rich.js').then(module => Promise.all(previews.map(p => module.renderRichPreview(p)))).catch(fail);
+});
 import { attachVi } from './vi.js';
 import { escapeHTML as esc, command, replaceSelection, updateRaw } from './editor.js';
 import { icon, mountIcons } from './icons.js';
@@ -102,6 +108,10 @@ async function dialog(title, body, action = 'Continue') {
     resolve(modal.returnValue === 'ok' ? new FormData($('modal-form')) : null);
   }, { once: true }));
 }
+$('modal').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.isComposing || e.shiftKey || e.target.matches('textarea, select, button')) return;
+  e.preventDefault(); $('modal-form').requestSubmit($('modal-submit'));
+});
 async function askText(title, label, value = '', action = 'Continue') {
   const data = await dialog(title, `<label>${esc(label)}<input name="value" required value="${esc(value)}"></label>`, action);
   return data?.get('value').trim() || null;
@@ -142,6 +152,7 @@ function createDocumentSurface(path, t) {
   const bind = (id, event, fn) => find(id).addEventListener(event, focused(fn));
   bind('preview-toggle', 'click', () => setMode(mode === 'edit' ? 'preview' : 'edit'));
   bind('save', 'click', save); bind('save-copy', 'click', saveCopy); bind('file-actions', 'click', fileActions);
+  bind('insert-content', 'click', e => showActionMenu(e.currentTarget, 'Insert and format', insertionActions.map(([id, label]) => [label, () => insertContent(id)])));
   bind('reload-file', 'click', async () => {
     const path = active, t = current(), id = workspace.id;
     if (!await confirm('Reload from disk?', 'Your unsaved buffer will be discarded. Save a copy first to keep both versions.', 'Reload')) return;
@@ -150,6 +161,7 @@ function createDocumentSurface(path, t) {
     tabs.set(path, tabFrom(note, t)); if (active === path && view === 'document') showDocument(); renderTabs();
   });
   bind('context-close', 'click', () => { toggleSidebar('right'); $('context-toggle').focus(); });
+  resizeSidebar(find('context'), 'right');
   bind('context-scrim', 'click', closeMobileSidebars);
   const observer = new ResizeObserver(() => {
     const compact = surface.getBoundingClientRect().width < 760;
@@ -172,6 +184,10 @@ function createDocumentSurface(path, t) {
     const changed = await call('Edit', { source: buffer, line: e.detail.line, operation: 'complete' });
     if (tabs.get(path) !== t || t.buffer !== buffer) return;
     applySource(editor, buffer, changed);
+  }));
+  editor.addEventListener('heading-menu', focused(async e => {
+    const offset = editor.value.split('\n').slice(0, e.detail.line - 1).reduce((n, line) => n + line.length + 1, 0);
+    editor.setSelectionRange(offset, offset); showHeadingMenu(e.detail.button);
   }));
   find('preview').addEventListener('click', focused(async e => {
     const a = e.target.closest('a'); if (!a) return; e.preventDefault();
@@ -223,7 +239,7 @@ function renderTree() {
   }
   const render = p => {
     const n = nodes.get(p); if (!n) return '';
-    return n.folders.map(f => `<details data-path="${esc(f)}" ${openFolders.has(f) || active.startsWith(f + '/') ? 'open' : ''}><summary>${esc(f.split('/').pop())}<button class="icon-button folder-actions" data-folder="${esc(f)}" title="Folder actions" aria-label="Actions for ${esc(f)}">${icon('more')}</button></summary>${render(f)}</details>`).join('') + n.files.map(f => `<button data-open="${esc(f)}" title="${esc(f)}" class="${f === active && view === 'document' ? 'active' : ''}"><span class="file-name">${esc(f.split('/').pop().replace(/\.org$/i, ''))}</span></button>`).join('');
+    return n.folders.map(f => `<details data-path="${esc(f)}" ${openFolders.has(f) || active.startsWith(f + '/') ? 'open' : ''}><summary>${esc(f.split('/').pop())}<button class="icon-button folder-actions" data-folder="${esc(f)}" title="Folder actions" aria-label="Actions for folder ${esc(f)}" aria-haspopup="menu">${icon('kebab')}</button></summary>${render(f)}</details>`).join('') + n.files.map(f => `<div class="tree-file-row"><button data-open="${esc(f)}" title="${esc(f)}" class="${f === active && view === 'document' ? 'active' : ''}"><span class="file-name">${esc(f.split('/').pop().replace(/\.org$/i, ''))}</span></button><button class="icon-button tree-file-actions" data-file-actions="${esc(f)}" aria-label="Actions for file ${esc(f)}" aria-haspopup="menu">${icon('kebab')}</button></div>`).join('');
   };
   $('tree').innerHTML = render('') || empty(workspace.id ? 'No Org files' : 'No workspace open');
   $('tree').querySelectorAll('[data-open]').forEach(el => { el.draggable = true; el.dataset.movePath = el.dataset.open; });
@@ -331,15 +347,34 @@ function setPreview(t, html) {
   for (const el of preview.querySelectorAll('[id]')) el.id = prefix + el.id;
   for (const link of preview.querySelectorAll('a[href^="#"]')) link.setAttribute('href', '#' + prefix + link.getAttribute('href').slice(1));
   t.previewFolds ||= new Set();
+  let headingIndex = 0;
   for (const heading of preview.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
+    const title = heading.textContent.trim();
+    const task = t.headings?.[headingIndex++];
+    if (task) {
+      const selectHeading = () => {
+        layout.select('file:' + t.surface.dataset.path);
+        const offset = t.buffer.split('\n').slice(0, task.line - 1).reduce((n, line) => n + line.length + 1, 0);
+        source.setSelectionRange(offset, offset); t.previewHeading = heading.id;
+      };
+      const menu = document.createElement('button'); menu.type = 'button'; menu.className = 'heading-menu-button'; menu.textContent = '⋮';
+      menu.setAttribute('aria-label', 'Heading actions'); menu.setAttribute('aria-haspopup', 'menu');
+      menu.addEventListener('click', e => { e.stopPropagation(); selectHeading(); showHeadingMenu(menu); }); heading.append(menu);
+      const state = heading.querySelector('.todo');
+      if (state && task.state) {
+        const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = `task-state ${task.done ? 'org-done' : 'org-todo'}`; toggle.textContent = task.state;
+        toggle.setAttribute('aria-label', `${task.done ? 'Reopen' : 'Complete'} task: ${task.state}`);
+        toggle.addEventListener('click', run(async e => { e.stopPropagation(); selectHeading(); await headingAction('complete'); }));
+        state.replaceWith(toggle);
+      }
+    }
     const body = heading.nextElementSibling;
     if (!body?.className.startsWith('outline-text-') || !body.textContent.trim()) continue;
     const button = document.createElement('button'); button.type = 'button'; button.className = 'preview-heading-fold';
-    const title = heading.textContent.trim();
     button.setAttribute('aria-controls', body.id);
     button.updateFold = collapsed => {
       body.hidden = collapsed;
-      button.textContent = collapsed ? '▸' : '▾';
+      button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 5 7 7-7 7"/></svg>';
       button.setAttribute('aria-expanded', String(!collapsed));
       button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} heading: ${title}`);
       if (collapsed) t.previewFolds.add(heading.id); else t.previewFolds.delete(heading.id);
@@ -348,6 +383,9 @@ function setPreview(t, html) {
     heading.addEventListener('click', () => { t.previewHeading = heading.id; });
     button.addEventListener('click', e => { e.preventDefault(); button.updateFold(!body.hidden); });
     heading.prepend(button);
+  }
+  if (preview.querySelector('.src-mermaid, .src-latex') || /\\\(|\\\[|\$/.test(preview.textContent)) {
+    import('./vendor/rich.js').then(module => module.renderRichPreview(preview)).catch(fail);
   }
 }
 function updateStatus(t = current()) {
@@ -444,24 +482,39 @@ async function saveCopy() {
   const path = await askText('Save a separate copy', 'Workspace-relative .org path', active.replace(/\.org$/i, '-conflict.org'), 'Save copy'); if (!path) return;
   await call('Save', { id: workspace.id, path, source: t.raw, revision: '' }); workspace = await call('Status'); await refreshData(); await openNote(path);
 }
-async function fileActions() {
-  const data = await dialog('File actions', '<label>Action<select name="action"><option value="rename">Rename or move…</option><option value="copy">Save a copy…</option><option value="delete">Delete file…</option></select></label>');
-  if (!data) return; const action = data.get('action'), t = current(), path = active;
-  if (action === 'copy') return saveCopy();
-  if (dirty(t) || t.saving) { notify('Save your edits before renaming or deleting this file.'); return; }
+function fileActions(event) { showFileMenu(active, event?.currentTarget || $('file-actions')); }
+function showFileMenu(path, anchor) {
+  showActionMenu(anchor, 'File actions', [['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
+}
+async function fileAction(path, action) {
+  const t = tabs.get(path), id = workspace.id;
+  if (action === 'copy') {
+    const note = t || await call('Read', { id, path });
+    const to = await askText('Save a copy', 'Workspace-relative .org path', path.replace(/\.org$/i, '-copy.org'), 'Save copy'); if (!to || id !== workspace.id) return;
+    await call('Save', { id, path: to, source: t ? t.raw : note.source, revision: '' }); workspace = await call('Status'); await refreshData(); return;
+  }
+  if (dirty(t) || t?.saving) { notify('Save your edits before renaming or deleting this file.'); return; }
   if (action === 'rename') {
     const to = await askText('Rename or move note', 'Destination path inside this workspace', path, 'Move note'); if (!to || to === path) return;
-    await call('Rename', { id: workspace.id, path, to }); tabs.delete(path); t.path = to; tabs.set(to, t); active = to; showDocument(); renderTabs();
-  } else if (await confirm('Delete note?', `${path} will be permanently removed from disk.`, 'Delete note')) {
-    await call('Remove', { id: workspace.id, path, revision: t.revision }); tabs.delete(path); active = ''; setView('agenda');
+    if (id !== workspace.id || dirty(t) || t?.saving) return;
+    await call('Rename', { id, path, to });
+    if (t) { tabs.delete(path); t.path = to; tabs.set(to, t); if (active === path) active = to; renderTabs(); if (view === 'document') showDocument(); }
+  } else {
+    const note = t || await call('Read', { id, path });
+    if (!await confirm('Delete note?', `${path} will be permanently removed from disk.`, 'Delete note')) return;
+    if (id !== workspace.id || dirty(t) || t?.saving) return;
+    await call('Remove', { id, path, revision: note.revision });
+    if (t) { disposeDocument(t); tabs.delete(path); layout.remove('file:' + path); }
+    if (!layout.tabs.size) { active = ''; activeSurface = null; setView('agenda'); }
   }
   workspace = await call('Status'); await refreshData(); renderTree();
 }
-async function folderActions(path) {
+function folderActions(path, anchor) {
+  showActionMenu(anchor, 'Folder actions', [['Rename or move…', () => folderAction(path, 'rename')], ['Delete empty folder…', () => folderAction(path, 'delete')]]);
+}
+async function folderAction(path, action) {
   if ([...tabs].some(([p,t]) => p.startsWith(path + '/') && (dirty(t) || t.saving))) { notify('Save edits in this folder before moving it.'); return; }
-  const data = await dialog('Folder actions', '<label>Action<select name="action"><option value="rename">Rename or move…</option><option value="delete">Delete empty folder…</option></select></label>');
-  if (!data) return;
-  if (data.get('action') === 'rename') {
+  if (action === 'rename') {
     const to = await askText('Rename or move folder', 'Destination path inside this workspace', path, 'Move folder'); if (!to || to === path) return;
     await call('Rename', { id: workspace.id, path, to });
     for (const [p,t] of [...tabs]) if (p.startsWith(path + '/')) { const next = to + p.slice(path.length); tabs.delete(p); t.path = next; tabs.set(next,t); if (active === p) active = next; }
@@ -472,9 +525,13 @@ async function folderActions(path) {
   workspace = await call('Status'); await refreshData();
 }
 
+const agendaQuery = createAgendaQuery($('agenda-query-builder'), renderAgenda, {
+  read: () => ({ range: agendaFilter, text: $('agenda-query').value, kind: $('kind-filter').value }),
+  apply: query => { agendaFilter = query.range; $('agenda-query').value = query.text; $('kind-filter').value = query.kind; },
+});
 function agendaMatches(e) {
   const q = $('agenda-query').value.trim().toLowerCase(), kind = $('kind-filter').value;
-  return (!kind || kind === e.stamp.kind) && (!q || [e.path, e.title, e.state, ...e.tags, ...(e.fileTags || [])].join(' ').toLowerCase().includes(q));
+  return agendaQuery.matches(e) && (!kind || kind === e.stamp.kind) && (!q || [e.path, e.title, e.state, ...e.tags, ...(e.fileTags || [])].join(' ').toLowerCase().includes(q));
 }
 // Stable defaults and workspace-local overrides; colors never modify Org source.
 const tagPalette = [
@@ -494,7 +551,7 @@ function entryColorStyle(e) {
   return tag ? `style="--tag-color:${tagColor(tag)}" data-color-tag="${esc(tag)}"` : '';
 }
 function entryHTML(e) {
-  return `<div class="agenda-row">${e.state ? `<button class="agenda-complete icon-button" data-complete="${entries.indexOf(e)}" aria-label="Mark ${esc(e.title)} as done">${icon('square')}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}${e.state ? ' · ' + esc(e.state) : ''}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(e.stamp.time || (e.stamp.date ? 'All day' : 'Unscheduled'))}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button></div>`;
+  return `<div class="agenda-row">${e.state ? `<button class="agenda-complete task-state org-todo" data-complete="${entries.indexOf(e)}" aria-label="Mark ${esc(e.title)} as done">${esc(e.state)}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(e.stamp.time || (e.stamp.date ? 'All day' : 'Unscheduled'))}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button></div>`;
 }
 async function completeAgendaEntry(item) {
   if (!item) return;
@@ -507,6 +564,7 @@ async function completeAgendaEntry(item) {
   await refresh(); notify('Task completed.');
 }
 function renderAgenda() {
+  agendaQuery.update(entries, workspace.key);
   document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('active', b.dataset.filter === agendaFilter));
   const now = today(); const groups = new Map();
   for (const e of entries.filter(e => !e.done && agendaMatches(e))) {
@@ -518,6 +576,8 @@ function renderAgenda() {
     if (!groups.has(key)) groups.set(key, []); groups.get(key).push(e);
   }
   $('agenda-list').innerHTML = [...groups].map(([label, items]) => `<section class="agenda-group ${label === 'Overdue' ? 'overdue' : ''}"><h2>${esc(label)} <small>${items.length}</small></h2>${items.map(entryHTML).join('')}</section>`).join('') || empty('No tasks match this view');
+  const count = [...groups.values()].reduce((n, items) => n + items.length, 0);
+  $('agenda-results-count').textContent = `${count} matching ${count === 1 ? 'entry' : 'entries'}`;
 }
 function dayEntries(key) { return entries.filter(e => e.stamp.date && e.stamp.date <= key && (e.stamp.endDate || e.stamp.date) >= key); }
 function monthGrid(year, month) {
@@ -629,6 +689,91 @@ async function editorCommand(name) {
   }
   command(source, name, extra);
 }
+async function headingAction(operation) {
+  const t = current(), editor = source, path = active;
+  if (!t || view !== 'document') { notify('Open a note and select a heading.'); return; }
+  const buffer = t.buffer, line = buffer.slice(0, editor.selectionStart).split('\n').length;
+  const doc = await call('Preview', { source: buffer });
+  const heading = doc.headings.filter(h => h.line <= line).at(-1);
+  if (!heading) { notify('Place the cursor inside a heading.'); return; }
+  let value = '';
+  if (operation === 'tags') {
+    const data = await dialog('Heading tags', `<label>Tags<input name="tags" value="${esc(heading.tags.join(' '))}" placeholder="work important"></label><p>Separate tags with spaces. Clear the field to remove heading tags; file tags remain inherited.</p>`, 'Save tags');
+    if (!data) return; value = data.get('tags');
+  } else if (operation === 'property') {
+    const pairs = Object.entries(heading.properties);
+    const dataPromise = dialog('Heading properties', `<p>Choose an existing property or enter a new name. Other properties are preserved.</p><label>Property name<input name="name" list="property-names" required pattern="[A-Za-z0-9_@#%+\\-]+" placeholder="CUSTOM_ID"></label><datalist id="property-names">${pairs.map(([k]) => `<option value="${esc(k)}"></option>`).join('')}</datalist><label>Value<input name="value"></label><label><input type="checkbox" name="remove"> Remove this property</label>${pairs.length ? `<dl>${pairs.map(([k,v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}`, 'Save property');
+    $('modal-body').querySelector('[name="name"]').addEventListener('input', e => {
+      const pair = pairs.find(([k]) => k.toLowerCase() === e.target.value.toLowerCase());
+      $('modal-body').querySelector('[name="value"]').value = pair?.[1] || '';
+    });
+    const data = await dataPromise; if (!data) return;
+    value = JSON.stringify({ name: data.get('name'), value: data.get('value'), remove: data.has('remove') });
+  } else if (operation === 'priority') {
+    const existing = buffer.split('\n')[heading.line - 1].match(/\[#([A-Z0-9])\]/)?.[1] || '';
+    const data = await dialog('Heading priority', `<label>Priority<select name="priority">${[['','None'],['A','A · High'],['B','B · Normal'],['C','C · Low'], ...(!['','A','B','C'].includes(existing) ? [[existing,existing]] : [])].map(([v,label]) => `<option value="${v}" ${v === existing ? 'selected' : ''}>${label}</option>`).join('')}</select></label>`, 'Save priority');
+    if (!data) return; value = data.get('priority');
+  }
+  if (tabs.get(path) !== t || t.buffer !== buffer) { notify('The heading changed. Please try again.'); return; }
+  const changed = await call('Edit', { source: buffer, line: heading.line, operation: operation === 'complete' && !heading.state ? 'todo' : operation, value });
+  if (tabs.get(path) !== t || t.buffer !== buffer) return;
+  applySource(editor, buffer, changed);
+}
+const insertionActions = [['heading', 'Heading'], ['bold', 'Bold'], ['italic', 'Italic'], ['underline', 'Underline'], ['code', 'Inline code'], ['strike', 'Strikethrough'], ['link', 'Link…'], ['timestamp', 'Timestamp…'], ['image', 'Embed image…'], ['mermaid', 'Mermaid diagram'], ['math', 'Inline math'], ['latex', 'Math block'], ['table', 'Table'], ['source-block', 'Code block'], ['quote', 'Quote block'], ['checklist', 'Checklist']];
+async function insertContent(kind) {
+  const t = current(); if (!t || view !== 'document') { notify('Open a note to insert content.'); return; }
+  if (['heading', 'link', 'timestamp'].includes(kind)) return editorCommand(kind);
+  setMode('edit'); const editor = source, before = t.buffer;
+  const from = editor.selectionStart, to = editor.selectionEnd, selected = before.slice(from, to);
+  let text;
+  const marks = { bold: '*', italic: '/', underline: '_', code: '~', strike: '+' };
+  if (marks[kind]) text = marks[kind] + (selected || 'text') + marks[kind];
+  else if (kind === 'image') {
+    const path = await askText('Embed image', 'Image path relative to this note', 'images/photo.png', 'Insert image');
+    if (!path) return;
+    if (/[\r\n\[\]]/.test(path)) { notify('Use an image path without brackets or line breaks.'); return; }
+    text = `[[file:${path.replace(/^file:/, '')}]]`;
+  } else if (kind === 'math') text = `\\(${selected || 'E = mc^2'}\\)`;
+  else if (kind === 'checklist') text = '- [ ] ' + (selected || 'Task');
+  else if (kind === 'table') text = '| Column 1 | Column 2 |\n|----------+----------|\n|          |          |\n';
+  else {
+    const block = { mermaid: ['src mermaid', 'flowchart LR\n  Idea --> Note\n  Note --> Action'], latex: ['src latex', 'E = mc^2'], 'source-block': ['src', 'code here'], quote: ['quote', 'Quoted text'] }[kind];
+    if (!block) return;
+    text = `#+begin_${block[0]}\n${selected || block[1]}\n#+end_${block[0].split(' ')[0]}\n`;
+  }
+  if (tabs.get(active) !== t || t.buffer !== before) { notify('The note changed. Please try again.'); return; }
+  const block = ['mermaid','latex','source-block','quote','table','checklist','image'].includes(kind);
+  if (block && from > 0 && before[from - 1] !== '\n') text = '\n' + text;
+  replaceSelection(editor, text, from, to);
+}
+function showHeadingMenu(anchor = source) {
+  if (!current() || view !== 'document') return;
+  const actions = [
+    ['Edit task…', () => editTaskAtCursor()], ['Toggle task state', () => headingAction('complete')],
+    ['Edit tags…', () => headingAction('tags')], ['Edit properties…', () => headingAction('property')], ['Set priority…', () => headingAction('priority')],
+    ['Schedule…', () => editTaskAtCursor('scheduled')], ['Set deadline…', () => editTaskAtCursor('deadline')],
+    ['Fold / unfold', () => headingFoldCommand('toggle')], ['Promote heading', () => editorCommand('promote')], ['Demote heading', () => editorCommand('demote')],
+    ['Move up', () => editorCommand('move-up')], ['Move down', () => editorCommand('move-down')],
+  ];
+  showActionMenu(anchor, 'Heading actions', actions);
+}
+function showActionMenu(anchor, title, actions) {
+  const menu = document.createElement('dialog'); menu.className = 'heading-actions-menu'; menu.setAttribute('aria-label', title);
+  actions.forEach(([label, execute]) => {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+    button.addEventListener('click', run(async () => { menu.close(); await execute(); })); menu.append(button);
+  });
+  const rect = anchor.getBoundingClientRect(); document.body.append(menu); menu.showModal();
+  menu.style.left = `${Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, rect.right - menu.offsetWidth))}px`;
+  menu.style.top = `${Math.max(8, Math.min(innerHeight - menu.offsetHeight - 8, rect.bottom + 4))}px`;
+  menu.addEventListener('click', e => { if (e.target === menu) menu.close(); });
+  menu.addEventListener('keydown', e => {
+    if (!['ArrowDown','ArrowUp','Home','End'].includes(e.key)) return; e.preventDefault();
+    const buttons = [...menu.querySelectorAll('button')], index = buttons.indexOf(document.activeElement);
+    buttons[e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1 : (index + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length].focus();
+  });
+  menu.addEventListener('close', () => { menu.remove(); if (!document.querySelector('dialog[open]') && anchor.isConnected) anchor.focus(); }, { once: true });
+}
 function headingFoldCommand(action) {
   const t = current();
   if (!t) { notify('Open a note to fold its headings.'); return; }
@@ -646,9 +791,15 @@ function headingFoldCommand(action) {
   source.focus();
 }
 const actionDefinitions = [
+  ...insertionActions.filter(([id]) => !['heading', 'link', 'timestamp'].includes(id)).map(([id, label]) => ['insert-' + id, label, '', () => insertContent(id)]),
+  ['heading-menu', 'Heading actions', '', () => showHeadingMenu()],
+  ['task-toggle', 'Toggle task state', '', () => headingAction('complete')],
+  ['heading-tags', 'Edit heading tags', '', () => headingAction('tags')],
+  ['heading-properties', 'Edit heading properties', '', () => headingAction('property')],
+  ['heading-priority', 'Set heading priority', '', () => headingAction('priority')],
   ['settings', 'Settings', 'Mod+,', () => setView('settings')],
   ['commands', 'Run command', 'Mod+P', () => openPalette('commands')],
-  ['files', 'Find file', 'Mod+O', () => openPalette('files')],
+  ['files', 'Find file by name', 'Mod+O', () => openPalette('files')],
   ['close-tab', 'Close focused tab', 'Mod+W', closeActiveTab],
   ['fold-toggle', 'Toggle heading folding', '', () => headingFoldCommand('toggle')],
   ['fold', 'Collapse current heading', '', () => headingFoldCommand('fold')],
@@ -702,7 +853,8 @@ document.addEventListener('click', run(async e => {
   if (b.dataset.complete !== undefined) return completeAgendaEntry(entries[Number(b.dataset.complete)]);
   if (b.dataset.open) return openNote(b.dataset.open, Number(b.dataset.line) || undefined);
   if (b.dataset.close) return closeTab(b.dataset.close);
-  if (b.dataset.folder) { e.preventDefault(); return folderActions(b.dataset.folder); }
+  if (b.dataset.folder) { e.preventDefault(); return folderActions(b.dataset.folder, b); }
+  if (b.dataset.fileActions) { e.preventDefault(); return showFileMenu(b.dataset.fileActions, b); }
   if (b.dataset.view) return setView(workspace.id ? b.dataset.view : 'welcome');
   if (b.dataset.mode) return setMode(b.dataset.mode);
   if (b.dataset.filter) { agendaFilter = b.dataset.filter; renderAgenda(); }
@@ -730,9 +882,8 @@ listen('agenda-query', 'input', renderAgenda); listen('kind-filter', 'change', r
 listen('calendar-prev', 'click', () => shiftCalendar(-1)); listen('calendar-next', 'click', () => shiftCalendar(1)); listen('calendar-today', 'click', () => { calendarDate = new Date(); renderCalendar(); });
 listen('search-input', 'input', () => { searchSequence++; clearTimeout(searchTimer); searchTimer = setTimeout(() => search().catch(fail), 150); });
 const systemTheme = matchMedia('(prefers-color-scheme: dark)');
-function applyTheme() { const choice = $('theme').value; document.documentElement.dataset.theme = choice === 'system' ? systemTheme.matches ? 'dark' : 'light' : choice; setNativeTheme(document.documentElement.dataset.theme === 'dark').catch(fail); }
-$('theme').value = localStorage.getItem('org-theme') || 'dark'; applyTheme(); systemTheme.addEventListener('change', applyTheme);
-listen('theme', 'change', () => { localStorage.setItem('org-theme', $('theme').value); applyTheme(); });
+setupAppearance($('theme'), dark => setNativeTheme(dark).catch(fail));
+resizeSidebar($('sidebar'), 'left');
 $('vi-mode').checked = localStorage.getItem('org-vi-mode') === 'true';
 listen('vi-mode', 'change', () => { localStorage.setItem('org-vi-mode', String($('vi-mode').checked)); for (const t of tabs.values()) t.vi?.setEnabled($('vi-mode').checked); });
 document.addEventListener('keydown', run(async e => {

@@ -1,0 +1,11 @@
+/* OrbitalNote Theme v1: Workbench
+ * Compact, neutral chrome for project work and split panes.
+ * Base appearance: dark. Self-contained; paste into Custom theme CSS.
+ */
+:root { --bg:#1e1e1e; --side:#262626; --ribbon:#262626; --panel:#262626; --text:#dadada; --accent:#75adf5; --button:#347ed7; --muted:color-mix(in srgb, #dadada 65%, #1e1e1e); --faint:color-mix(in srgb, #dadada 45%, #1e1e1e); --border:color-mix(in srgb, #dadada 16%, #1e1e1e); --hover:color-mix(in srgb, #dadada 9%, #1e1e1e); --selected:color-mix(in srgb, #75adf5 18%, #1e1e1e); --blue-soft:color-mix(in srgb, #75adf5 12%, #1e1e1e); --code:#75adf5; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+
+.tab-strip { height: 32px; }
+.tree button[data-open] { min-height: 26px; font-size: 12px; }
+.document-toolbar { min-height: 36px; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }

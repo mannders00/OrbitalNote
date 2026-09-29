@@ -1,23 +1,39 @@
-OrbitalNote is free. Your notes are plaintext files on your computer. No account required.
+# OrbitalNote 0.1.0-preview.9
 
-New Open notebook branding across the native app, launcher icons, and project images:
-a pale-blue notebook and orbit on a dark navy background.
+Rich Org previews, saved agenda views, useful themes, and a more direct editor.
+OrbitalNote is free and works locally without an account.
 
-Headings now fold in editing and reading views, with inline collapse buttons and
-palette commands for individual headings or the full document. The document's
-reading/edit controls stay to the left of the expanded right sidebar.
+## What's new since preview.8
 
-Application shortcuts are configurable in Settings → Keyboard shortcuts. Defaults:
-Cmd/Ctrl+, opens Settings, Cmd/Ctrl+P opens Run command, and Cmd/Ctrl+O finds a file.
+### Notes and heading actions
+- Click red TODO/custom pending-state text to complete a task, and green completed-state text to reopen it. Heading checkboxes are replaced by task-state text; agenda completion uses the same visual approach.
+- Heading kebab menus expose task editing, tags, individual properties, priority, scheduling, deadlines, folding, and outline movement. These actions are also available in the command palette and configurable shortcut settings.
+- Metadata edits preserve unrelated properties, planning lines, descendants, and line endings.
+- Folding controls float beside headings and appear on nearby hover or keyboard focus; touch devices show them directly. Removed the boxed ellipsis placeholder.
+- An Insert/format menu provides common text formatting, links, timestamps, images, Mermaid, math, tables, code, quotes, and checklists.
 
-This native preview brings a source-preserving Org editor, live Agenda and
-Calendar, timed tasks, draggable split panes, and a local folder workspace.
-Open an existing Org folder or start with the included example files.
-Mark tasks done directly in the agenda. Cmd+W closes the focused tab on macOS,
-using the existing save/discard handling.
-Sync connects directly to OrbitalNote's hosted service. Sign in, approve the
-device in your browser, and return to the app; sign-in completes automatically.
-There is no server URL to configure. Existing hosted connections keep working.
+### Rich reading previews
+- Bundled, offline Mermaid diagrams and KaTeX inline/display math, including Org `src latex` math blocks.
+- Rendered blocks offer source disclosure and retain editable Org source. Invalid block syntax falls back to visible source with an explanation.
+- Local image attachments remain ordinary files beside the notes. Rendering does not rewrite the source.
+
+### Agenda, calendar, and navigation
+- Compact agenda filter chips and a popup builder for tag, custom task-state, file, entry-type, and date rules, with all/any matching.
+- Named agenda views save the date range, text search, and compound filters per workspace on the device. Switch, update, or delete saved views from the filter control.
+- Week-view weekday headers form a continuous row aligned with day columns.
+- Resizable sidebars with saved widths, a connected active-tab border, and a precise tab-drag insertion marker with edge autoscroll.
+- File/folder kebab menus for rename/move and deletion, plus file copying. Folder deletion applies to empty folders.
+- Distinct filename/content-search icons, Enter-to-save dialog inputs, and native time controls with quick-time/duration presets.
+
+### Appearance and examples
+- Ion Blue branding across the app icon, favicon, and project artwork.
+- Ten purpose-designed themes: Workbench, Paper, Focus, Nord, Field Notes, Studio, Terminal, Editorial, Soft Focus, and Blueprint. Themes change typography, density, controls, and document styling as well as colors.
+- Custom CSS with the documented Theme v1 format; standalone samples in [examples/Themes](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.9/examples/Themes).
+- A complete [showcase vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.9/examples/Showcase) with local imagery, diagrams, math, tables, custom task states, planning, tags, and properties. Download the source archive below and open `examples/Showcase` as a workspace.
+- Public project history, Discussions, issue forms, and contribution guidance make it easier to request and contribute improvements.
+
+Default shortcuts remain Cmd/Ctrl+, for Settings, Cmd/Ctrl+P for Run command,
+and Cmd/Ctrl+O for filename search. Existing hosted Sync connections remain supported.
 
 ## Downloads
 
@@ -37,13 +53,21 @@ macOS may require allowing the app in System Settings → Privacy & Security aft
 the first launch attempt. Windows builds are not Authenticode-signed and may
 show SmartScreen's unrecognized-app prompt. Download only from this repository.
 
+## Current scope
+
+Mermaid and math render in reading view; their source is edited in the editor.
+KaTeX supports math, not full LaTeX documents or packages. Code blocks are not
+executed. Image paste/import and resize controls remain future work.
+Saved views and appearance preferences are device-local.
+
 Org repeaters are preserved but not automatically expanded. Optional end-to-end
 encrypted Sync is available at https://sync.orbitalnote.org/ for $5/month or
 $48/year USD, including 1 GB. macOS ↔ Android Sync has been tested on real devices.
 Sync handles .org notes in one workspace; attachments and history cleanup are
 not yet available. Mobile Sync runs while foregrounded. iOS device distribution
 and real-device validation are still pending. The app works offline without an
-account or subscription. Android release signing may differ from developer builds;
-do not uninstall a debug build without first preserving its notebook.
+account or subscription. The Android preview retains the existing GitHub release
+signing configuration for update continuity. Independently signed developer builds
+may differ; do not uninstall one without first preserving its notebook.
 
 Questions or interest in Sync: **matt@masoftware.net**.

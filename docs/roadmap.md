@@ -6,6 +6,15 @@ The board uses **Todo → In Progress → Done**. `stage: local` means local imp
 
 ## Local iteration — not released
 
+- [Compact agenda queries and saved views](https://github.com/mannders00/OrbitalNote/issues/29)
+- [Continuous calendar weekday headers](https://github.com/mannders00/OrbitalNote/issues/30)
+- [Heading menus and clickable task-state text](https://github.com/mannders00/OrbitalNote/issues/31)
+- [Org UI audit, rich previews, and insertion controls](https://github.com/mannders00/OrbitalNote/issues/32)
+- [Tab drag insertion marker](https://github.com/mannders00/OrbitalNote/issues/33)
+- [File/folder manager menus](https://github.com/mannders00/OrbitalNote/issues/34)
+- [Showcase vault and actual editor screenshots](https://github.com/mannders00/OrbitalNote/issues/35)
+- [Workflow-based themes and standalone CSS samples](https://github.com/mannders00/OrbitalNote/issues/36)
+- [Distinct filename/content-search navigation](https://github.com/mannders00/OrbitalNote/issues/37)
 - [Polish: folding, task hover editing, modal save, and time selection](https://github.com/mannders00/OrbitalNote/issues/15)
 - [Appearance: resizable sidebars, connected tabs, and CSS themes](https://github.com/mannders00/OrbitalNote/issues/16)
 - [Brand: apply selected Ion Blue across product assets](https://github.com/mannders00/OrbitalNote/issues/17)

@@ -1,0 +1,38 @@
+#+TITLE: Welcome to the OrbitalNote showcase
+#+FILETAGS: :showcase:
+
+* Your notes, with room to think
+This is a real folder of editable Org files. Open it as a workspace, or copy it
+somewhere of your own first. The examples work offline, including diagrams,
+equations, and the image stored in the attachments folder.
+
+Try the reading/edit button to move between rendered notes and their Org source.
+Changes made through heading menus are source edits, with undo available.
+
+** Take a two-minute tour
+- Open [[file:01 Rich notes.org][Rich notes]] for images, a Mermaid diagram, math, and tables.
+- Open [[file:02 Fieldwork.org][Fieldwork]] for tasks, properties, tags, and planning.
+- Open [[file:03 Research.org][Research]] for equations, code, and linked notes.
+- Use Agenda → + Filter to build a view, name it, and save it.
+- Drag tabs to reorder them; the blue marker shows the insertion point.
+- Drag a tab toward a document edge to create a split.
+- Try Settings → Appearance, or assign shortcuts to heading/insertion commands.
+
+** Heading controls
+Hover near a heading to reveal its fold control and kebab menu. The menu includes
+task editing, task-state toggling, tags, properties, priority, and outline actions.
+Click a red TODO or NEXT label to complete the task; click green DONE to reopen it.
+
+** About this sample
+Dates are fixed to the week of September 28, 2026 so the files remain deterministic.
+Choose All tasks in the agenda or navigate the calendar to that week.
+Attachments are ordinary local files. Current encrypted Sync transfers Org notes,
+not attachments. Mermaid/KaTeX render in reading view; their source remains editable.
+
+* Keep your tools
+:PROPERTIES:
+:CUSTOM_ID: ownership
+:CATEGORY: Showcase
+:END:
+Unknown Org syntax is retained. Rendering a note does not rewrite it.
+The source can still be opened in Emacs, a text editor, or another Org tool.

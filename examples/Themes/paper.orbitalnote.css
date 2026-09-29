@@ -1,0 +1,12 @@
+/* OrbitalNote Theme v1: Paper
+ * Clean white pages with spacious reading typography.
+ * Base appearance: light. Self-contained; paste into Custom theme CSS.
+ */
+:root { --bg:#ffffff; --side:#f6f6f6; --ribbon:#f6f6f6; --panel:#f6f6f6; --text:#303030; --accent:#286fc7; --button:#286fc7; --muted:color-mix(in srgb, #303030 65%, #ffffff); --faint:color-mix(in srgb, #303030 45%, #ffffff); --border:color-mix(in srgb, #303030 16%, #ffffff); --hover:color-mix(in srgb, #303030 9%, #ffffff); --selected:color-mix(in srgb, #286fc7 18%, #ffffff); --blue-soft:color-mix(in srgb, #286fc7 12%, #ffffff); --code:#286fc7; --todo:#bd3535; --done:#287943; --warn:#956726; --warn-bg:#fbf2e3; --shadow:#0002; color-scheme:light; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+
+:root { --document-leading: 1.9; }
+.ui-preview { font-family: Georgia, "Times New Roman", serif; font-size: 17px; line-height: 1.9; }
+.ui-preview :is(h1,h2,h3) { font-family: -apple-system, sans-serif; letter-spacing: -.025em; }
+.tab-strip .tab { border-radius: 9px 9px 0 0; }
+.document-toolbar { padding-block: 10px; }

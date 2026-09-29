@@ -21,7 +21,7 @@ class HeadingFold extends WidgetType {
   eq(other) { return this.collapsed === other.collapsed && this.heading.from === other.heading.from && this.heading.to === other.heading.to && this.heading.title === other.heading.title; }
   toDOM(view) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'editor-heading-fold';
-    button.textContent = this.collapsed ? '▸' : '▾';
+    button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 5 7 7-7 7"/></svg>';
     button.setAttribute('aria-expanded', String(!this.collapsed));
     button.setAttribute('aria-label', `${this.collapsed ? 'Expand' : 'Collapse'} heading: ${this.heading.title}`);
     button.addEventListener('mousedown', e => e.preventDefault());
@@ -31,17 +31,16 @@ class HeadingFold extends WidgetType {
   ignoreEvent() { return true; }
 }
 
-class TaskBox extends WidgetType {
-  constructor(line, done) { super(); this.line = line; this.done = done; }
-  eq(other) { return this.line === other.line && this.done === other.done; }
+class HeadingMenu extends WidgetType {
+  constructor(line) { super(); this.line = line; }
+  eq(other) { return this.line === other.line; }
   toDOM(view) {
     const button = document.createElement('button');
-    button.className = 'editor-task-box'; button.type = 'button';
-    button.setAttribute('role', 'checkbox'); button.setAttribute('aria-checked', String(this.done));
-    button.setAttribute('aria-label', this.done ? 'Reopen task' : 'Complete task');
-    button.textContent = this.done ? '✓' : '';
+    button.className = 'heading-menu-button'; button.type = 'button';
+    button.setAttribute('aria-label', 'Heading actions'); button.setAttribute('aria-haspopup', 'menu');
+    button.textContent = '⋮';
     button.addEventListener('mousedown', e => e.preventDefault());
-    button.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); view.contentDOM.dispatchEvent(new CustomEvent('task-toggle', { bubbles: true, detail: { line: this.line } })); });
+    button.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); view.contentDOM.dispatchEvent(new CustomEvent('heading-menu', { bubbles: true, detail: { line: this.line, button } })); });
     return button;
   }
   ignoreEvent() { return true; }
@@ -76,12 +75,12 @@ function decorations(state) {
     }
     const heading = /^(\*+)\s+(?:(\S+)\s+)?/.exec(text);
     if (heading) {
+      ranges.push(Decoration.widget({ widget: new HeadingMenu(n), side: 1 }).range(line.to));
       ranges.push(Decoration.line({ class: `org-heading org-h${Math.min(heading[1].length, 6)}` }).range(line.from));
       ranges.push(Decoration.mark({ class: 'org-marker' }).range(line.from, line.from + heading[1].length));
       if (states.has(heading[2])) {
         const at = line.from + text.indexOf(heading[2], heading[1].length);
-        ranges.push(Decoration.widget({ widget: new TaskBox(n, done.has(heading[2])), side: -1 }).range(at));
-        ranges.push(Decoration.mark({ class: done.has(heading[2]) ? 'org-done' : 'org-todo' }).range(at, at + heading[2].length));
+        ranges.push(Decoration.mark({ class: `task-state ${done.has(heading[2]) ? 'org-done' : 'org-todo'}`, attributes: { role: 'button', tabindex: '0', 'data-task-line': String(n), 'aria-label': `${done.has(heading[2]) ? 'Reopen' : 'Complete'} task: ${heading[2]}` } }).range(at, at + heading[2].length));
       }
       const tags = /\s+(:[\w@#%:]+:)\s*$/.exec(text);
       if (tags) ranges.push(Decoration.mark({ class: 'org-tags' }).range(line.from + tags.index + tags[0].indexOf(':'), line.to));
@@ -107,9 +106,15 @@ const orgStyle = StateField.define({ create: decorations, update: (value, transa
 export function createEditor(host) {
   let silent = false;
   const extensions = [history(), drawSelection(), EditorView.lineWrapping,
-    codeFolding({ placeholderText: ' … ' }),
+    codeFolding({ placeholderText: '' }),
     foldService.of((state, from) => headingRanges(state.doc.toString()).find(h => h.start === from && h.to > h.from) || null), orgStyle,
-    EditorView.domEventHandlers({ drop(event) {
+    EditorView.domEventHandlers({ click(event, view) {
+      const task = event.target.closest('[data-task-line]'); if (!task) return false;
+      event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('task-toggle', { bubbles: true, detail: { line: Number(task.dataset.taskLine) } })); return true;
+    }, keydown(event, view) {
+      const task = event.target.closest('[data-task-line]'); if (!task || !['Enter', ' '].includes(event.key)) return false;
+      event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('task-toggle', { bubbles: true, detail: { line: Number(task.dataset.taskLine) } })); return true;
+    }, drop(event) {
       // Pane tab drops belong to TabLayout, not the editor's text-drop handler.
       if (event.dataTransfer?.types.includes('application/x-orbitalnote-tab')) { event.preventDefault(); return true; }
       return false;

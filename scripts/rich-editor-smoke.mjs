@@ -4,12 +4,13 @@ import { strict as assert } from 'node:assert';
 const browser = process.env.BROWSER === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ executablePath: process.env.CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 950 } });
 const errors = []; page.on('pageerror', e => errors.push(e.message));
-const api = async (method, data = {}) => { const response = await page.request.post('http://127.0.0.1:9240/api', { data: { method, ...data } }); assert.ok(response.ok(), await response.text()); return response.json(); };
+const base = process.env.BASE_URL || 'http://127.0.0.1:9240';
+const api = async (method, data = {}) => { const response = await page.request.post(base + '/api', { data: { method, ...data } }); assert.ok(response.ok(), await response.text()); return response.json(); };
 const editor = page.locator('#source');
 const saved = () => page.waitForFunction(() => document.getElementById('save-state')?.textContent === 'Saved to disk');
 try {
   await page.clock.setFixedTime(new Date(2026, 8, 26, 12));
-  await page.goto('http://127.0.0.1:9240'); await page.locator('#agenda').waitFor({ state: 'visible' });
+  await page.goto(base); await page.locator('#agenda').waitFor({ state: 'visible' });
   const state = await api('Status');
   const path = 'rich-editor.org';
   const old = state.files.some(f => f.path === path) ? await api('Read', { id: state.id, path }) : null;
@@ -25,7 +26,7 @@ try {
   assert.ok(parseFloat(style.heading) > parseFloat(style.base)); assert.notEqual(style.color, style.todo); assert.ok(Number(style.bold) >= 700);
   assert.match(style.value, /\* TODO Planning \*bold text\*/);
 
-  await editor.locator('.editor-task-box').click(); await page.waitForFunction(() => document.getElementById('source')?.value.startsWith('* DONE ')); await saved();
+  await editor.locator('.task-state').click(); await page.waitForFunction(() => document.getElementById('source')?.value.startsWith('* DONE ')); await saved();
   let note = await api('Read', { id: state.id, path });
   assert.match(note.source, /^\* DONE Planning/); assert.ok(note.source.includes('\r\nSCHEDULED:'));
   await page.locator('#ribbon [data-view="calendar"]').click();
@@ -38,7 +39,7 @@ try {
   await page.locator('#ribbon [data-view="tags"]').click();
   assert.equal(await page.locator('#tags p.muted').count(), 0);
   await page.keyboard.press('Meta+2'); await editor.waitFor({ state: 'visible' });
-  await editor.locator('.editor-task-box').click(); await page.waitForFunction(() => document.getElementById('source')?.value.startsWith('* TODO ')); await saved();
+  await editor.locator('.task-state').click(); await page.waitForFunction(() => document.getElementById('source')?.value.startsWith('* TODO ')); await saved();
   await editor.evaluate(el => { el.focus(); el.setSelectionRange(8, 8); });
   await page.keyboard.press('Alt+t');
   await page.locator('#modal').waitFor({ state: 'visible' });
@@ -80,6 +81,6 @@ try {
   if (process.env.SCREENSHOT) {
     await page.screenshot({ path: process.env.SCREENSHOT });
   }
-  console.log('PASS: formatted source, TODO-only color, task checkbox, completed calendar, timed blocks, selected-heading task modal, custom date picker, vi half-page motion/undo, tab shortcuts, shared tab bar.');
+  console.log('PASS: formatted source, task-state text toggles, completed calendar, timed blocks, selected-heading task modal, custom date picker, vi half-page motion/undo, tab shortcuts, shared tab bar.');
 } catch (error) { console.error('Page errors:', errors); throw error; }
 finally { await browser.close(); }

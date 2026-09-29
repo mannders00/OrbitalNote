@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <link rel="stylesheet" href="/vendor/katex.css">
   <title>OrbitalNote</title>
   <link rel="icon" href="/mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body spellcheck="false" autocorrect="off" autocapitalize="off">
   <nav id="ribbon" aria-label="Navigation">
-    <button id="quick-open" class="icon-button" title="Find file (⌘ / Ctrl O)" aria-label="Quick open"><img src="/mark.svg" width="30" height="30" alt=""></button>
+    <button id="quick-open" class="icon-button" data-icon="files" title="Find file by name (⌘ / Ctrl O)" aria-label="Find file by name"></button>
     <span class="ribbon-divider"></span>
     <button data-view="agenda" class="icon-button" data-icon="agenda" title="Agenda" aria-label="Agenda"></button>
     <button data-view="calendar" class="icon-button" data-icon="calendar" title="Calendar" aria-label="Calendar"></button>
-    <button data-view="search" class="icon-button" data-icon="search" title="Search" aria-label="Search"></button>
+    <button data-view="search" class="icon-button" data-icon="search" title="Search file contents" aria-label="Search file contents"></button>
     <button data-view="tags" class="icon-button" data-icon="tags" title="Tags" aria-label="Tags"></button>
     <span class="ribbon-spacer"></span>
     <button id="palette-button" class="icon-button" data-icon="command" title="Run command (⌘ / Ctrl P)" aria-label="Command palette"></button>
@@ -53,8 +54,9 @@
       <div class="document-toolbar">
         <h1 id="document-name"></h1>
         <div class="actions">
+          <button id="insert-content" class="icon-button" data-icon="plus" title="Insert and format" aria-label="Insert and format" aria-haspopup="menu"></button>
           <button id="preview-toggle" class="icon-button" data-icon="book" title="Read preview" aria-label="Read preview" aria-pressed="false"></button>
-          <button id="file-actions" class="icon-button" data-icon="more" title="File actions" aria-label="File actions"></button>
+          <button id="file-actions" class="icon-button" data-icon="kebab" title="File actions" aria-label="File actions" aria-haspopup="menu"></button>
         </div>
       </div>
       <div id="conflict" class="conflict" hidden><span>File changed on disk. Unsaved edits have been retained.</span><button id="save-copy">Save a copy</button><button id="reload-file">Reload disk version…</button></div>
@@ -75,7 +77,8 @@
     </section>
     <section id="agenda" class="page" hidden>
       <div class="page-heading"><div><h1>Agenda <small id="agenda-count"></small></h1><p id="today-label"></p></div><button id="capture"><span data-icon="plus"></span>New task</button></div>
-      <div class="filterbar"><div class="segmented" id="agenda-filters"><button data-filter="today">Today</button><button data-filter="upcoming">Upcoming</button><button data-filter="overdue">Overdue</button><button data-filter="all">All tasks</button></div><select id="kind-filter" aria-label="Filter entry type"><option value="">All types</option><option value="scheduled">Scheduled</option><option value="deadline">Deadlines</option><option value="todo">Undated TODOs</option></select><input id="agenda-query" aria-label="Filter agenda" placeholder="Filter file, tag, or state…"></div>
+      <div class="filterbar agenda-filterbar"><div class="segmented" id="agenda-filters"><button data-filter="today">Today</button><button data-filter="upcoming">Upcoming</button><button data-filter="overdue">Overdue</button><button data-filter="all">All tasks</button></div><div class="agenda-query-input"><input id="agenda-query" aria-label="Filter agenda" placeholder="Search tasks…"><div id="agenda-query-builder"></div></div><select id="kind-filter" aria-label="Filter entry type" hidden><option value="">All types</option><option value="scheduled">Scheduled</option><option value="deadline">Deadlines</option><option value="todo">Undated TODOs</option></select></div>
+      <div id="agenda-results-count" role="status"></div>
       <div id="agenda-list"></div>
     </section>
     <section id="calendar" class="page" hidden>
@@ -90,7 +93,8 @@
     <section id="tags" class="page" hidden><div class="page-heading"><h1>Tags</h1></div><div id="tag-list"></div></section>
     <section id="settings" class="page" hidden>
       <div class="page-heading"><h1>Settings</h1></div>
-      <div class="setting"><strong>Appearance</strong><select id="theme" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+      <div class="setting"><div><strong>Appearance</strong><p id="theme-description"></p></div><select id="theme" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+      <section class="custom-theme"><label for="theme-css">Custom theme CSS</label><p>OrbitalNote Theme v1: use a :root rule to override color variables, or add your own CSS. Applied on this device.</p><textarea id="theme-css" rows="9" spellcheck="false" aria-label="Custom theme CSS"></textarea><button id="theme-apply" type="button">Apply custom CSS</button><button id="theme-clear" type="button">Clear custom CSS</button><p id="theme-status" role="status"></p></section>
       <div class="setting"><div><label for="vi-mode"><strong>Vi mode</strong></label><p id="vi-help">Vim-style keys in the source editor. Starts in Normal mode.<br>i / a: insert · Esc: normal · h j k l / w b: move<br>Ctrl D / Ctrl U: half-page down / up<br>v: select · dd / dw / x: delete · yy / p: copy / paste<br>u / Ctrl R: undo / redo · / and n / N: find<br>Use Cmd / Ctrl S to save. Basic bindings, not full Vim emulation.</p></div><input id="vi-mode" type="checkbox" role="switch" aria-describedby="vi-help"></div>
       <div class="setting"><strong>Workspace folder</strong><button id="settings-open">Open folder…</button></div>
       <div class="setting sync-setting"><div><strong>OrbitalNote Sync · preview</strong>

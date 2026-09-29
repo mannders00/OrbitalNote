@@ -1,0 +1,33 @@
+#+TITLE: Research notebook
+#+FILETAGS: :showcase:research:
+
+* Explain the result
+Inline math: \(E = mc^2\). Display math:
+
+\[
+\hat{\mu} = \frac{1}{n}\sum_{i=1}^{n}x_i
+\]
+
+** A conversation between systems
+#+begin_src mermaid
+sequenceDiagram
+  participant N as Notebook
+  participant R as Review
+  N->>R: Observations and evidence
+  R-->>N: Questions and next steps
+#+end_src
+
+** Keep the reproducible example
+#+begin_src python
+def mean(values):
+    return sum(values) / len(values)
+
+print(mean([4, 6, 8]))
+#+end_src
+
+Code blocks are rendered, not executed. The notebook stays a document.
+
+** Reading list
+- [[https://orgmode.org/][Org mode]] — the file format and broader ecosystem.
+- [[file:01 Rich notes.org][Rich notes]] — visual overview and a local image.
+- [[file:02 Fieldwork.org][Fieldwork]] — turn a finding into a planned task.
