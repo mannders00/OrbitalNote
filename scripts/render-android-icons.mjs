@@ -13,7 +13,10 @@ try {
   async function render(path, size, body) {
     await mkdir(path.slice(0, path.lastIndexOf('/')), { recursive: true });
     await page.setViewportSize({ width: size, height: size });
-    await page.setContent(`<style>html,body{margin:0;background:transparent}svg{display:block;width:100vw;height:100vh}</style>${svg(body)}`);
+    const data = Buffer.from(svg(body)).toString('base64');
+    await page.setContent(`<style>html,body{margin:0;background:transparent}img{display:block;width:100vw;height:100vh}</style><img src="data:image/svg+xml;base64,${data}">`);
+    await page.locator('img').evaluate(img => img.decode());
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await page.screenshot({ path, omitBackground: true });
   }
   await render(`${root}/drawable-nodpi/ic_launcher_background.png`, 432, background);
