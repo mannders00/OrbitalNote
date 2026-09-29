@@ -208,6 +208,8 @@ export class TabLayout {
           surface.append(element); this.root.append(surface); this.surfaces.set(id, surface);
         }
         surface.dataset.ownerGroup = node.id;
+        if (id !== node.active && surface.contains(document.activeElement)) document.activeElement.blur();
+        surface.inert = id !== node.active;
         surface.hidden = id !== node.active;
         element.hidden = id !== node.active;
       }

@@ -1,5 +1,5 @@
-import { EditorState, EditorSelection, StateField } from '@codemirror/state';
-import { EditorView, Decoration, WidgetType, keymap, drawSelection } from '@codemirror/view';
+import { EditorState, EditorSelection, StateField, Compartment } from '@codemirror/state';
+import { EditorView, Decoration, WidgetType, keymap, drawSelection, lineNumbers, gutter, GutterMarker } from '@codemirror/view';
 import { history, defaultKeymap, undo, redo } from '@codemirror/commands';
 import { codeFolding, foldService, foldEffect, unfoldEffect, foldedRanges, unfoldAll } from '@codemirror/language';
 import { headingRanges } from './headings.js';
@@ -91,6 +91,11 @@ function decorations(state) {
     }
     if (/^\s*(?:SCHEDULED|DEADLINE|CLOSED):/.test(text)) ranges.push(Decoration.line({ class: 'org-planning-line' }).range(line.from));
     if (/^\s*\|/.test(text)) ranges.push(Decoration.line({ class: `org-table-line${/^\s*\|[-+|]+\s*$/.test(text) ? ' org-table-rule' : ''}` }).range(line.from));
+    const checkbox = /^\s*(?:[-+]|\d+[.)])\s+\[([ Xx-])\]/.exec(text);
+    if (checkbox) {
+      const at = line.from + checkbox[0].lastIndexOf('[');
+      ranges.push(Decoration.mark({ class: 'source-checkbox', attributes: { 'data-checkbox-line': String(n), role: 'checkbox', tabindex: '0', 'aria-checked': /x/i.test(checkbox[1]) ? 'true' : checkbox[1] === '-' ? 'mixed' : 'false' } }).range(at, at + 3));
+    }
     for (const match of text.matchAll(/(^|[\s(])([*\/_+~=])([^\s\n](?:.*?[^\s\n])?)\2(?=$|[\s.,!?;:)])/g)) {
       const at = line.from + match.index + match[1].length, end = at + match[0].length - match[1].length;
       const cls = { '*': 'org-bold', '/': 'org-italic', '_': 'org-underline', '+': 'org-strike', '~': 'org-code', '=': 'org-code' }[match[2]];
@@ -105,13 +110,23 @@ const orgStyle = StateField.define({ create: decorations, update: (value, transa
 
 export function createEditor(host) {
   let silent = false;
+  let numberMode = 'off';
+  class RelativeNumber extends GutterMarker {
+    constructor(text) { super(); this.text = text; }
+    eq(other) { return this.text === other.text; }
+    toDOM() { return document.createTextNode(this.text); }
+  }
+  const numbers = new Compartment();
   const extensions = [history(), drawSelection(), EditorView.lineWrapping,
+    numbers.of([]), EditorView.atomicRanges.of(view => foldedRanges(view.state)),
     codeFolding({ placeholderText: '' }),
     foldService.of((state, from) => headingRanges(state.doc.toString()).find(h => h.start === from && h.to > h.from) || null), orgStyle,
     EditorView.domEventHandlers({ click(event, view) {
+      const box = event.target.closest('[data-checkbox-line]'); if (box) { event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('checkbox-toggle', { bubbles: true, detail: { line: Number(box.dataset.checkboxLine) } })); return true; }
       const task = event.target.closest('[data-task-line]'); if (!task) return false;
       event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('task-toggle', { bubbles: true, detail: { line: Number(task.dataset.taskLine) } })); return true;
     }, keydown(event, view) {
+      const box = event.target.closest('[data-checkbox-line]'); if (box && ['Enter', ' '].includes(event.key)) { event.preventDefault(); box.click(); return true; }
       const task = event.target.closest('[data-task-line]'); if (!task || !['Enter', ' '].includes(event.key)) return false;
       event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('task-toggle', { bubbles: true, detail: { line: Number(task.dataset.taskLine) } })); return true;
     }, drop(event) {
@@ -119,7 +134,15 @@ export function createEditor(host) {
       if (event.dataTransfer?.types.includes('application/x-orbitalnote-tab')) { event.preventDefault(); return true; }
       return false;
     } }),
-    keymap.of(defaultKeymap),
+    keymap.of([{ key: 'Enter', run(view) {
+      const selection = view.state.selection.main; if (!selection.empty) return false;
+      const line = view.state.doc.lineAt(selection.head), match = /^(\s*)([-+]|\d+[.)])\s+\[[ Xx-]\]\s*(.*)$/.exec(line.text);
+      if (!match || selection.head < line.from + line.text.indexOf(']') + 1) return false;
+      if (!match[3]) { view.dispatch({ changes: { from: line.from, to: line.to, insert: '' } }); return true; }
+      const marker = /^\d/.test(match[2]) ? String(parseInt(match[2]) + 1) + match[2].slice(-1) : match[2];
+      const insert = '\n' + match[1] + marker + ' [ ] ';
+      view.dispatch({ changes: { from: selection.head, insert }, selection: { anchor: selection.head + insert.length }, scrollIntoView: true, userEvent: 'input' }); return true;
+    } }, ...defaultKeymap]),
     EditorView.contentAttributes.of({ class: 'ui-source', 'aria-label': 'Org source editor', spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off', autocomplete: 'off', 'data-ui': 'source' }),
     EditorView.updateListener.of(update => {
       if (update.docChanged && !silent) queueMicrotask(() => update.view.contentDOM.dispatchEvent(new Event('editor-input', { bubbles: true })));
@@ -129,7 +152,7 @@ export function createEditor(host) {
   const editor = view.contentDOM;
   editor.classList.add('ui-source');
   Object.defineProperties(editor, {
-    value: { get: () => view.state.doc.toString(), set: value => { silent = true; view.setState(EditorState.create({ doc: value, extensions })); silent = false; } },
+    value: { get: () => view.state.doc.toString(), set: value => { silent = true; view.setState(EditorState.create({ doc: value, extensions })); editor.setLineNumbers(numberMode); silent = false; } },
     selectionStart: { get: () => view.state.selection.main.from },
     selectionEnd: { get: () => view.state.selection.main.to },
     selectionDirection: { get: () => view.state.selection.main.anchor > view.state.selection.main.head ? 'backward' : 'forward' },
@@ -138,9 +161,13 @@ export function createEditor(host) {
   });
   editor.setSelectionRange = (from, to, direction) => {
     const clamp = n => Math.max(0, Math.min(view.state.doc.length, n));
+    foldedRanges(view.state).between(0, view.state.doc.length, (start, end) => {
+      if (from > start && from <= end) from = from >= view.state.selection.main.head ? Math.min(end + 1, view.state.doc.length) : start;
+      if (to > start && to <= end) to = from;
+    });
     view.dispatch({ selection: EditorSelection.single(clamp(direction === 'backward' ? to : from), clamp(direction === 'backward' ? from : to)) });
   };
-  editor.replaceText = (text, from = editor.selectionStart, to = editor.selectionEnd) => { view.focus(); view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length }, scrollIntoView: true, userEvent: 'input' }); };
+  editor.replaceText = (text, from = editor.selectionStart, to = editor.selectionEnd) => { if (!editor.closest('[hidden], [inert]') && editor.getClientRects().length) view.focus(); view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length }, scrollIntoView: true, userEvent: 'input' }); };
   editor.undo = () => undo(view); editor.redo = () => redo(view);
   editor.foldHeading = action => {
     if (action === 'unfold-all') return unfoldAll(view);
@@ -158,12 +185,17 @@ export function createEditor(host) {
   };
   editor.reveal = () => view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: 'nearest' }) });
   editor.halfPage = direction => {
-    const head = view.state.selection.main.head, at = view.coordsAtPos(head);
-    if (!at) return;
-    const distance = view.scrollDOM.clientHeight / 2, target = at.top + direction * distance;
-    const position = view.posAtCoords({ x: at.left + 1, y: target }, false);
-    const offset = position ?? (direction < 0 ? 0 : view.state.doc.length);
-    view.dispatch({ selection: { anchor: offset }, effects: EditorView.scrollIntoView(offset, { y: 'center' }) });
+    view.scrollDOM.scrollTop += direction * view.scrollDOM.clientHeight / 2;
+  };
+  editor.setLineNumbers = mode => {
+    numberMode = mode;
+    view.dispatch({ effects: numbers.reconfigure(mode === 'off' ? [] : mode !== 'relative' ? lineNumbers() : gutter({
+      class: 'cm-lineNumbers',
+      lineMarker(view, line) { const number = view.state.doc.lineAt(line.from).number, current = view.state.doc.lineAt(view.state.selection.main.head).number; return new RelativeNumber(String(Math.abs(number - current) || number)); },
+      lineMarkerChange: update => update.selectionSet || update.docChanged,
+      initialSpacer: view => new RelativeNumber(String(view.state.doc.lines)),
+      updateSpacer: (spacer, update) => new RelativeNumber(String(update.state.doc.lines)),
+    })) });
   };
   editor.caretRect = () => view.coordsAtPos(view.state.selection.main.head);
   editor.refresh = () => view.requestMeasure();

@@ -1,7 +1,7 @@
 #+TITLE: Welcome to the OrbitalNote showcase
 #+FILETAGS: :showcase:
 
-* Your notes, with room to think
+* TODO Your notes, with room to think
 This is a real folder of editable Org files. Open it as a workspace, or copy it
 somewhere of your own first. The examples work offline, including diagrams,
 equations, and the image stored in the attachments folder.

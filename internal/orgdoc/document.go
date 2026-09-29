@@ -22,6 +22,8 @@ type Heading struct {
 	Tags       []string          `json:"tags"`
 	Properties map[string]string `json:"properties"`
 	Dates      []orgdate.Stamp   `json:"dates"`
+	Clock      string            `json:"clock,omitempty"`
+	History    []orgdate.Stamp   `json:"history,omitempty"`
 }
 type Link struct {
 	Target string `json:"target"`
@@ -94,6 +96,21 @@ func Parse(source string) Document {
 			continue
 		}
 		if drawer != "" {
+			if drawer == "LOGBOOK" && current >= 0 && strings.HasPrefix(trim, "- State ") {
+				m := regexp.MustCompile(`^- State "([^"]+)"`).FindStringSubmatch(trim)
+				if len(m) > 1 && done[m[1]] {
+					for _, stamp := range orgdate.Parse(text) {
+						stamp.Kind = "completed"
+						d.Headings[current].History = append(d.Headings[current].History, stamp)
+						break
+					}
+				}
+			}
+			if drawer == "LOGBOOK" && current >= 0 {
+				if m := runningClockRE.FindStringSubmatch(text); m != nil {
+					d.Headings[current].Clock = m[1]
+				}
+			}
 			if upper == ":END:" {
 				drawer = ""
 			} else if drawer == "PROPERTIES" && current >= 0 {

@@ -43,6 +43,7 @@ type Entry struct {
 	Tags     []string      `json:"tags"`
 	Stamp    orgdate.Stamp `json:"stamp"`
 	Done     bool          `json:"done"`
+	Clock    string        `json:"clock,omitempty"`
 }
 
 // Service is shared by the Wails host and the loopback development host.
@@ -314,6 +315,11 @@ func (s *Service) calendarEntries(id uint64, includeDone bool) ([]Entry, error) 
 	out := []Entry{}
 	for p, n := range s.notes {
 		for _, h := range n.Headings {
+			if includeDone {
+				for _, stamp := range h.History {
+					out = append(out, Entry{n.FileTags, n.Revision, p, h.Line, h.Title, "DONE", h.Tags, stamp, true, ""})
+				}
+			}
 			if h.Done && !includeDone {
 				continue
 			}
@@ -322,11 +328,11 @@ func (s *Service) calendarEntries(id uint64, includeDone bool) ([]Entry, error) 
 				if !st.Active {
 					continue
 				}
-				out = append(out, Entry{n.FileTags, n.Revision, p, h.Line, h.Title, h.State, h.Tags, st, h.Done})
+				out = append(out, Entry{n.FileTags, n.Revision, p, h.Line, h.Title, h.State, h.Tags, st, h.Done, h.Clock})
 				count++
 			}
-			if count == 0 && h.State != "" {
-				out = append(out, Entry{n.FileTags, n.Revision, p, h.Line, h.Title, h.State, h.Tags, orgdate.Stamp{Kind: "todo"}, h.Done})
+			if count == 0 && (h.State != "" || h.Clock != "") {
+				out = append(out, Entry{n.FileTags, n.Revision, p, h.Line, h.Title, h.State, h.Tags, orgdate.Stamp{Kind: "todo"}, h.Done, h.Clock})
 			}
 		}
 	}

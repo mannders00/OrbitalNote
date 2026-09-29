@@ -12,6 +12,9 @@ import (
 // EditHeading applies an explicit command to source spans, never an AST export.
 // line is one-based and may point into the heading's body.
 func EditHeading(source string, line int, operation, value string) (string, error) {
+	if operation == "checkbox" {
+		return toggleCheckbox(source, line)
+	}
 	d := Parse(source)
 	if d.Warning != "" {
 		return "", errors.New("structured edits require a successfully parsed document")
@@ -50,6 +53,8 @@ func EditHeading(source string, line int, operation, value string) (string, erro
 		eol = "\r\n"
 	}
 	switch operation {
+	case "clock-in", "clock-out":
+		return editClock(source, h, operation)
 	case "tags", "property", "priority":
 		return editMetadata(source, h, operation, value)
 	case "task":
@@ -113,7 +118,25 @@ func EditHeading(source string, line int, operation, value string) (string, erro
 		if next != "" {
 			next += " "
 		}
-		return splice(at, to, next), nil
+		out := splice(at, to, next)
+		for _, updated := range Parse(out).Headings {
+			if updated.Line == h.Line {
+				if updated.Done && !h.Done {
+					if h.Clock != "" {
+						stopped, err := editClock(source, h, "clock-out")
+						if err != nil {
+							return "", err
+						}
+						return EditHeading(stopped, line, operation, value)
+					}
+					if repeated, ok, err := completeRepeater(source, h, next); ok {
+						return repeated, err
+					}
+				}
+				return setClosed(out, h.Line, updated.Done), nil
+			}
+		}
+		return out, nil
 	case "move-up", "move-down":
 		if end > start && !strings.HasSuffix(source[start:end], "\n") {
 			return "", errors.New("add a final newline before moving this subtree")

@@ -27,7 +27,7 @@ func TestSubtreeEditsPreserveUnknownSyntax(t *testing.T) {
 		t.Fatal("demote did not preserve subtree")
 	}
 	out, err = EditHeading(source, 2, "todo", "")
-	if err != nil || out != strings.Replace(source, "TODO One", "DONE One", 1) {
+	if err != nil || !strings.Contains(out, "CLOSED: [") || setClosed(out, 2, false) != strings.Replace(source, "TODO One", "DONE One", 1) {
 		t.Fatalf("TODO: %q %v", out, err)
 	}
 }

@@ -1,7 +1,7 @@
 import { call, chooseWorkspace, native, onClose, onCloseTab, quit, openExternal, setNativeTheme, zoomNative } from './api.js';
 import { createShortcuts } from './shortcuts.js';
 import { setupAppearance, resizeSidebar } from './appearance.js';
-import { createAgendaQuery } from './agenda-query.js';
+import { createAgendaQuery, matchesAgendaQuery } from './agenda-query.js';
 document.addEventListener('appearance-change', () => {
   const previews = [...document.querySelectorAll('.ui-preview')].filter(p => p.querySelector('.src-mermaid'));
   if (previews.length) import('./vendor/rich.js').then(module => Promise.all(previews.map(p => module.renderRichPreview(p)))).catch(fail);
@@ -67,6 +67,7 @@ function updateSidebars() {
   const compact = activeSurface?.getBoundingClientRect().width < 760;
   const right = view === 'document' && (narrowLayout.matches || compact ? mobileRightOpen : rightOpen);
   $('sidebar').hidden = !left;
+  $('ribbon').hidden = !left && localStorage.getItem('orbitalnote-hide-ribbon') === 'true';
   if ($('context')) $('context').hidden = !right;
   if ($('context-scrim')) $('context-scrim').hidden = !right || !compact;
   $('panel-scrim').hidden = !narrowLayout.matches || (!left && !right);
@@ -146,6 +147,7 @@ function createDocumentSurface(path, t) {
   surface.dataset.previewPrefix = `note-${++documentSerial}-`;
   const find = id => surface.querySelector(`[data-ui="${id}"]`);
   const editor = createEditor(surface.querySelector('.source-pane'));
+  editor.setLineNumbers($('line-numbers').value);
   t.surface = surface; t.vi = attachVi(editor, find('vi-state'), value => askText('Find in note', 'Search text', value, 'Find'));
   t.vi.setEnabled($('vi-mode').checked);
   const focused = fn => run(e => { activateTab('file:' + surface.dataset.path); return fn(e); });
@@ -161,6 +163,10 @@ function createDocumentSurface(path, t) {
     tabs.set(path, tabFrom(note, t)); if (active === path && view === 'document') showDocument(); renderTabs();
   });
   bind('context-close', 'click', () => { toggleSidebar('right'); $('context-toggle').focus(); });
+  bind('outline-toggle-all', 'click', () => {
+    const groups = [...find('outline').querySelectorAll('details')], open = !groups.some(d => d.open);
+    groups.forEach(d => { d.open = open; }); find('outline-toggle-all').textContent = open ? 'Collapse all' : 'Expand all';
+  });
   resizeSidebar(find('context'), 'right');
   bind('context-scrim', 'click', closeMobileSidebars);
   const observer = new ResizeObserver(() => {
@@ -185,6 +191,11 @@ function createDocumentSurface(path, t) {
     if (tabs.get(path) !== t || t.buffer !== buffer) return;
     applySource(editor, buffer, changed);
   }));
+  editor.addEventListener('checkbox-toggle', run(async e => {
+    const t = tabs.get(surface.dataset.path), buffer = t.buffer;
+    const changed = await call('Edit', { source: buffer, line: e.detail.line, operation: 'checkbox' });
+    if (tabs.get(surface.dataset.path) === t && t.buffer === buffer) applySource(editor, buffer, changed);
+  }));
   editor.addEventListener('heading-menu', focused(async e => {
     const offset = editor.value.split('\n').slice(0, e.detail.line - 1).reduce((n, line) => n + line.length + 1, 0);
     editor.setSelectionRange(offset, offset); showHeadingMenu(e.detail.button);
@@ -206,7 +217,8 @@ function activateTab(id) {
     const t = tabs.get(active); if (!t) return;
     setActiveSurface(t.surface); source = $('source'); vi = t.vi; mode = t.mode;
     showDocument();
-  } else { view = id.slice(5); setActiveSurface(null); }
+    renderClocks();
+  } else { view = id.slice(5); setActiveSurface(null); source = null; vi = null; }
   document.querySelectorAll('#ribbon [data-view]').forEach(b => { b.classList.toggle('active', b.dataset.view === view); b.setAttribute('aria-pressed', String(b.dataset.view === view)); });
   closeMobileSidebars(); renderTree();
 }
@@ -215,6 +227,7 @@ function setActiveSurface(surface) {
   // Stable IDs refer to the focused document only; every other document uses
   // its own scoped data-ui elements, with no duplicate IDs across splits.
   if (activeSurface) {
+    if (activeSurface.contains(document.activeElement)) document.activeElement.blur();
     for (const el of [activeSurface, ...activeSurface.querySelectorAll('[data-ui]')]) el.removeAttribute('id');
     activeSurface.querySelector('.vi-cursor-layer')?.removeAttribute('id');
   }
@@ -333,7 +346,16 @@ function renderDocument(t) {
 }
 function renderContext(doc, surface = activeSurface) {
   if (!surface) return;
-  setHTML(surface.querySelector('[data-ui="outline"]'), doc.headings.map(h => `<button data-jump="${h.line}" style="padding-left:${8 + Math.min(h.level - 1, 6) * 9}px">${esc(h.title)}</button>`).join('') || '<p class="empty">No headings</p>');
+  const outline = surface.querySelector('[data-ui="outline"]');
+  const closed = new Set([...outline.querySelectorAll('details:not([open])')].map(d => d.dataset.heading));
+  const stack = [{ level: 0, element: outline }]; outline.replaceChildren();
+  for (const h of doc.headings) {
+    while (stack.length > 1 && stack.at(-1).level >= h.level) stack.pop();
+    const details = document.createElement('details'); details.dataset.heading = String(h.line); details.open = !closed.has(String(h.line));
+    details.innerHTML = `<summary><button data-jump="${h.line}">${esc(h.title)}</button></summary>`;
+    stack.at(-1).element.append(details); stack.push({ level: h.level, element: details });
+  }
+  if (!doc.headings.length) outline.innerHTML = '<p class="empty">No headings</p>';
   setHTML(surface.querySelector('[data-ui="properties"]'), doc.headings.flatMap(h => Object.entries(h.properties).map(([k, v]) => `<div><strong>${esc(k)}</strong> ${esc(v)}</div>`)).join('') || '<span>No properties</span>');
 }
 function setHTML(element, html) { if (element.renderedHTML !== html) { element.innerHTML = html; element.renderedHTML = html; } }
@@ -342,6 +364,30 @@ function setPreview(t, html) {
   if (preview.renderedHTML === html) return;
   preview.renderedHTML = html;
   preview.innerHTML = html;
+  const checkboxLines = []; let block = false, drawer = false;
+  t.buffer.split('\n').forEach((line, index) => {
+    if (/^\s*#\+begin_/i.test(line)) block = true;
+    else if (/^\s*#\+end_/i.test(line)) { block = false; return; }
+    if (block) return;
+    if (/^\s*:[\w]+:\s*$/.test(line)) { drawer = !/^\s*:END:/i.test(line); return; }
+    if (!drawer && /^\s*(?:[-+]|\d+[.)])\s+\[[ X-]\]/.test(line)) checkboxLines.push(index + 1);
+  });
+  const items = [...preview.querySelectorAll('li.checked, li.unchecked, li.indeterminate')];
+  if (items.length === checkboxLines.length) items.forEach((item, index) => {
+    const box = document.createElement('button'); box.type = 'button'; box.className = 'preview-checkbox'; box.setAttribute('role', 'checkbox');
+    const state = item.classList.contains('checked') ? 'true' : item.classList.contains('indeterminate') ? 'mixed' : 'false';
+    box.setAttribute('aria-checked', state); box.setAttribute('aria-label', 'Toggle checklist item'); box.textContent = state === 'true' ? '✓' : state === 'mixed' ? '−' : '';
+    item.classList.add('interactive-checkbox'); item.prepend(box);
+    box.addEventListener('click', run(async () => {
+      const buffer = t.buffer, scroll = preview.scrollTop;
+      const changed = await call('Edit', { source: buffer, line: checkboxLines[index], operation: 'checkbox' });
+      if (t.buffer !== buffer || !t.surface.isConnected) return;
+      applySource(t.surface.querySelector('[data-ui="source"]'), buffer, changed);
+      // Source updates may focus the editor; keep reading interaction in this pane.
+      box.focus(); preview.scrollTop = scroll;
+      await updatePreview(t.path);
+    }));
+  });
   // Org headings use document-local IDs. Namespace them when several notes
   // share a window, including their in-document links.
   for (const el of preview.querySelectorAll('[id]')) el.id = prefix + el.id;
@@ -551,7 +597,41 @@ function entryColorStyle(e) {
   return tag ? `style="--tag-color:${tagColor(tag)}" data-color-tag="${esc(tag)}"` : '';
 }
 function entryHTML(e) {
-  return `<div class="agenda-row">${e.state ? `<button class="agenda-complete task-state org-todo" data-complete="${entries.indexOf(e)}" aria-label="Mark ${esc(e.title)} as done">${esc(e.state)}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(e.stamp.time || (e.stamp.date ? 'All day' : 'Unscheduled'))}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button></div>`;
+  return `<div class="agenda-row">${e.state ? `<button class="agenda-complete task-state org-todo" data-complete="${entries.indexOf(e)}" aria-label="Mark ${esc(e.title)} as done">${esc(e.state)}</button>` : ''}<button class="task-clock" data-clock="${entries.indexOf(e)}" aria-label="${e.clock ? 'Clock out of' : 'Clock in to'} ${esc(e.title)}" title="${e.clock ? 'Clock out' : 'Clock in'}">${e.clock ? '■' : '◷'}</button><button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(e.stamp.time || (e.stamp.date ? 'All day' : 'Unscheduled'))}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button></div>`;
+}
+function runningClocks() { return [...new Map(entries.filter(e => e.clock).map(e => [e.path + ':' + e.line, e])).values()]; }
+let clockBusy = false;
+async function clockEntry(item) {
+  if (clockBusy) return;
+  clockBusy = true;
+  try { await clockEntryTransaction(item); } finally { clockBusy = false; }
+}
+async function clockEntryTransaction(item) {
+  if (!item) return;
+  const id = workspace.id;
+  const targets = item.clock ? [item] : [...runningClocks(), item];
+  for (const entry of targets) if (dirty(tabs.get(entry.path)) || tabs.get(entry.path)?.saving) { notify('Wait for edits to save before changing clocks.'); return; }
+  for (const entry of targets) {
+    if (workspace.id !== id) return;
+    const note = await call('Read', { id, path: entry.path });
+    const heading = note.headings.find(h => h.line === entry.line);
+    if (!heading || heading.title !== entry.title) { await refresh(); notify('Task changed. Try again.'); return; }
+    const updated = await call('Edit', { source: note.source, line: entry.line, operation: entry.clock ? 'clock-out' : 'clock-in' });
+    await call('Save', { id, path: entry.path, revision: note.revision, source: updated });
+  }
+  await refresh();
+}
+async function clockHeading() {
+  const t = current(); if (!t) return;
+  const line = source.value.slice(0, source.selectionStart).split('\n').length;
+  const heading = t.headings.filter(h => h.line <= line).at(-1);
+  if (heading) await clockEntry({ ...heading, path: active });
+}
+function renderClocks() {
+  const clocks = runningClocks();
+  const html = clocks.map(e => `<button data-clock="${entries.indexOf(e)}" title="Clock out">◷ ${esc(e.title)} <small>since ${esc(e.clock.slice(-6, -1))}</small> · Stop</button>`).join('');
+  $('calendar-clock').innerHTML = html; $('calendar-clock').hidden = !clocks.length;
+  for (const t of tabs.values()) { const slot = t.surface?.querySelector('[data-ui="note-clock"]'); if (slot) { slot.innerHTML = html; slot.hidden = !clocks.length; } }
 }
 async function completeAgendaEntry(item) {
   if (!item) return;
@@ -576,10 +656,24 @@ function renderAgenda() {
     if (!groups.has(key)) groups.set(key, []); groups.get(key).push(e);
   }
   $('agenda-list').innerHTML = [...groups].map(([label, items]) => `<section class="agenda-group ${label === 'Overdue' ? 'overdue' : ''}"><h2>${esc(label)} <small>${items.length}</small></h2>${items.map(entryHTML).join('')}</section>`).join('') || empty('No tasks match this view');
+  const clocks = runningClocks();
+  if (clocks.length) $('agenda-list').insertAdjacentHTML('afterbegin', `<section class="agenda-group clocked"><h2>Clocked</h2>${clocks.map(entryHTML).join('')}</section>`);
+  renderClocks();
   const count = [...groups.values()].reduce((n, items) => n + items.length, 0);
   $('agenda-results-count').textContent = `${count} matching ${count === 1 ? 'entry' : 'entries'}`;
 }
-function dayEntries(key) { return entries.filter(e => e.stamp.date && e.stamp.date <= key && (e.stamp.endDate || e.stamp.date) >= key); }
+function calendarMatches(e) {
+  const query = agendaQuery.savedViews().find(v => v.name === $('calendar-view').value)?.query;
+  if (!query) return true;
+  if (e.done) return false;
+  const date = e.stamp.date, overdue = date && date < today() && ['scheduled', 'deadline'].includes(e.stamp.kind);
+  if (query.range === 'today' && date !== today() && !overdue) return false;
+  if (query.range === 'upcoming' && (!date || date < today())) return false;
+  if (query.range === 'overdue' && !overdue) return false;
+  const text = [e.path, e.title, e.state, ...e.tags, ...(e.fileTags || [])].join(' ').toLowerCase();
+  return matchesAgendaQuery(e, query) && (!query.kind || query.kind === e.stamp.kind) && text.includes(query.text.trim().toLowerCase());
+}
+function dayEntries(key) { return entries.filter(e => calendarMatches(e) && e.stamp.date && e.stamp.date <= key && (e.stamp.endDate || e.stamp.date) >= key); }
 function monthGrid(year, month) {
   const first = new Date(year, month, 1, 12), start = new Date(first); start.setDate(1 - (first.getDay() + 6) % 7);
   let html = '<div class="month-grid">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="weekday">${d}</div>`).join('');
@@ -600,13 +694,13 @@ function renderCalendar() {
     for (let month = 0; month < 12; month++) {
       const first = new Date(y, month, 1, 12), blank = (first.getDay() + 6) % 7;
       html += `<section class="mini-month"><h3 data-month="${month}">${first.toLocaleDateString(undefined, { month: 'long' })}</h3><div class="mini-grid">${'<span></span>'.repeat(blank)}`;
-      for (let d = 1; d <= new Date(y, month + 1, 0).getDate(); d++) { const key = dateKey(new Date(y, month, d, 12)); html += `<button data-day="${key}" class="${dayEntries(key).length ? 'has-events' : ''}">${d}</button>`; }
+      for (let d = 1; d <= new Date(y, month + 1, 0).getDate(); d++) { const key = dateKey(new Date(y, month, d, 12)); html += `<button data-day="${key}" class="${dayEntries(key).length ? 'has-events' : ''} ${key === today() ? 'is-today' : ''}">${d}</button>`; }
       html += '</div></section>';
     }
     $('calendar-grid').innerHTML = html + '</div>'; return;
   }
   const start = new Date(calendarDate); if (calendarMode === 'week') start.setDate(start.getDate() - (start.getDay() + 6) % 7);
-  $('calendar-grid').innerHTML = timeGrid(start, calendarMode === 'week' ? 7 : 1, entries, entryColorStyle);
+  $('calendar-grid').innerHTML = timeGrid(start, calendarMode === 'week' ? 7 : 1, entries.filter(calendarMatches), entryColorStyle, e => entries.indexOf(e));
 }
 function shiftCalendar(delta) {
   if (calendarMode === 'month') calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + delta, 1, 12);
@@ -633,7 +727,7 @@ async function capture(date = today(), time = '') {
   workspace = await call('Status'); await refreshData();
   notify(`Task saved to ${path}.`);
 }
-function taskValues(data) { return { title: data.get('title').trim(), date: data.get('date'), time: data.get('time'), endTime: data.get('endTime'), kind: data.get('kind') }; }
+function taskValues(data) { return { title: data.get('title').trim(), date: data.get('date'), time: data.get('time'), endTime: data.get('endTime'), kind: data.get('kind'), repeater: data.get('repeater').trim() }; }
 function applySource(editor, before, after) {
   let start = 0, end = before.length, changedEnd = after.length;
   while (start < end && start < changedEnd && before[start] === after[start]) start++;
@@ -650,7 +744,7 @@ async function editTaskAtCursor(kindOverride) {
   if (heading.state && title.startsWith(heading.state + ' ')) title = title.slice(heading.state.length + 1);
   title = title.replace(/^\[#[^\]]+\]\s+/, '').replace(/\s+:[\w@#%:]+:\s*$/, '');
   const stamp = heading.dates.find(st => st.kind === 'scheduled' || st.kind === 'deadline');
-  const data = await taskDialog(dialog, { editing: true, title, path, date: stamp?.date || '', time: stamp?.time || '', endTime: stamp?.endTime || '', kind: kindOverride || stamp?.kind || 'scheduled' });
+  const data = await taskDialog(dialog, { editing: true, title, path, date: stamp?.date || '', time: stamp?.time || '', endTime: stamp?.endTime || '', repeater: stamp?.repeater || '', kind: kindOverride || stamp?.kind || 'scheduled' });
   if (!data) return;
   if (tabs.get(path) !== t || t.buffer !== buffer) { notify('This heading changed while the task dialog was open. Please try again.'); return; }
   const changed = await call('Edit', { source: buffer, line: heading.line, operation: 'task', value: JSON.stringify({ ...taskValues(data), previousKind: stamp?.kind }) });
@@ -750,6 +844,7 @@ function showHeadingMenu(anchor = source) {
   if (!current() || view !== 'document') return;
   const actions = [
     ['Edit task…', () => editTaskAtCursor()], ['Toggle task state', () => headingAction('complete')],
+    ['Clock in / out', clockHeading],
     ['Edit tags…', () => headingAction('tags')], ['Edit properties…', () => headingAction('property')], ['Set priority…', () => headingAction('priority')],
     ['Schedule…', () => editTaskAtCursor('scheduled')], ['Set deadline…', () => editTaskAtCursor('deadline')],
     ['Fold / unfold', () => headingFoldCommand('toggle')], ['Promote heading', () => editorCommand('promote')], ['Demote heading', () => editorCommand('demote')],
@@ -764,13 +859,15 @@ function showActionMenu(anchor, title, actions) {
     button.addEventListener('click', run(async () => { menu.close(); await execute(); })); menu.append(button);
   });
   const rect = anchor.getBoundingClientRect(); document.body.append(menu); menu.showModal();
+  menu.tabIndex = -1; menu.focus();
   menu.style.left = `${Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, rect.right - menu.offsetWidth))}px`;
   menu.style.top = `${Math.max(8, Math.min(innerHeight - menu.offsetHeight - 8, rect.bottom + 4))}px`;
   menu.addEventListener('click', e => { if (e.target === menu) menu.close(); });
   menu.addEventListener('keydown', e => {
-    if (!['ArrowDown','ArrowUp','Home','End'].includes(e.key)) return; e.preventDefault();
+    const key = e.ctrlKey && !e.altKey && !e.metaKey ? ({ n: 'ArrowDown', p: 'ArrowUp' }[e.key.toLowerCase()] || e.key) : e.key;
+    if (!['ArrowDown','ArrowUp','Home','End'].includes(key)) return; e.preventDefault();
     const buttons = [...menu.querySelectorAll('button')], index = buttons.indexOf(document.activeElement);
-    buttons[e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1 : (index + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length].focus();
+    buttons[key === 'Home' ? 0 : key === 'End' ? buttons.length - 1 : index < 0 ? (key === 'ArrowDown' ? 0 : buttons.length - 1) : (index + (key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length].focus();
   });
   menu.addEventListener('close', () => { menu.remove(); if (!document.querySelector('dialog[open]') && anchor.isConnected) anchor.focus(); }, { once: true });
 }
@@ -797,6 +894,7 @@ const actionDefinitions = [
   ['heading-tags', 'Edit heading tags', '', () => headingAction('tags')],
   ['heading-properties', 'Edit heading properties', '', () => headingAction('property')],
   ['heading-priority', 'Set heading priority', '', () => headingAction('priority')],
+  ['clock-task', 'Clock in / out of heading', '', clockHeading],
   ['settings', 'Settings', 'Mod+,', () => setView('settings')],
   ['commands', 'Run command', 'Mod+P', () => openPalette('commands')],
   ['files', 'Find file by name', 'Mod+O', () => openPalette('files')],
@@ -807,6 +905,7 @@ const actionDefinitions = [
   ['fold-all', 'Fold all headings', '', () => headingFoldCommand('fold-all')],
   ['unfold-all', 'Unfold all headings', '', () => headingFoldCommand('unfold-all')],
   ['left-sidebar', 'Toggle left sidebar', 'Mod+Shift+L', () => toggleSidebar('left')],
+  ['hide-ribbon', 'Hide app ribbon (toggle)', '', () => { localStorage.setItem('orbitalnote-hide-ribbon', String(localStorage.getItem('orbitalnote-hide-ribbon') !== 'true')); updateSidebars(); }],
   ['right-sidebar', 'Toggle right sidebar', 'Mod+Shift+R', () => toggleSidebar('right')],
   ['new-note', 'New note', 'Mod+N', createFile], ['open-workspace', 'Open workspace', '', openWorkspace], ['save', 'Save note', 'Mod+S', save],
   ['agenda', 'Go to agenda', '', () => setView('agenda')], ['calendar', 'Go to calendar', '', () => setView('calendar')], ['search', 'Search workspace', '', () => setView('search')],
@@ -851,6 +950,7 @@ document.addEventListener('click', run(async e => {
     localStorage.setItem(key, JSON.stringify(colors)); renderTags(); renderAgenda(); renderCalendar(); return;
   }
   if (b.dataset.complete !== undefined) return completeAgendaEntry(entries[Number(b.dataset.complete)]);
+  if (b.dataset.clock !== undefined) return clockEntry(entries[Number(b.dataset.clock)]);
   if (b.dataset.open) return openNote(b.dataset.open, Number(b.dataset.line) || undefined);
   if (b.dataset.close) return closeTab(b.dataset.close);
   if (b.dataset.folder) { e.preventDefault(); return folderActions(b.dataset.folder, b); }
@@ -876,7 +976,24 @@ listen('panel-scrim', 'click', () => { closeMobileSidebars(); $('menu').focus();
 listen('notice', 'click', () => notify(''));
 listen('quick-open', 'click', () => openPalette('files')); listen('palette-button', 'click', () => openPalette('commands'));
 listen('palette-input', 'input', renderPalette);
-listen('palette-input', 'keydown', async e => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); paletteSelection = Math.max(0, Math.min(paletteItems.length - 1, paletteSelection + (e.key === 'ArrowDown' ? 1 : -1))); drawPalette(); $('palette-results').querySelector('.selected')?.scrollIntoView({ block: 'nearest' }); } else if (e.key === 'Enter') { e.preventDefault(); await executePalette(paletteSelection); } });
+listen('palette-input', 'keydown', async e => { const key = e.ctrlKey && !e.altKey && !e.metaKey ? ({ n: 'ArrowDown', p: 'ArrowUp' }[e.key.toLowerCase()] || e.key) : e.key; if (key === 'ArrowDown' || key === 'ArrowUp') { e.preventDefault(); paletteSelection = Math.max(0, Math.min(paletteItems.length - 1, paletteSelection + (key === 'ArrowDown' ? 1 : -1))); drawPalette(); $('palette-results').querySelector('.selected')?.scrollIntoView({ block: 'nearest' }); } else if (key === 'Enter') { e.preventDefault(); await executePalette(paletteSelection); } });
+listen('palette', 'click', e => { const r = $('palette').getBoundingClientRect(); if (e.target === $('palette') && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) $('palette').close(); });
+listen('agenda-minimal', 'click', () => { const enabled = $('agenda').classList.toggle('minimal'); $('agenda-minimal').setAttribute('aria-pressed', String(enabled)); $('agenda-minimal').textContent = enabled ? 'Full view' : 'Minimal view'; });
+const calendarView = $('calendar-view');
+document.querySelector('#calendar .filterbar').append(calendarView);
+listen('calendar-view', 'change', renderCalendar);
+$('agenda-query-builder').addEventListener('saved-views-changed', e => {
+  const selected = calendarView.value;
+  calendarView.innerHTML = '<option value="">All entries</option>' + e.detail.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
+  calendarView.value = e.detail.some(v => v.name === selected) ? selected : '';
+  renderCalendar();
+});
+$('line-numbers').value = localStorage.getItem('orbitalnote-line-numbers') || 'off';
+listen('line-numbers', 'change', () => { localStorage.setItem('orbitalnote-line-numbers', $('line-numbers').value); for (const t of tabs.values()) t.surface?.querySelector('[data-ui="source"]')?.setLineNumbers($('line-numbers').value); });
+$('monospace-mode').checked = localStorage.getItem('orbitalnote-monospace') === 'true';
+const applyMonospace = () => document.documentElement.classList.toggle('monospace-mode', $('monospace-mode').checked);
+applyMonospace();
+listen('monospace-mode', 'change', () => { localStorage.setItem('orbitalnote-monospace', String($('monospace-mode').checked)); applyMonospace(); });
 listen('capture', 'click', () => capture()); listen('calendar-capture', 'click', () => capture(dateKey(calendarDate)));
 listen('agenda-query', 'input', renderAgenda); listen('kind-filter', 'change', renderAgenda);
 listen('calendar-prev', 'click', () => shiftCalendar(-1)); listen('calendar-next', 'click', () => shiftCalendar(1)); listen('calendar-today', 'click', () => { calendarDate = new Date(); renderCalendar(); });
@@ -951,6 +1068,7 @@ $('tree').addEventListener('drop', run(async e => {
 }));
 $('calendar-grid').addEventListener('dragstart', e => {
   const b = e.target.closest('[data-entry]'); if (!b || b.draggable === false) return;
+  if (entries[Number(b.dataset.entry)]?.stamp.kind === 'completed') { e.preventDefault(); return; }
   draggedEntry = entries[Number(b.dataset.entry)]; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', draggedEntry.title);
 });
 $('calendar-grid').addEventListener('dragover', e => { if (draggedEntry && e.target.closest('[data-drop-date]')) e.preventDefault(); });

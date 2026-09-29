@@ -109,7 +109,9 @@
 .rich-vi-cursor { position: absolute; inset: 0; padding: 0 !important; pointer-events: none; z-index: 5; overflow: hidden !important; }
 .rich-vi-cursor .vi-block-cursor::after { top: 0; bottom: auto; height: 100%; }
 .tab-control-slot { display: flex; flex: 0 0 30px; width: 30px; align-self: center; }
-.tab-items { display: flex; align-items: stretch; flex: 1; min-width: 0; gap: 3px; overflow: auto; scrollbar-width: none; }
+/* Overlap the strip's baseline so fractional zoom cannot expose it below the
+   active tab. The strip clips the overlap; padding keeps labels in place. */
+.tab-items { display: flex; align-items: stretch; flex: 1; min-width: 0; gap: 3px; margin-bottom: -2px; overflow: auto; scrollbar-width: none; }
 .tab-strip .tab.active > button:focus:not(:focus-visible) { outline: none; }
 .completed { text-decoration: line-through; opacity: .65; }
 .calendar-event-title, .calendar-event-time { display: block; overflow: hidden; text-overflow: ellipsis; }
@@ -253,7 +255,8 @@ kbd { font-family: inherit; font-size: 11px; color: var(--faint); }
 .tree button[data-open].active { color: var(--text); background: var(--selected); }
 .tree details { padding-left: 12px; }
 .tree > details { padding-left: 0; }
-.tree details > button[data-open] { padding-left: 30px; }
+.tree details > .tree-file-row { margin-left: 18px; }
+.tree details > details { margin-left: 6px; }
 .tree summary { position: relative; padding: 6px 29px 6px 8px; border-radius: 4px; cursor: pointer; color: var(--muted); }
 .tree summary:hover { background: var(--hover); }
 .tree summary::marker { color: var(--faint); font-size: 9px; }
@@ -294,7 +297,7 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .tab-group { position: absolute; z-index: 2; min-width: 0; min-height: 0; overflow: hidden; pointer-events: none; }
 .tab-surface { position: absolute; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; container-type: inline-size; }
 .tab-strip { display: flex; align-items: stretch; min-width: 0; height: 36px; flex-shrink: 0; gap: 3px; padding: 4px 5px 0; overflow: auto; scrollbar-width: none; background: linear-gradient(var(--border), var(--border)) bottom / 100% 1px no-repeat, var(--side); pointer-events: auto; }
-.tab-strip .tab { display: flex; align-items: center; max-width: 230px; min-width: 100px; flex-shrink: 0; border-radius: 6px 6px 0 0; color: var(--muted); }
+.tab-strip .tab { display: flex; align-items: center; max-width: 230px; min-width: 100px; padding-bottom: 2px; flex-shrink: 0; border-radius: 6px 6px 0 0; color: var(--muted); }
 .tab-strip .tab.active { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-bottom: 0; }
 .tab-group.focused > .tab-strip .tab.active { background: var(--bg); }
 .tab-strip .tab > button { border: 0; background: none; font-size: 12px; }
@@ -306,8 +309,8 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .tab-strip .dirty-dot { color: var(--accent); }
 .tab-insertion-marker { position: fixed; width: 3px; margin-left: -1px; background: var(--accent); border-radius: 3px; z-index: 40; pointer-events: none; box-shadow: 0 0 0 1px var(--bg); }
 .tab-insertion-marker::before { content: ''; position: absolute; width: 7px; height: 7px; left: -2px; top: -2px; border-radius: 50%; background: var(--accent); }
-.split-divider { position: absolute; z-index: 3; background: var(--border); cursor: col-resize; touch-action: none; }
-.split-divider.vertical { cursor: row-resize; }
+.split-divider { position: absolute; z-index: 3; background: linear-gradient(var(--border), var(--border)) center / 1px 100% no-repeat; cursor: col-resize; touch-action: none; }
+.split-divider.vertical { cursor: row-resize; background-size: 100% 1px; }
 .split-divider:hover, .split-divider:focus-visible { background: var(--accent); outline: none; }
 .tab-group[data-drop]::after { content: ''; position: absolute; z-index: 40; inset: 36px 0 0; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 2px solid var(--accent); pointer-events: none; }
 .tab-group[data-drop="left"]::after { right: 50%; }
@@ -444,6 +447,11 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .prose li.checked::before { content: '☑'; color: var(--accent); }
 .prose li.unchecked::before { content: '☐'; }
 .prose li.indeterminate::before { content: '⊟'; }
+.prose li.interactive-checkbox::before { content: none; }
+.preview-checkbox { position: absolute; left: -1.6em; top: .3em; width: 16px; height: 16px; padding: 0; border: 1px solid var(--muted); border-radius: 4px; color: var(--bg); line-height: 14px; font-size: 12px; }
+.preview-checkbox[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+.source-checkbox { cursor: pointer; color: var(--accent); border-radius: 3px; }
+.source-checkbox:hover { background: var(--hover); }
 .image-placeholder { display: block; padding: 12px; color: var(--muted); font-size: 12px; background: var(--side); }
 .chroma .k, .chroma .kd, .chroma .kn, .chroma .kt { color: var(--accent); }
 .chroma .s, .chroma .s1, .chroma .s2, .chroma .sb { color: #73aa91; }
@@ -519,6 +527,28 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .calendar-cell.outside { background: var(--side); color: var(--faint); }
 .day-number { padding: 3px 6px; font-size: 11px; border: 0; border-radius: 4px; background: transparent; }
 .is-today .day-number { background: var(--button); color: #fff; }
+.calendar-cell.is-today, .time-day.is-today, .time-day-header.is-today { background-color: var(--blue-soft); }
+.mini-grid button.is-today { background: var(--accent); color: var(--bg); }
+.heading-actions-menu:focus { outline: none; }
+.agenda-minimal-toggle { float: right; margin-bottom: 12px; font-size: 12px; }
+#agenda.minimal > :is(.page-heading, .filterbar, #agenda-results-count) { display: none; }
+#agenda.minimal #agenda-list { clear: both; }
+.monospace-mode :is(.cm-content, .ui-preview, .ui-preview h1, .ui-preview h2, .ui-preview h3, .ui-preview h4, .ui-preview h5, .ui-preview h6) { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.ui-context { margin-top: 6px; }
+.clock-status { text-align: center; flex: 1; min-width: 0; }
+.clock-status button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--accent); }
+.task-clock { flex-shrink: 0; padding: 4px; border: 0; background: transparent; color: var(--muted); }
+.clocked { border-bottom: 1px solid var(--border); }
+.ui-outline details details { margin-left: 12px; }
+.ui-outline summary { display: flex; align-items: center; }
+.ui-outline summary::before { content: '›'; cursor: pointer; width: 14px; flex-shrink: 0; }
+.ui-outline details[open] > summary::before { content: '⌄'; }
+.ui-outline details:not(:has(details)) > summary::before { content: ''; }
+@media (max-width: 760px) {
+  #sidebar, .ui-context { margin-top: 6px; }
+  .cm-content { padding-left: 28px !important; }
+  .ui-preview { padding-left: 30px; }
+}
 .calendar-event { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; text-align: left; margin-top: 5px; padding: 4px 5px; border: 0; border-left: 2px solid var(--accent); border-radius: 3px; font-size: 11px; color: var(--accent); background: var(--blue-soft); }
 .calendar-event.deadline { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
 .year-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }

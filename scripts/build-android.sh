@@ -41,10 +41,9 @@ sed 's/path.startsWith("\/wails\/")/path.startsWith("\/wails\/") \&\& !path.ends
 sed 's/gradle-9.2.1-bin/gradle-8.9-bin/' \
   "$wails/internal/commands/build_assets/android/gradle/wrapper/gradle-wrapper.properties" \
   > "$out/gradle/wrapper/gradle-wrapper.properties"
-for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-  cp app/build/icon.png "$out/app/src/main/res/mipmap-$density/ic_launcher.png"
-  cp app/build/icon.png "$out/app/src/main/res/mipmap-$density/ic_launcher_round.png"
-done
+# Own the launcher resources rather than letting Android wrap the padded desktop
+# tile in a legacy white plate. Android 8+ applies its launcher mask to our layers.
+cp -R app/build/android/res/. "$out/app/src/main/res/"
 mkdir -p "$out/app/src/main/jniLibs/arm64-v8a"
 echo "Compiling OrbitalNote for Android ARM64…"
 variant="${ANDROID_BUILD_TYPE:-debug}"

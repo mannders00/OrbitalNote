@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.1.0-preview.10 — 2026-09-29
+
+- Inactive tabs are inert and relinquish editor focus; delayed edits cannot focus
+  a hidden editor. File-tree children are visibly indented.
+- Minimal agenda view retains its filters. Calendar can select saved agenda views.
+- Thin split dividers, mobile fold-control spacing, sidebar top spacing, and a
+  configurable Hide app ribbon command (the ribbon stays visible with Files open).
+- Absolute/relative line numbers and monospace text settings, preserving heading sizes.
+- Ctrl+N/P navigation in command/file pickers and action menus; picker backdrop
+  dismissal; action menus open without selecting the first item.
+- Foldable outline sections with collapse/expand all. Cursor movement skips folds.
+- Vi Ctrl+D/U scroll the viewport; R/r replaces a character or selection.
+- Clickable checklist markers in source and reading views, with automatic list
+  continuation/indentation on Enter.
+- Clock in/out from the agenda or heading actions. Standard Org LOGBOOK records,
+  an agenda Clocked section, and status in note/calendar toolbars.
+- Completion writes CLOSED; reopening clears it. Repeating tasks advance using
+  +, ++, or .+ intervals and record completed occurrences in LOGBOOK for the calendar.
+- Editable repeaters in task dialogs, highlighted current calendar day, and
+  deadline dragging in month and day/week views.
+- Android adaptive launcher icon with a full-bleed background, separate logo
+  layer, and opaque legacy icons to avoid launcher-added white surrounds.
+- Active-tab seam remains connected at fractional zoom levels.
+
+See [interaction update](docs/interaction-update.md) for validation and scope.
+
 ## 0.1.0-preview.9 — 2026-09-28
 
 ### Added

@@ -48,6 +48,7 @@ export function createAgendaQuery(root, changed, context) {
     find('[data-saved-view]').innerHTML = '<option value="">Custom view</option>' + views.map(view => `<option value="${esc(view.name)}">${esc(view.name)}${active === view.name && JSON.stringify(view.query) !== JSON.stringify(snapshot()) ? ' · edited' : ''}</option>`).join('');
     find('[data-saved-view]').value = active;
     find('[data-delete-view]').hidden = !active;
+    root.dispatchEvent(new CustomEvent('saved-views-changed', { detail: views }));
   }
   const snapshot = () => ({ rules: rules.map(r => ({ ...r })), mode: find('[data-query-mode]').value, ...context.read() });
   const persist = () => localStorage.setItem('orbitalnote-agenda-views-' + workspaceKey, JSON.stringify({ views, active }));
@@ -104,6 +105,7 @@ export function createAgendaQuery(root, changed, context) {
   });
   configure(); render();
   return {
+    savedViews: () => views,
     matches: entry => matchesAgendaQuery(entry, { rules, mode: find('[data-query-mode]').value }),
     update: (next, key) => {
       entries = next;

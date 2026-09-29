@@ -98,15 +98,23 @@ export function attachVi(editor, status, findPrompt) {
     let key = {ArrowLeft:'h',ArrowRight:'l',ArrowUp:'k',ArrowDown:'j'}[e.key] || e.key;
     const p=pos();
     if (key==='Escape') { reset(); move(p); return; }
-    if (/^[1-9]$/.test(key) || (key==='0' && count)) { count=(count+key).slice(0,4); report(); return; }
+     if (pending !== 'R' && (/^[1-9]$/.test(key) || (key==='0' && count))) { count=(count+key).slice(0,4); report(); return; }
     const n=Math.min(Number(count)||1,999); count='';
     if (e.ctrlKey && ['d', 'u'].includes(key)) {
       pending = '';
-      if (editor.halfPage) { for (let i = 0; i < n; i++) editor.halfPage(key === 'd' ? 1 : -1); move(editor.selectionStart); }
+       if (editor.halfPage) { for (let i = 0; i < n; i++) editor.halfPage(key === 'd' ? 1 : -1); }
       else move(motion(key === 'd' ? 'j' : 'k', p, Math.max(1, Math.floor(editor.clientHeight / parseFloat(getComputedStyle(editor).lineHeight) / 2)) * n));
       report(); return;
     }
-    if (pending==='g') { pending=''; if(key==='g') move(0); report(); return; }
+     if (pending === 'R') {
+       pending = '';
+       if (key.length === 1) {
+         const a = editor.selectionStart, b = Math.max(editor.selectionEnd, Math.min(end(a), a + n));
+         edit(a, b, editor.value.slice(a, b).replace(/[^\n]/g, () => key)); reset(); move(a);
+       }
+       report(); return;
+     }
+     if (pending==='g') { pending=''; if(key==='g') move(0); report(); return; }
     if (pending) {
       const op=pending; pending='';
       if (key===op) { let b=p; for(let i=0;i<n;i++) b=Math.min(editor.value.length,end(b)+1); operate(op,start(p),b,true); }
@@ -114,7 +122,8 @@ export function attachVi(editor, status, findPrompt) {
       report(); return;
     }
     if ('hjklwb0^$G'.includes(key) && key.length===1) { move(motion(key,p,n)); return; }
-    if (key==='g') pending='g';
+     if (!e.ctrlKey && (key === 'R' || key === 'r')) { pending = 'R'; count = n > 1 ? String(n) : ''; }
+     else if (key==='g') pending='g';
     else if (['d','c','y'].includes(key)) {
       if (mode==='visual') operate(key,editor.selectionStart,editor.selectionEnd);
       else { pending=key; count=n>1 ? String(n) : ''; }
@@ -130,7 +139,7 @@ export function attachVi(editor, status, findPrompt) {
         edit(q,q,text.repeat(n)); reset(); move(q); }
     } else if (key==='u') { if (editor.undo) editor.undo(); else document.execCommand('undo'); reset(); }
     else if (e.ctrlKey && key==='r') { if (editor.redo) editor.redo(); else document.execCommand('redo'); reset(); }
-    else if (key==='/') { Promise.resolve(findPrompt?.(search)).then(value => { if(value && editor.isConnected) {search=value;editor.focus();find(false);} }); }
+     else if (key==='/') { Promise.resolve(findPrompt?.(search)).then(value => { if(value && editor.isConnected && !editor.closest('[hidden], [inert]')) {search=value;editor.focus();find(false);} }); }
     else if (key==='n' || key==='N') find(key==='N');
     report();
   }, true);

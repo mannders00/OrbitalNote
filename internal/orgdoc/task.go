@@ -17,6 +17,7 @@ type taskEdit struct {
 	EndTime      string `json:"endTime"`
 	Kind         string `json:"kind"`
 	PreviousKind string `json:"previousKind"`
+	Repeater     string `json:"repeater"`
 }
 
 var taskTags = regexp.MustCompile(`\s+:[\w@#%:]+:\s*$`)
@@ -38,6 +39,9 @@ func editTask(source string, h Heading, value string) (string, error) {
 	if edit.Date != "" && !orgdate.ValidDate(edit.Date) {
 		return "", errors.New("invalid date")
 	}
+	if edit.Repeater != "" && (!repeatRE.MatchString(edit.Repeater) || edit.Date == "") {
+		return "", errors.New("a repeater needs a date and an interval such as +1w")
+	}
 	if edit.Time != "" {
 		if _, err := time.Parse("15:04", edit.Time); err != nil || edit.Date == "" {
 			return "", errors.New("a start time requires a valid date and HH:MM time")
@@ -46,6 +50,11 @@ func editTask(source string, h Heading, value string) (string, error) {
 	if edit.EndTime != "" {
 		if _, err := time.Parse("15:04", edit.EndTime); err != nil || edit.Time == "" || edit.EndTime <= edit.Time {
 			return "", errors.New("end time must be later than start time")
+		}
+	}
+	if edit.Repeater != "" {
+		if _, err := nextRepeat(edit.Date, edit.Time, edit.Repeater, time.Now()); err != nil {
+			return "", err
 		}
 	}
 	lines := strings.SplitAfter(source, "\n")
@@ -93,6 +102,9 @@ func editTask(source string, h Heading, value string) (string, error) {
 				stamp += "-" + edit.EndTime
 			}
 		}
+		if edit.Repeater != "" {
+			stamp += " " + edit.Repeater
+		}
 		stamp += ">"
 	}
 	var matching []orgdate.Stamp
@@ -120,7 +132,7 @@ func editTask(source string, h Heading, value string) (string, error) {
 		if old.Start < start+len(raw) {
 			return "", errors.New("edit timestamps inside the heading title directly")
 		}
-		if old.Repeater != "" || old.EndDate != "" {
+		if old.EndDate != "" {
 			return "", errors.New("edit repeating or multi-day timestamps directly in the source")
 		}
 		at := old.Start
