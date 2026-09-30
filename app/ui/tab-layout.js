@@ -253,6 +253,13 @@ export class TabLayout {
     this.updateTabBaselines();
   }
   updateTabBaselines() {
+    // Mobile Files is a fixed overlay beside this layout. Follow the actual
+    // control-bearing tab strip (themes vary its height), not a 40px constant.
+    const controlStrip = this.leftControl.closest('.tab-strip');
+    if (controlStrip) {
+      const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+      document.documentElement.style.setProperty('--mobile-file-sidebar-top', `${controlStrip.getBoundingClientRect().bottom / zoom}px`);
+    }
     for (const strip of this.root.querySelectorAll('.tab-strip')) {
       const active = strip.querySelector('.tab.active'), bounds = strip.getBoundingClientRect();
       let start = 0, end = 0;

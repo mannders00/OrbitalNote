@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-preview.13 — 2026-09-30
+
+- Folded-heading ellipses inherit the heading's text styling with no background,
+  border, or pill, including hover states.
+- The expanded mobile file sidebar follows the actual themed tab-bar height,
+  eliminating the gap caused by the old fixed 40px offset.
+- Monospace mode now uses normal-sized text throughout notes, including headings,
+  in both source and preview. Turning it off restores themed heading sizes.
+
 ## 0.1.0-preview.12 — 2026-09-30
 
 - Guided File metadata dialog for title, file tags, category, author, description,

@@ -1,31 +1,23 @@
-# OrbitalNote 0.1.0-preview.12
+# OrbitalNote 0.1.0-preview.13
 
-Guided file metadata, direct agenda editing, and clearer editor navigation.
+Plain fold indicators, precise mobile sidebar alignment, and uniform monospace text.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.11
+## What's new since preview.12
 
-### Agenda and calendar
-- Edit tasks directly from each agenda row without leaving the agenda.
-- Matching clock and pencil icons sit together on the right, with a divider spanning the full row.
-- Completed tasks and recorded repeater completions remain visible by default. Explicit task-state filters still apply in agenda and calendar views.
-- Weekday headers and all-day events remain pinned together; today's highlight is limited to its header/day label rather than the entire column or cell.
+### Fold indicators
+- Folded-heading ellipses inherit the heading's color and font in source and preview.
+- No pill background, border, or shadow, including on hover.
 
-### Guided file metadata
-- A labeled dialog for title, file tags, category, author, and description, plus an expandable custom-properties section.
-- Uses Org file keywords such as `#+TITLE` and `#+FILETAGS`; custom values use the top-level property drawer. Unrelated source and line endings are preserved.
-- Open it from the right sidebar, File actions, or the **Edit file metadata** command.
-- Default shortcut: **Cmd+Option+M** on Mac or **Ctrl+Alt+M** elsewhere, configurable in Settings.
+### Mobile Files sidebar
+- The expanded Files sidebar and its backdrop follow the actual tab-bar edge instead of a fixed 40px offset.
+- Alignment accounts for themed tab heights and CSS zoom.
 
-### Editor, outline, and appearance
-- Subtle, theme-colored ellipses indicate folded headings in source and preview.
-- Collapse/Expand all stays at the right of the sticky Outline header. Headings without children retain a right-facing chevron.
-- Fix Vi movement at an empty first line and native insert-mode caret placement beside heading controls.
-- Preserve the pane's top border while painting the active-tab gap with the pane background to reduce fractional-scale seams.
-- Remove the mobile file sidebar's top gap.
-- Absolute/relative line numbers and persisted monospace settings were revalidated without changing heading sizes.
+### Monospace text
+- Monospace mode now uses normal-sized text throughout notes, including headings, in source and preview.
+- Turning it off restores the theme's heading sizes. The setting description reflects the new behavior.
 
-The [showcase vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.12/examples/Showcase) includes the research workflow featured in the refreshed project banner.
+The [showcase vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.13/examples/Showcase) includes the research workflow featured in the refreshed project banner.
 See the [changelog](CHANGELOG.md) and [interaction notes](docs/interaction-update.md) for details.
 
 Default shortcuts remain Cmd/Ctrl+, for Settings, Cmd/Ctrl+P for Run command,

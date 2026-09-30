@@ -24,11 +24,11 @@ try {
   await page.locator('#tree [data-open="polish-review.org"]').click();
   const doc=page.locator('.ui-document[data-path="polish-review.org"]'), editor=doc.locator('[data-ui="source"]');
   await doc.waitFor({state:'visible'});
-  const sizes=await doc.locator('.org-heading').evaluateAll(els=>els.map(el=>getComputedStyle(el).fontSize));
   await page.locator('#ribbon [data-view="settings"]').click(); await page.locator('#vi-mode').check();
   await page.locator('#monospace-mode').check(); await page.locator('#line-numbers').selectOption('absolute');
   await page.locator('[data-tab-select="file:polish-review.org"]').click();
-  assert.deepEqual(await doc.locator('.org-heading').evaluateAll(els=>els.map(el=>getComputedStyle(el).fontSize)),sizes);
+  const normalSize=await editor.evaluate(el=>getComputedStyle(el).fontSize);
+  assert.ok((await doc.locator('.org-heading').evaluateAll(els=>els.map(el=>getComputedStyle(el).fontSize))).every(size=>size===normalSize));
   assert.ok(await doc.locator('.cm-lineNumbers').isVisible());
   await editor.evaluate(el=>{el.focus();el.setSelectionRange(0,0);});
   await page.keyboard.press('j'); assert.equal(await editor.evaluate(el=>el.selectionStart),1);
@@ -52,5 +52,5 @@ try {
   const header=await page.locator('.time-day-headers').boundingBox(), pane=await page.locator('#calendar').boundingBox(), allDay=await page.locator('.all-day-row').boundingBox();
   assert.ok(Math.abs(header.y-pane.y)<1); assert.ok(Math.abs(allDay.y-header.y-header.height)<1);
   assert.equal(await page.locator('.time-day.is-today').evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
-  console.log('PASS: completed normal/repeating entries, first-line Vi motion, text caret, fold indicator, line numbers, preserved heading sizes, pinned weekday/all-day rows and header-only highlight.');
+  console.log('PASS: completed normal/repeating entries, first-line Vi motion, text caret, fold indicator, line numbers, uniform monospace sizes, pinned weekday/all-day rows and header-only highlight.');
 } finally { await browser.close(); }

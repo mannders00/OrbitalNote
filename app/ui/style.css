@@ -341,8 +341,8 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .editor-heading-fold, .preview-heading-fold { display: inline-flex; align-items: center; justify-content: center; width: 26px; min-height: 28px; padding: 0; margin-right: 5px; border: 0; background: transparent; color: var(--muted); font: 16px/1 sans-serif; vertical-align: middle; cursor: pointer; }
 .editor-heading-fold:hover, .preview-heading-fold:hover { background: var(--hover); color: var(--text); }
 .editor-heading-control { display: inline-block; width: 0; height: 0; padding: 0; border: 0; vertical-align: baseline; }
-.cm-foldPlaceholder { background: transparent; border: 0; color: var(--muted); padding: 0 .35em; cursor: pointer; }
-.ui-preview .is-folded::after { content: ' …'; color: var(--muted); font-weight: 400; }
+.source-pane .cm-editor .cm-content .cm-foldPlaceholder { background: none; border: 0; border-radius: 0; box-shadow: none; color: inherit; font: inherit; padding: 0 .2em; cursor: pointer; }
+.ui-preview .is-folded::after { content: ' …'; color: inherit; font: inherit; }
 .org-heading, .ui-preview :is(h1,h2,h3,h4,h5,h6) { position: relative; }
 .editor-heading-fold, .preview-heading-fold { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); width: 23px; height: 28px; margin: 0; opacity: 0; transition: opacity .12s; }
 .org-heading:hover .editor-heading-fold, .org-heading:focus-within .editor-heading-fold, .ui-preview :is(h1,h2,h3,h4,h5,h6):hover .preview-heading-fold, .preview-heading-fold:focus-visible { opacity: 1; }
@@ -542,6 +542,8 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 #agenda.minimal > :is(.filterbar, #agenda-results-count), #agenda.minimal .page-heading > :first-child, #agenda.minimal #capture { display: none; }
 #agenda.minimal .page-heading { justify-content: flex-end; margin-bottom: 8px; }
 .monospace-mode :is(.cm-content, .ui-preview, .ui-preview h1, .ui-preview h2, .ui-preview h3, .ui-preview h4, .ui-preview h5, .ui-preview h6) { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.monospace-mode .cm-content, .monospace-mode .ui-preview { font-size: var(--document-size); }
+.monospace-mode .cm-content :is(.org-heading, .org-meta, .org-marker, .org-tags, .org-format-marker, .org-code, .org-block-code, .org-block-quote, .org-planning-line, .org-metadata-line, .org-table-line, .task-state), .monospace-mode .ui-preview :is(h1, h2, h3, h4, h5, h6, p, pre, code, table, blockquote, small, .todo, .tags, .timestamp) { font-size: 1em; }
 .clock-status { text-align: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
 .time-calendar .time-slot, .time-calendar [data-entry] { touch-action: none; }
 .event-resize { position: absolute; left: 0; right: 0; height: 7px; cursor: ns-resize; z-index: 2; touch-action: none; }
@@ -637,9 +639,9 @@ dialog::backdrop { background: #0006; }
   #ribbon .icon-button { width: 34px; height: 36px; }
   .topbar { position: relative; z-index: 30; padding: 0 5px; gap: 2px; }
   #menu, #context-toggle { width: 34px; height: 36px; }
-  #sidebar { position: fixed; z-index: 20; top: var(--bar-height); bottom: 0; left: var(--rail-width); width: min(260px, calc(100vw - 64px)); box-shadow: 8px 0 24px var(--shadow); }
+  #sidebar { position: fixed; z-index: 20; top: var(--mobile-file-sidebar-top, var(--bar-height)); bottom: 0; left: var(--rail-width); width: min(260px, calc(100vw - 64px)); box-shadow: 8px 0 24px var(--shadow); }
   .ui-context { position: fixed; z-index: 20; top: var(--bar-height); bottom: 0; right: 0; width: min(260px, calc(100vw - 64px)); box-shadow: -8px 0 24px var(--shadow); }
-  #panel-scrim:not([hidden]) { display: block; position: fixed; z-index: 10; inset: var(--bar-height) 0 0 var(--rail-width); border: 0; border-radius: 0; background: #0005; }
+  #panel-scrim:not([hidden]) { display: block; position: fixed; z-index: 10; inset: var(--mobile-file-sidebar-top, var(--bar-height)) 0 0 var(--rail-width); border: 0; border-radius: 0; background: #0005; }
   .tree button[data-open], .tree summary { min-height: 36px; }
   .tree summary .folder-actions { opacity: 1; height: 32px; }
   .page { padding: 23px 16px; }
