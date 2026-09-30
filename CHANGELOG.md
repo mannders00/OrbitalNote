@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.1.0-preview.12 — 2026-09-30
+
+- Guided File metadata dialog for title, file tags, category, author, description,
+  and custom drawer properties. Available in the sidebar, file menu, and command
+  palette, with a configurable Cmd/Ctrl+Alt+M shortcut.
+- Collapse/Expand all stays at the right of the sticky Outline header; headings
+  without children retain a right-facing chevron.
+
+- Agenda rows include a direct Edit task button.
+- Keep native insert-mode caret geometry beside heading text rather than the
+  margin controls. Preserve the pane's top border while painting the active-tab
+  gap with the pane background to reduce fractional-scale seams.
+- Group matching clock/edit icons at the right of agenda rows and extend the
+  row divider beneath both controls.
+
+- Subtle, theme-colored ellipses indicate folded source and preview headings.
+- Fix Vi movement at an empty first line and keep its cursor beside heading text,
+  rather than over the heading action menu.
+- Show completed tasks and recorded repeater completions in agenda views by
+  default; explicit task-state filters still apply to agenda and calendar views.
+- Remove the mobile file sidebar's top gap.
+- Keep weekday headers and all-day events pinned together in day/week Calendar.
+  Highlight today's header rather than the entire day column/cell.
+- Revalidated absolute/relative line numbers and persisted monospace settings
+  without changing heading sizes.
+
 ## 0.1.0-preview.11 — 2026-09-29
 
 - Agenda minimal mode uses an aligned book icon beside New task. Running clocks

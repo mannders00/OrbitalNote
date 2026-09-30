@@ -30,6 +30,7 @@ type Link struct {
 	Line   int    `json:"line"`
 }
 type Document struct {
+	Metadata   map[string]string `json:"metadata"`
 	Properties map[string]string `json:"properties"`
 	FileTags   []string          `json:"fileTags"`
 	Source     string            `json:"source"`
@@ -53,6 +54,14 @@ func config() *org.Configuration {
 
 func Parse(source string) Document {
 	d := Document{Source: source, Headings: []Heading{}, Links: []Link{}, Properties: map[string]string{}}
+	d.Metadata = map[string]string{}
+	for _, field := range fileKeywords(source) {
+		if previous := d.Metadata[field.name]; previous != "" {
+			d.Metadata[field.name] = previous + " " + field.value
+		} else {
+			d.Metadata[field.name] = field.value
+		}
+	}
 	fileLines := strings.Split(source[filePropertyStart(source):], "\n")
 	if len(fileLines) > 0 && strings.EqualFold(strings.TrimSpace(fileLines[0]), ":PROPERTIES:") {
 		for _, line := range fileLines[1:] {

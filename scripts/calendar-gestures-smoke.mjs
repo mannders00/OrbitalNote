@@ -33,7 +33,7 @@ try {
   assert.equal(await page.locator('#modal [name="endTime"]').inputValue(),'11:00');
   await page.keyboard.press('Escape');
   await page.locator('#calendar').evaluate(el=>el.scrollTop=600);
-  const pinned=await page.locator('.calendar-pinned-header').boundingBox(), pane=await page.locator('#calendar').boundingBox();
+  const pinned=await page.locator('.time-day-headers').boundingBox(), pane=await page.locator('#calendar').boundingBox();
   assert.ok(Math.abs(pinned.y-pane.y)<1,JSON.stringify({pinned,pane}));
-  console.log('PASS: timed move, resize, all-day conversion, deadline preservation, drag creation range, flush pinned header.');
+  console.log('PASS: timed move, resize, all-day conversion, deadline preservation, drag creation range, flush pinned weekday header.');
 } finally { await browser.close(); }

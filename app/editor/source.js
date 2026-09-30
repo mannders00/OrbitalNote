@@ -16,6 +16,15 @@ function foldHeading(view, heading, collapse = !isFolded(view.state, heading.fro
     ...(collapse && head > heading.from && head <= heading.to ? { selection: { anchor: heading.start } } : {}) });
   return true;
 }
+// Keep the widget's cursor geometry at its source position. The button itself
+// is positioned in the heading margin; returning it directly makes native
+// caret measurement jump to that margin in insert mode.
+function headingControl(button) {
+  const anchor = document.createElement('span');
+  anchor.className = 'editor-heading-control';
+  anchor.append(button);
+  return anchor;
+}
 class HeadingFold extends WidgetType {
   constructor(heading, collapsed) { super(); this.heading = heading; this.collapsed = collapsed; }
   eq(other) { return this.collapsed === other.collapsed && this.heading.from === other.heading.from && this.heading.to === other.heading.to && this.heading.title === other.heading.title; }
@@ -26,7 +35,7 @@ class HeadingFold extends WidgetType {
     button.setAttribute('aria-label', `${this.collapsed ? 'Expand' : 'Collapse'} heading: ${this.heading.title}`);
     button.addEventListener('mousedown', e => e.preventDefault());
     button.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); foldHeading(view, this.heading); });
-    return button;
+    return headingControl(button);
   }
   ignoreEvent() { return true; }
 }
@@ -41,7 +50,7 @@ class HeadingMenu extends WidgetType {
     button.textContent = '⋮';
     button.addEventListener('mousedown', e => e.preventDefault());
     button.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); view.contentDOM.dispatchEvent(new CustomEvent('heading-menu', { bubbles: true, detail: { line: this.line, button } })); });
-    return button;
+    return headingControl(button);
   }
   ignoreEvent() { return true; }
 }
@@ -119,7 +128,7 @@ export function createEditor(host) {
   const numbers = new Compartment();
   const extensions = [history(), drawSelection(), EditorView.lineWrapping,
     numbers.of([]), EditorView.atomicRanges.of(view => foldedRanges(view.state)),
-    codeFolding({ placeholderText: '' }),
+    codeFolding({ placeholderText: '…' }),
     foldService.of((state, from) => headingRanges(state.doc.toString()).find(h => h.start === from && h.to > h.from) || null), orgStyle,
     EditorView.domEventHandlers({ click(event, view) {
       const box = event.target.closest('[data-checkbox-line]'); if (box) { event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('checkbox-toggle', { bubbles: true, detail: { line: Number(box.dataset.checkboxLine) } })); return true; }
@@ -211,7 +220,7 @@ export function createEditor(host) {
       updateSpacer: (spacer, update) => new RelativeNumber(String(update.state.doc.lines)),
     })) });
   };
-  editor.caretRect = () => view.coordsAtPos(view.state.selection.main.head);
+  editor.caretRect = () => view.coordsAtPos(view.state.selection.main.head, -1);
   editor.refresh = () => view.requestMeasure();
   editor.viewport = view.scrollDOM;
   editor.dispose = () => view.destroy();

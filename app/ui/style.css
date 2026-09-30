@@ -109,8 +109,8 @@
 .rich-vi-cursor { position: absolute; inset: 0; padding: 0 !important; pointer-events: none; z-index: 5; overflow: hidden !important; }
 .rich-vi-cursor .vi-block-cursor::after { top: 0; bottom: auto; height: 100%; }
 .tab-control-slot { display: flex; flex: 0 0 30px; width: 30px; align-self: center; }
-/* The strip baseline has a real gap beneath the active tab. Its measured stops
-   follow scrolling/resizing; no covered border can bleed through at fractional zoom. */
+/* Paint the active tab's seam with the pane color, rather than exposing the
+   strip background through a transparent gap at fractional display scales. */
 .tab-items { display: flex; align-items: stretch; flex: 1; min-width: 0; gap: 3px; overflow: auto; scrollbar-width: none; }
 .tab-strip .tab.active > button:focus:not(:focus-visible) { outline: none; }
 .completed { text-decoration: line-through; opacity: .65; }
@@ -142,6 +142,8 @@
 .time-day-headers, .all-day-row, .time-grid { display: grid; grid-template-columns: 48px repeat(var(--days), minmax(0, 1fr)); gap: 0; }
 .calendar-pinned-header { position: sticky; top: 0; z-index: 5; background: var(--side); }
 .time-day-headers { background: var(--side); border-bottom: 1px solid var(--border); }
+.agenda-row.completed .entry-main strong { text-decoration: line-through; color: var(--muted); }
+.agenda-edit { flex-shrink: 0; color: var(--muted); }
 .time-day-headers > button { min-width: 0; margin: 0; font-size: 11px; border-radius: 0; border: 0; border-left: 1px solid var(--border); padding: 8px 2px; background: none; }
 .time-day-headers > :last-child, .all-day-row > :last-child, .time-grid > :last-child { border-right: 1px solid var(--border); }
 #calendar:has(.time-calendar) .filterbar { margin-bottom: 0; }
@@ -294,10 +296,10 @@ kbd { font-family: inherit; font-size: 11px; color: var(--faint); }
 main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .topbar { display: flex; align-items: center; flex-shrink: 0; gap: 6px; height: var(--bar-height); padding: 0 8px; background: var(--side); border-bottom: 1px solid var(--border); }
 .workspace-toolbar-label { flex: 1; font-size: 12px; color: var(--muted); }
-#tab-layout { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+#tab-layout { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); }
 .tab-group { position: absolute; z-index: 2; min-width: 0; min-height: 0; overflow: hidden; pointer-events: none; }
 .tab-surface { position: absolute; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; container-type: inline-size; }
-.tab-strip { display: flex; align-items: stretch; min-width: 0; height: 36px; flex-shrink: 0; gap: 3px; padding: 4px 5px 0; overflow: auto; scrollbar-width: none; background: linear-gradient(to right, var(--border) 0 var(--active-tab-start, 0%), transparent var(--active-tab-start, 0%) var(--active-tab-end, 0%), var(--border) var(--active-tab-end, 0%) 100%) bottom / 100% 1px no-repeat, var(--side); pointer-events: auto; }
+.tab-strip { display: flex; align-items: stretch; min-width: 0; height: 36px; flex-shrink: 0; gap: 3px; padding: 4px 5px 0; overflow: auto; scrollbar-width: none; background: linear-gradient(to right, var(--border) 0 var(--active-tab-start, 0%), var(--bg) var(--active-tab-start, 0%) var(--active-tab-end, 0%), var(--border) var(--active-tab-end, 0%) 100%) bottom / 100% 1px no-repeat, linear-gradient(to right, transparent 0 var(--active-tab-start, 0%), var(--bg) var(--active-tab-start, 0%) var(--active-tab-end, 0%), transparent var(--active-tab-end, 0%) 100%) bottom / 100% 3px no-repeat, var(--side); pointer-events: auto; }
 .tab-strip .tab { display: flex; align-items: center; max-width: 230px; min-width: 100px; flex-shrink: 0; border-radius: 6px 6px 0 0; color: var(--muted); }
 .tab-strip .tab.active { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-bottom: 0; }
 .tab-group.focused > .tab-strip .tab.active { background: var(--bg); }
@@ -338,7 +340,9 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .shortcut-row button { min-height: 34px; font-size: 12px; }
 .editor-heading-fold, .preview-heading-fold { display: inline-flex; align-items: center; justify-content: center; width: 26px; min-height: 28px; padding: 0; margin-right: 5px; border: 0; background: transparent; color: var(--muted); font: 16px/1 sans-serif; vertical-align: middle; cursor: pointer; }
 .editor-heading-fold:hover, .preview-heading-fold:hover { background: var(--hover); color: var(--text); }
-.cm-foldPlaceholder { display: none; }
+.editor-heading-control { display: inline-block; width: 0; height: 0; padding: 0; border: 0; vertical-align: baseline; }
+.cm-foldPlaceholder { background: transparent; border: 0; color: var(--muted); padding: 0 .35em; cursor: pointer; }
+.ui-preview .is-folded::after { content: ' …'; color: var(--muted); font-weight: 400; }
 .org-heading, .ui-preview :is(h1,h2,h3,h4,h5,h6) { position: relative; }
 .editor-heading-fold, .preview-heading-fold { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); width: 23px; height: 28px; margin: 0; opacity: 0; transition: opacity .12s; }
 .org-heading:hover .editor-heading-fold, .org-heading:focus-within .editor-heading-fold, .ui-preview :is(h1,h2,h3,h4,h5,h6):hover .preview-heading-fold, .preview-heading-fold:focus-visible { opacity: 1; }
@@ -462,7 +466,8 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 
 /* The right pane is controlled by JS at every width, never irreversibly hidden. */
 .ui-context { position: relative; width: var(--right-width, 228px); flex-shrink: 0; overflow: auto; border-left: 1px solid var(--border); background: var(--side); }
-.context-header { gap: 8px; border-bottom: 1px solid var(--border); }
+.context-header { position: sticky; top: 0; z-index: 2; background: var(--side); gap: 8px; border-bottom: 1px solid var(--border); }
+.ui-context .context-header .ui-outline-toggle-all { width: auto; margin-left: auto; flex-shrink: 0; padding: 4px; white-space: nowrap; font-size: 11px; }
 .context-header .icon { width: 15px; height: 15px; }
 .section-label { display: flex; align-items: center; gap: 8px; margin-top: 18px; padding: 12px 14px 8px; font-size: 12px; font-weight: 500; color: var(--muted); border-top: 1px solid var(--border); }
 .section-label .icon { width: 15px; height: 15px; }
@@ -504,8 +509,10 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .agenda-group h2 small { font-size: 11px; font-weight: 400; color: var(--faint); }
 .agenda-group.overdue h2 { color: var(--warn); }
 .agenda-entry { display: flex; width: 100%; align-items: center; gap: 12px; padding: 13px 6px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; text-align: left; }
-.agenda-row { display: flex; align-items: center; gap: 6px; }
-.agenda-row .agenda-entry { min-width: 0; }
+.agenda-row { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border); }
+.agenda-row .agenda-entry { min-width: 0; border-bottom: 0; }
+.agenda-row-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.agenda-row-actions .icon-button { width: 30px; height: 30px; padding: 6px; }
 .agenda-complete { flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 4px; font-size: 11px; font-weight: 650; }
 .entry-mark { display: flex; align-items: center; color: var(--faint); }
 .entry-mark .icon { width: 17px; height: 17px; }
@@ -528,7 +535,7 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .calendar-cell.outside { background: var(--side); color: var(--faint); }
 .day-number { padding: 3px 6px; font-size: 11px; border: 0; border-radius: 4px; background: transparent; }
 .is-today .day-number { background: var(--button); color: #fff; }
-.calendar-cell.is-today, .time-day.is-today, .time-day-header.is-today { background-color: var(--blue-soft); }
+.time-day-header.is-today { background-color: var(--blue-soft); }
 .mini-grid button.is-today { background: var(--accent); color: var(--bg); }
 .heading-actions-menu:focus { outline: none; }
 .agenda-actions { flex-shrink: 0; }
@@ -556,9 +563,8 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .ui-outline summary { display: flex; align-items: center; }
 .ui-outline summary::before { content: '›'; cursor: pointer; width: 14px; flex-shrink: 0; }
 .ui-outline details[open] > summary::before { content: '⌄'; }
-.ui-outline details:not(:has(details)) > summary::before { content: ''; }
+.ui-outline details:not(:has(details)) > summary::before, .ui-outline details[open]:not(:has(details)) > summary::before { content: '›'; }
 @media (max-width: 760px) {
-  #sidebar { margin-top: 6px; }
   .cm-content { padding-left: 28px !important; }
   .ui-preview { padding-left: 30px; }
 }

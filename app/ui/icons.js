@@ -2,6 +2,7 @@
 const paths = {
   book: '<path d="M12 5v16M12 5C9 3 5 3 2 4v15c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1z"/>',
   pencil: '<path d="m16 3 5 5M3 21l5-1L21 7a2 2 0 0 0-5-5L3 15zM3 15l5 5"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   'panel-left': '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
   'panel-right': '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
   files: '<rect x="7" y="7" width="13" height="14" rx="2"/><path d="M16 7V3H3v14h4"/>',

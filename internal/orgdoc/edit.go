@@ -13,6 +13,9 @@ import (
 // EditHeading applies an explicit command to source spans, never an AST export.
 // line is one-based and may point into the heading's body.
 func EditHeading(source string, line int, operation, value string) (string, error) {
+	if operation == "file-metadata" {
+		return editFileMetadata(source, value)
+	}
 	if operation == "file-property" {
 		at := filePropertyStart(source)
 		prefix := "* File\n"

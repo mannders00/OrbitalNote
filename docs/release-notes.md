@@ -1,30 +1,31 @@
-# OrbitalNote 0.1.0-preview.11
+# OrbitalNote 0.1.0-preview.12
 
-Direct calendar editing, file properties, and refined editor interactions.
+Guided file metadata, direct agenda editing, and clearer editor navigation.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.10
+## What's new since preview.11
 
-### Calendar
-- Drag across empty day/week time slots to create a task with a time range.
-- Move single-day events between dates and times; resize either edge to adjust the start or end.
-- Move events between all-day and timed slots. Changes update the Org timestamp while preserving scheduled/deadline type and repeater metadata.
-- Weekday headers and all-day events pin together directly beneath the tab bar while scrolling.
-- Current-clock status is plain, centered text with vertical padding.
+### Agenda and calendar
+- Edit tasks directly from each agenda row without leaving the agenda.
+- Matching clock and pencil icons sit together on the right, with a divider spanning the full row.
+- Completed tasks and recorded repeater completions remain visible by default. Explicit task-state filters still apply in agenda and calendar views.
+- Weekday headers and all-day events remain pinned together; today's highlight is limited to its header/day label rather than the entire column or cell.
 
-### Org editing and properties
-- Add, edit, and remove file-level properties through the right sidebar. They are stored in a top-of-file Org property drawer; heading properties remain separate.
-- Backlinks have been removed from the sidebar for now.
-- Enter continues ordinary bullets and numbered lists as well as checklists, preserving indentation. Preview checkboxes align with the first line of text.
-- Vi Ctrl+E/Y scroll by lines, moving the cursor only as needed to keep it visible. Ctrl+D/U move the cursor and viewport together by half a page.
+### Guided file metadata
+- A labeled dialog for title, file tags, category, author, and description, plus an expandable custom-properties section.
+- Uses Org file keywords such as `#+TITLE` and `#+FILETAGS`; custom values use the top-level property drawer. Unrelated source and line endings are preserved.
+- Open it from the right sidebar, File actions, or the **Edit file metadata** command.
+- Default shortcut: **Cmd+Option+M** on Mac or **Ctrl+Alt+M** elsewhere, configurable in Settings.
 
-### Navigation and appearance
-- Agenda minimal mode is an aligned book icon beside New task.
-- Running-clock status in notes is plain, centered text without a card or Stop button. Clock-out remains available in agenda and heading actions.
-- Tab baselines have an actual gap beneath the active tab to avoid border bleed at fractional zoom.
-- The outline sidebar connects directly to the tab bar without a strip of note background above it.
+### Editor, outline, and appearance
+- Subtle, theme-colored ellipses indicate folded headings in source and preview.
+- Collapse/Expand all stays at the right of the sticky Outline header. Headings without children retain a right-facing chevron.
+- Fix Vi movement at an empty first line and native insert-mode caret placement beside heading controls.
+- Preserve the pane's top border while painting the active-tab gap with the pane background to reduce fractional-scale seams.
+- Remove the mobile file sidebar's top gap.
+- Absolute/relative line numbers and persisted monospace settings were revalidated without changing heading sizes.
 
-The [showcase vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.11/examples/Showcase) includes the research workflow featured in the refreshed project banner.
+The [showcase vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.12/examples/Showcase) includes the research workflow featured in the refreshed project banner.
 See the [changelog](CHANGELOG.md) and [interaction notes](docs/interaction-update.md) for details.
 
 Default shortcuts remain Cmd/Ctrl+, for Settings, Cmd/Ctrl+P for Run command,

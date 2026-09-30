@@ -355,7 +355,7 @@ function renderContext(doc, surface = activeSurface) {
     stack.at(-1).element.append(details); stack.push({ level: h.level, element: details });
   }
   if (!doc.headings.length) outline.innerHTML = '<p class="empty">No headings</p>';
-  setHTML(surface.querySelector('[data-ui="properties"]'), Object.entries(doc.properties || {}).map(([k, v]) => `<button data-file-property="${esc(k)}" title="Edit ${esc(k)}"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + '<button data-file-property="">+ Add property</button>');
+  setHTML(surface.querySelector('[data-ui="properties"]'), Object.entries(doc.metadata || {}).map(([k,v]) => `<button data-file-metadata title="Edit file metadata"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + Object.entries(doc.properties || {}).map(([k, v]) => `<button data-file-property="${esc(k)}" title="Edit ${esc(k)}"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + '<button data-file-metadata>Edit file metadata…</button>');
 }
 function setHTML(element, html) { if (element.renderedHTML !== html) { element.innerHTML = html; element.renderedHTML = html; } }
 function setPreview(t, html) {
@@ -419,6 +419,7 @@ function setPreview(t, html) {
     button.setAttribute('aria-controls', body.id);
     button.updateFold = collapsed => {
       body.hidden = collapsed;
+      heading.classList.toggle('is-folded', collapsed);
       button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 5 7 7-7 7"/></svg>';
       button.setAttribute('aria-expanded', String(!collapsed));
       button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} heading: ${title}`);
@@ -463,7 +464,7 @@ async function updatePreview(path = active) {
   const seq = t.previewSequence = (t.previewSequence || 0) + 1, buffer = t.buffer;
   const doc = await call('Preview', { source: buffer });
   if (seq !== t.previewSequence || t.buffer !== buffer || tabs.get(path) !== t) return;
-  t.html = doc.html; t.headings = doc.headings; t.properties = doc.properties;
+  t.html = doc.html; t.headings = doc.headings; t.properties = doc.properties; t.metadata = doc.metadata;
   setPreview(t, doc.html); hydrateImages(t); renderContext(doc, t.surface); if (doc.warning) notify(doc.warning);
 }
 function relativePath(target, path = active) {
@@ -505,7 +506,7 @@ async function saveNote(path) {
     const note = await call('Save', { id, path, source: raw, revision: t.revision });
     if (workspace.id !== id || tabs.get(path) !== t) return;
     t.revision = note.revision; t.saved = buffer; t.conflict = false;
-    if (t.buffer === buffer) { t.html = note.html; t.headings = note.headings; t.properties = note.properties; setPreview(t, t.html); renderContext(t, t.surface); if (t.mode === 'preview') hydrateImages(t); }
+    if (t.buffer === buffer) { t.html = note.html; t.headings = note.headings; t.properties = note.properties; t.metadata = note.metadata; setPreview(t, t.html); renderContext(t, t.surface); if (t.mode === 'preview') hydrateImages(t); }
     notify(''); await refreshData();
   } catch (err) { t.saveError = true; if (String(err).includes('changed on disk')) t.conflict = true; throw err; }
   finally { t.saving = false; renderTabs(); updateStatus(t); if (!t.saveError && !t.conflict && tabs.get(path) === t && dirty(t)) scheduleSave(t); }
@@ -529,7 +530,7 @@ async function saveCopy() {
 }
 function fileActions(event) { showFileMenu(active, event?.currentTarget || $('file-actions')); }
 function showFileMenu(path, anchor) {
-  showActionMenu(anchor, 'File actions', [['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
+  showActionMenu(anchor, 'File actions', [['File metadata…', async () => { if (active !== path || view !== 'document') await openNote(path); await fileMetadata(); }], ['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
 }
 async function fileAction(path, action) {
   const t = tabs.get(path), id = workspace.id;
@@ -596,7 +597,28 @@ function entryColorStyle(e) {
   return tag ? `style="--tag-color:${tagColor(tag)}" data-color-tag="${esc(tag)}"` : '';
 }
 function entryHTML(e) {
-  return `<div class="agenda-row">${e.state ? `<button class="agenda-complete task-state org-todo" data-complete="${entries.indexOf(e)}" aria-label="Mark ${esc(e.title)} as done">${esc(e.state)}</button>` : ''}<button class="task-clock" data-clock="${entries.indexOf(e)}" aria-label="${e.clock ? 'Clock out of' : 'Clock in to'} ${esc(e.title)}" title="${e.clock ? 'Clock out' : 'Clock in'}">${e.clock ? '■' : '◷'}</button><button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(e.stamp.time || (e.stamp.date ? 'All day' : 'Unscheduled'))}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button></div>`;
+  const index = entries.indexOf(e);
+  const clock = e.done ? '' : `<button class="icon-button task-clock" data-clock="${index}" aria-label="${e.clock ? 'Clock out of' : 'Clock in to'} ${esc(e.title)}" title="${e.clock ? 'Clock out' : 'Clock in'}">${icon(e.clock ? 'square' : 'clock')}</button>`;
+  const actions = `<div class="agenda-row-actions">${clock}<button class="icon-button agenda-edit" data-edit-task="${index}" aria-label="Edit task: ${esc(e.title)}" title="Edit task">${icon('pencil')}</button></div>`;
+  return `<div class="agenda-row ${e.done ? 'completed' : ''}">${e.state ? e.stamp.kind === 'completed' ? `<span class="task-state org-done">${esc(e.state)}</span>` : `<button class="agenda-complete task-state ${e.done ? 'org-done' : 'org-todo'}" data-complete="${index}" aria-label="${e.done ? 'Reopen' : 'Mark'} ${esc(e.title)}${e.done ? '' : ' as done'}">${esc(e.state)}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(e.stamp.time || (e.stamp.date ? 'All day' : 'Unscheduled'))}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button>${actions}</div>`;
+}
+async function editAgendaTask(item) {
+  if (!item) return;
+  const id = workspace.id, path = item.path;
+  const busy = () => dirty(tabs.get(path)) || tabs.get(path)?.saving;
+  if (busy()) { notify('Save your open edits before editing this task.'); return; }
+  const note = await call('Read', { id, path });
+  if (note.revision !== item.revision) { await refresh(); notify('This task changed. Please try again.'); return; }
+  const heading = note.headings.find(h => h.line === item.line);
+  if (!heading) return;
+  const stamp = heading.dates.find(st => st.active && st.kind === item.stamp.kind) || heading.dates.find(st => ['scheduled', 'deadline'].includes(st.kind));
+  const data = await taskDialog(dialog, { editing: true, title: heading.title, path, date: stamp?.date || '', time: stamp?.time || '', endTime: stamp?.endTime || '', repeater: stamp?.repeater || '', kind: stamp?.kind || 'scheduled' });
+  if (!data || workspace.id !== id) return;
+  if (busy()) { notify('The open note has edits. Save them before editing this task.'); return; }
+  const changed = await call('Edit', { source: note.source, line: heading.line, operation: 'task', value: JSON.stringify({ ...taskValues(data), previousKind: stamp?.kind }) });
+  if (busy() || workspace.id !== id) return;
+  await call('Save', { id, path, source: changed, revision: note.revision });
+  await refresh();
 }
 function runningClocks() { return [...new Map(entries.filter(e => e.clock).map(e => [e.path + ':' + e.line, e])).values()]; }
 let clockBusy = false;
@@ -606,7 +628,7 @@ async function clockEntry(item) {
   try { await clockEntryTransaction(item); } finally { clockBusy = false; }
 }
 async function clockEntryTransaction(item) {
-  if (!item) return;
+  if (!item || item.stamp.kind === 'completed') return;
   const id = workspace.id;
   const targets = item.clock ? [item] : [...runningClocks(), item];
   for (const entry of targets) if (dirty(tabs.get(entry.path)) || tabs.get(entry.path)?.saving) { notify('Wait for edits to save before changing clocks.'); return; }
@@ -633,25 +655,25 @@ function renderClocks() {
   for (const t of tabs.values()) { const slot = t.surface?.querySelector('[data-ui="note-clock"]'); if (slot) { slot.textContent = text; slot.hidden = !clocks.length; } }
 }
 async function completeAgendaEntry(item) {
-  if (!item) return;
+  if (!item || item.stamp.kind === 'completed') return;
   if (dirty(tabs.get(item.path)) || tabs.get(item.path)?.saving) { notify('Save your edits before completing this task.'); return; }
   const id = workspace.id;
   const note = await call('Read', { id, path: item.path });
   if (note.revision !== item.revision) { await refresh(); notify('This task changed. Please try again.'); return; }
   const source = await call('Edit', { source: note.source, line: item.line, operation: 'complete' });
   await call('Save', { id, path: item.path, source, revision: item.revision });
-  await refresh(); notify('Task completed.');
+  await refresh(); notify(item.done ? 'Task reopened.' : 'Task completed.');
 }
 function renderAgenda() {
   agendaQuery.update(entries, workspace.key);
   document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('active', b.dataset.filter === agendaFilter));
   const now = today(); const groups = new Map();
-  for (const e of entries.filter(e => !e.done && agendaMatches(e))) {
+  for (const e of entries.filter(agendaMatches)) {
     const d = e.stamp.date;
-    if (agendaFilter === 'today' && d !== now && !(d && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind))) continue;
+    if (agendaFilter === 'today' && d !== now && !(!e.done && d && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind))) continue;
     if (agendaFilter === 'upcoming' && (!d || d < now)) continue;
-    if (agendaFilter === 'overdue' && !(d && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind))) continue;
-    const key = !d ? 'Unscheduled' : d < now && ['scheduled', 'deadline'].includes(e.stamp.kind) ? 'Overdue' : d === now ? 'Today' : dateLabel(d);
+    if (agendaFilter === 'overdue' && !(!e.done && d && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind))) continue;
+    const key = !d ? 'Unscheduled' : !e.done && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind) ? 'Overdue' : d === now ? 'Today' : dateLabel(d);
     if (!groups.has(key)) groups.set(key, []); groups.get(key).push(e);
   }
   $('agenda-list').innerHTML = [...groups].map(([label, items]) => `<section class="agenda-group ${label === 'Overdue' ? 'overdue' : ''}"><h2>${esc(label)} <small>${items.length}</small></h2>${items.map(entryHTML).join('')}</section>`).join('') || empty('No tasks match this view');
@@ -664,8 +686,7 @@ function renderAgenda() {
 function calendarMatches(e) {
   const query = agendaQuery.savedViews().find(v => v.name === $('calendar-view').value)?.query;
   if (!query) return true;
-  if (e.done) return false;
-  const date = e.stamp.date, overdue = date && date < today() && ['scheduled', 'deadline'].includes(e.stamp.kind);
+  const date = e.stamp.date, overdue = !e.done && date && date < today() && ['scheduled', 'deadline'].includes(e.stamp.kind);
   if (query.range === 'today' && date !== today() && !overdue) return false;
   if (query.range === 'upcoming' && (!date || date < today())) return false;
   if (query.range === 'overdue' && !overdue) return false;
@@ -781,6 +802,20 @@ async function editorCommand(name) {
     replaceSelection(source, changed.slice(start, changedEnd), start, end); return;
   }
   command(source, name, extra);
+}
+async function fileMetadata() {
+  const t = current(), editor = source, path = active;
+  if (!t || view !== 'document') { notify('Open a note to edit file metadata.'); return; }
+  const buffer = t.buffer, doc = await call('Preview', { source: buffer });
+  const fields = [['TITLE', 'Title', 'A readable title for the note.'], ['FILETAGS', 'File tags', 'Apply to every heading. Separate tags with spaces or colons.'], ['CATEGORY', 'Category', 'Group this file’s tasks under a category.'], ['AUTHOR', 'Author', 'The author of this file.'], ['DESCRIPTION', 'Description', 'A short summary of the file.']];
+  const form = dialog('File metadata', `<p>Common Org file settings. Leave a field blank to remove it.</p>${fields.map(([key,label,hint]) => `<label>${label}<input name="${key}" value="${esc(key === 'FILETAGS' ? (doc.metadata?.[key] || '').replaceAll(':', ' ').trim() : doc.metadata?.[key] || '')}"><small>${hint}</small></label>`).join('')}<details><summary>Custom properties</summary><p>Advanced values stored in the file’s top-level property drawer.</p><label>Property name<input name="customName" list="file-property-names" pattern="[A-Za-z0-9_@#%+\\-]+" placeholder="CUSTOM_ID"></label><datalist id="file-property-names">${Object.keys(doc.properties || {}).map(k => `<option value="${esc(k)}"></option>`).join('')}</datalist><label>Value<input name="customValue"></label><label><input type="checkbox" name="customRemove"> Remove this custom property</label></details>`, 'Save metadata');
+  $('modal-body').querySelector('[name="customName"]').addEventListener('input', e => { $('modal-body').querySelector('[name="customValue"]').value = doc.properties?.[e.target.value.toUpperCase()] || ''; });
+  const data = await form;
+  if (!data || active !== path || tabs.get(path) !== t || t.buffer !== buffer) return;
+  let changed = await call('Edit', { source: buffer, operation: 'file-metadata', value: JSON.stringify(Object.fromEntries(fields.map(([key]) => [key, data.get(key)]))) });
+  if (data.get('customName').trim()) changed = await call('Edit', { source: changed, operation: 'file-property', value: JSON.stringify({name:data.get('customName').trim(), value:data.get('customValue'), remove:data.has('customRemove')}) });
+  if (active !== path || tabs.get(path) !== t || t.buffer !== buffer) return;
+  applySource(editor, buffer, changed);
 }
 async function fileProperty(name) {
   const t = current(), editor = source, path = active;
@@ -902,6 +937,7 @@ const actionDefinitions = [
   ['task-toggle', 'Toggle task state', '', () => headingAction('complete')],
   ['heading-tags', 'Edit heading tags', '', () => headingAction('tags')],
   ['heading-properties', 'Edit heading properties', '', () => headingAction('property')],
+  ['file-metadata', 'Edit file metadata', 'Mod+Alt+M', fileMetadata],
   ['heading-priority', 'Set heading priority', '', () => headingAction('priority')],
   ['clock-task', 'Clock in / out of heading', '', clockHeading],
   ['settings', 'Settings', 'Mod+,', () => setView('settings')],
@@ -952,6 +988,7 @@ async function executePalette(i) { const item = paletteItems[i]; if (!item) retu
 document.addEventListener('click', run(async e => {
   const b = e.target.closest('button, [data-month]'); if (!b) return;
   if (b.dataset.fileProperty !== undefined) return fileProperty(b.dataset.fileProperty);
+  if (b.dataset.fileMetadata !== undefined) return fileMetadata();
   if (b.dataset.colorName !== undefined) {
     const key = 'org-tag-colors-' + workspace.key;
     let colors; try { colors = JSON.parse(localStorage.getItem(key) || '{}'); } catch {}
@@ -960,6 +997,7 @@ document.addEventListener('click', run(async e => {
     localStorage.setItem(key, JSON.stringify(colors)); renderTags(); renderAgenda(); renderCalendar(); return;
   }
   if (b.dataset.complete !== undefined) return completeAgendaEntry(entries[Number(b.dataset.complete)]);
+  if (b.dataset.editTask !== undefined) return editAgendaTask(entries[Number(b.dataset.editTask)]);
   if (b.dataset.clock !== undefined) return clockEntry(entries[Number(b.dataset.clock)]);
   if (b.dataset.open) return openNote(b.dataset.open, Number(b.dataset.line) || undefined);
   if (b.dataset.close) return closeTab(b.dataset.close);

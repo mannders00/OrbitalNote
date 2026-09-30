@@ -37,7 +37,7 @@ export function attachVi(editor, status, findPrompt) {
   editor.viewport?.addEventListener('scroll', drawCursor);
   const selectionChanged = () => { if (document.activeElement === editor) drawCursor(); };
   document.addEventListener('selectionchange', selectionChanged);
-  const start = p => editor.value.lastIndexOf('\n', p - 1) + 1;
+  const start = p => p <= 0 ? 0 : editor.value.lastIndexOf('\n', p - 1) + 1;
   const end = p => { const n = editor.value.indexOf('\n', p); return n < 0 ? editor.value.length : n; };
   const pos = () => mode === 'visual' ? (editor.selectionDirection === 'backward' ? editor.selectionStart : Math.max(editor.selectionStart, editor.selectionEnd - 1)) : editor.selectionStart;
   function report() { status.textContent = enabled ? `${mode.toUpperCase()}${pending || count ? ' · ' + count + pending : ''}` : ''; status.hidden = !enabled; drawCursor(); }
