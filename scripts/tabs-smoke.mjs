@@ -45,7 +45,7 @@ try {
   const beforeTab = page.locator('[data-tab-id="file:tabs-smoke.org"]'), beforeBox = await beforeTab.boundingBox();
   await page.locator('[data-tab-id="view:calendar"]').dispatchEvent('dragstart', { dataTransfer: transfer });
   await beforeTab.dispatchEvent('dragover', { dataTransfer: transfer, clientX: beforeBox.x + 2, clientY: beforeBox.y + 12 });
-  assert.ok(await page.locator('.tab-insertion-marker').isVisible());
+  await page.locator('.tab-insertion-marker').waitFor({state:'visible'});
   const marker = await page.locator('.tab-insertion-marker').boundingBox();
   assert.ok(Math.abs(marker.x - beforeBox.x) < 3);
   await beforeTab.dispatchEvent('drop', { dataTransfer: transfer, clientX: beforeBox.x + 2, clientY: beforeBox.y + 12 });

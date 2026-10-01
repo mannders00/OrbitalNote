@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.0-preview.14 — 2026-10-01
+
+- Update Outline, Agenda, and Calendar incrementally, preserving stable elements
+  and scroll positions rather than clearing panels during refreshes.
+- Highlight jump destinations temporarily in yellow and unfold only the ancestors
+  needed to reveal a target heading. Improve first-column heading caret geometry.
+- Preserve scroll when checking preview checkboxes and resizing calendar entries.
+- Use a clock/pause icon for clock-out and indicate running clocks in source,
+  preview, and calendar entries.
+- Default Calendar to 12-hour time, with a persistent 24-hour setting. Add a
+  current-time line and direct clock/completion controls on calendar entries.
+- Keep active filter chips inside the + Filter popup.
+- Preserve tab-strip DOM, skip redundant editor measurements, and coalesce drag
+  feedback to animation frames for smoother tab movement and splitting.
+
 ## 0.1.0-preview.13 — 2026-09-30
 
 - Folded-heading ellipses inherit the heading's text styling with no background,

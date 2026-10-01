@@ -1,23 +1,28 @@
-# OrbitalNote 0.1.0-preview.13
+# OrbitalNote 0.1.0-preview.14
 
-Plain fold indicators, precise mobile sidebar alignment, and uniform monospace text.
+Stable live updates, clearer navigation feedback, and calendar interaction polish.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.12
+## What's new since preview.13
 
-### Fold indicators
-- Folded-heading ellipses inherit the heading's color and font in source and preview.
-- No pill background, border, or shadow, including on hover.
+### Stable updates and navigation
+- Outline, Agenda, and Calendar patch existing elements rather than clearing panels on refresh.
+- Calendar resizing and preview checkbox updates preserve scroll position.
+- Jump destinations receive a temporary yellow highlight, cleared on interaction.
+- Heading jumps unfold only the ancestors needed to reveal the destination.
+- Improve caret geometry at the first character of headings.
 
-### Mobile Files sidebar
-- The expanded Files sidebar and its backdrop follow the actual tab-bar edge instead of a fixed 40px offset.
-- Alignment accounts for themed tab heights and CSS zoom.
+### Calendar and clocks
+- Calendar uses 12-hour time by default, with a persistent 24-hour option in Settings.
+- Day/week Calendar shows a current-time line.
+- Calendar entries have direct clock and task-completion controls.
+- Clock-out uses a clock/pause icon. Running clocks have indicators in source, preview, and calendar.
 
-### Monospace text
-- Monospace mode now uses normal-sized text throughout notes, including headings, in source and preview.
-- Turning it off restores the theme's heading sizes. The setting description reflects the new behavior.
+### Filters and tabs
+- Active filter chips appear only inside the + Filter popup, keeping the search bar compact.
+- Tab movement and splitting retain tab-strip elements, skip redundant editor measurements, and update drag feedback once per animation frame.
 
-The [showcase vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.13/examples/Showcase) includes the research workflow featured in the refreshed project banner.
+The [showcase vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.14/examples/Showcase) includes the research workflow featured in the refreshed project banner.
 See the [changelog](CHANGELOG.md) and [interaction notes](docs/interaction-update.md) for details.
 
 Default shortcuts remain Cmd/Ctrl+, for Settings, Cmd/Ctrl+P for Run command,

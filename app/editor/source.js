@@ -1,4 +1,4 @@
-import { EditorState, EditorSelection, StateField, Compartment } from '@codemirror/state';
+import { EditorState, EditorSelection, StateField, StateEffect, Compartment } from '@codemirror/state';
 import { EditorView, Decoration, WidgetType, keymap, drawSelection, lineNumbers, gutter, GutterMarker } from '@codemirror/view';
 import { history, defaultKeymap, undo, redo } from '@codemirror/commands';
 import { codeFolding, foldService, foldEffect, unfoldEffect, foldedRanges, unfoldAll } from '@codemirror/language';
@@ -57,7 +57,9 @@ class HeadingMenu extends WidgetType {
 
 function decorations(state) {
   const ranges = [], source = state.doc.toString();
-  for (const heading of headingRanges(source)) {
+  const headings = headingRanges(source), clocked = new Set();
+  for (const [index, heading] of headings.entries()) {
+    if (/^[ \t]*CLOCK:\s*\[[^\]\n]+\][ \t]*$/m.test(source.slice(heading.start, headings[index+1]?.start ?? source.length))) clocked.add(heading.start);
     if (heading.to > heading.from) ranges.push(Decoration.widget({ widget: new HeadingFold(heading, isFolded(state, heading.from)), side: -2 }).range(heading.start));
   }
   const keywords = source.match(/^#\+TODO:\s*(.+)$/im)?.[1] || 'TODO | DONE';
@@ -85,7 +87,7 @@ function decorations(state) {
     const heading = /^(\*+)\s+(?:(\S+)\s+)?/.exec(text);
     if (heading) {
       ranges.push(Decoration.widget({ widget: new HeadingMenu(n), side: 1 }).range(line.to));
-      ranges.push(Decoration.line({ class: `org-heading org-h${Math.min(heading[1].length, 6)}` }).range(line.from));
+      ranges.push(Decoration.line({ class: `org-heading org-h${Math.min(heading[1].length, 6)}${clocked.has(line.from) ? ' org-clocked' : ''}` }).range(line.from));
       ranges.push(Decoration.mark({ class: 'org-marker' }).range(line.from, line.from + heading[1].length));
       if (states.has(heading[2])) {
         const at = line.from + text.indexOf(heading[2], heading[1].length);
@@ -116,6 +118,16 @@ function decorations(state) {
   return Decoration.set(ranges, true);
 }
 const orgStyle = StateField.define({ create: decorations, update: (value, transaction) => transaction.docChanged || foldedRanges(transaction.startState) !== foldedRanges(transaction.state) ? decorations(transaction.state) : value, provide: field => EditorView.decorations.from(field) });
+const jumpEffect = StateEffect.define();
+const jumpHighlight = StateField.define({
+  create: () => Decoration.none,
+  update(value, tr) {
+    if (tr.docChanged || tr.selection) value = Decoration.none;
+    for (const effect of tr.effects) if (effect.is(jumpEffect)) value = effect.value == null ? Decoration.none : Decoration.set([Decoration.line({class:'org-jump-highlight'}).range(tr.state.doc.lineAt(effect.value).from)]);
+    return value;
+  },
+  provide: field => EditorView.decorations.from(field),
+});
 
 export function createEditor(host) {
   let silent = false;
@@ -126,7 +138,7 @@ export function createEditor(host) {
     toDOM() { return document.createTextNode(this.text); }
   }
   const numbers = new Compartment();
-  const extensions = [history(), drawSelection(), EditorView.lineWrapping,
+  const extensions = [history(), drawSelection(), EditorView.lineWrapping, jumpHighlight,
     numbers.of([]), EditorView.atomicRanges.of(view => foldedRanges(view.state)),
     codeFolding({ placeholderText: '…' }),
     foldService.of((state, from) => headingRanges(state.doc.toString()).find(h => h.start === from && h.to > h.from) || null), orgStyle,
@@ -177,7 +189,17 @@ export function createEditor(host) {
     });
     view.dispatch({ selection: EditorSelection.single(clamp(direction === 'backward' ? to : from), clamp(direction === 'backward' ? from : to)) });
   };
-  editor.replaceText = (text, from = editor.selectionStart, to = editor.selectionEnd) => { if (!editor.closest('[hidden], [inert]') && editor.getClientRects().length) view.focus(); view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length }, scrollIntoView: true, userEvent: 'input' }); };
+  editor.replaceText = (text, from = editor.selectionStart, to = editor.selectionEnd) => { const visible = !editor.closest('[hidden], [inert]') && !!editor.getClientRects().length; if (visible) view.focus(); view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length }, scrollIntoView: visible, userEvent: 'input' }); };
+  editor.jumpTo = position => {
+    const pos = Math.max(0, Math.min(view.state.doc.length, position)), effects = [];
+    foldedRanges(view.state).between(0, view.state.doc.length, (from,to) => { if (from < pos && pos <= to) effects.push(unfoldEffect.of({from,to})); });
+    effects.push(jumpEffect.of(pos), EditorView.scrollIntoView(pos, {y:'center'}));
+    view.dispatch({effects, selection:EditorSelection.create([EditorSelection.cursor(pos,1)])});
+  };
+  const clearJump = () => { if (view.state.field(jumpHighlight).size) view.dispatch({effects:jumpEffect.of(null)}); };
+  document.addEventListener('pointerdown', clearJump);
+  document.addEventListener('keydown', clearJump);
+  view.scrollDOM.addEventListener('wheel', clearJump, {passive:true});
   editor.undo = () => undo(view); editor.redo = () => redo(view);
   editor.foldHeading = action => {
     if (action === 'unfold-all') return unfoldAll(view);
@@ -220,9 +242,9 @@ export function createEditor(host) {
       updateSpacer: (spacer, update) => new RelativeNumber(String(update.state.doc.lines)),
     })) });
   };
-  editor.caretRect = () => view.coordsAtPos(view.state.selection.main.head, -1);
+  editor.caretRect = () => { const head = view.state.selection.main.head; return view.coordsAtPos(head, head === view.state.doc.lineAt(head).from ? 1 : -1); };
   editor.refresh = () => view.requestMeasure();
   editor.viewport = view.scrollDOM;
-  editor.dispose = () => view.destroy();
+  editor.dispose = () => { document.removeEventListener('pointerdown', clearJump); document.removeEventListener('keydown', clearJump); view.destroy(); };
   return editor;
 }

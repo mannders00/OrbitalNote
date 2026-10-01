@@ -12,8 +12,13 @@ import { icon, mountIcons } from './icons.js';
 import { TabLayout } from './tab-layout.js';
 import { createEditor } from './vendor/editor.js';
 import { taskDialog } from './task-dialog.js';
-import { timeGrid, bindCalendarGestures } from './calendar.js';
+import { timeGrid, bindCalendarGestures, formatTime, calendarActions, updateNowLine } from './calendar.js';
+import { patchHTML } from './dom.js';
 import { setupSyncSettings } from './sync.js';
+
+for (const event of ['pointerdown', 'keydown', 'wheel']) document.addEventListener(event, () => {
+  document.querySelectorAll('.preview-jump-highlight').forEach(el => el.classList.remove('preview-jump-highlight'));
+}, { passive: true });
 
 let activeSurface = null, source = null, vi = null;
 let documentSerial = 0;
@@ -203,7 +208,14 @@ function createDocumentSurface(path, t) {
   find('preview').addEventListener('click', focused(async e => {
     const a = e.target.closest('a'); if (!a) return; e.preventDefault();
     const href = a.getAttribute('href') || '';
-    if (href.startsWith('#')) { find('preview').querySelector(`[id="${CSS.escape(href.slice(1))}"]`)?.scrollIntoView(); return; }
+    if (href.startsWith('#')) {
+      const target = find('preview').querySelector(`[id="${CSS.escape(href.slice(1))}"]`);
+      if (target) {
+        for (let parent = target.parentElement; parent && parent !== find('preview'); parent = parent.parentElement) if (parent.hidden) parent.previousElementSibling?.querySelector('.preview-heading-fold')?.updateFold(false);
+        target.classList.add('preview-jump-highlight'); target.scrollIntoView({ block: 'center' });
+      }
+      return;
+    }
     if (/^(https?:|mailto:)/i.test(href)) { await openExternal(href); return; }
     await openNote(relativePath(href, surface.dataset.path));
   }));
@@ -319,7 +331,7 @@ async function openNote(path, line) {
   localStorage.setItem('org-recent-' + workspace.key, JSON.stringify(recent.slice(0, 30)));
   if (line) {
     const pos = source.value.split('\n').slice(0, line - 1).reduce((n, s) => n + s.length + 1, 0);
-    setMode('edit'); source.focus(); source.setSelectionRange(pos, pos); vi.reveal(); syncScroll();
+    setMode('edit'); source.focus(); source.jumpTo(pos); syncScroll();
   }
 }
 function showDocument() {
@@ -347,20 +359,22 @@ function renderContext(doc, surface = activeSurface) {
   if (!surface) return;
   const outline = surface.querySelector('[data-ui="outline"]');
   const closed = new Set([...outline.querySelectorAll('details:not([open])')].map(d => d.dataset.heading));
-  const stack = [{ level: 0, element: outline }]; outline.replaceChildren();
+  const fragment = document.createElement('div');
+  const stack = [{ level: 0, element: fragment }];
   for (const h of doc.headings) {
     while (stack.length > 1 && stack.at(-1).level >= h.level) stack.pop();
-    const details = document.createElement('details'); details.dataset.heading = String(h.line); details.open = !closed.has(String(h.line));
+    const details = document.createElement('details'); details.dataset.heading = String(h.line); details.dataset.key = String(h.line); details.open = !closed.has(String(h.line));
     details.innerHTML = `<summary><button data-jump="${h.line}">${esc(h.title)}</button></summary>`;
     stack.at(-1).element.append(details); stack.push({ level: h.level, element: details });
   }
-  if (!doc.headings.length) outline.innerHTML = '<p class="empty">No headings</p>';
+  patchHTML(outline, doc.headings.length ? fragment.innerHTML : '<p class="empty">No headings</p>');
   setHTML(surface.querySelector('[data-ui="properties"]'), Object.entries(doc.metadata || {}).map(([k,v]) => `<button data-file-metadata title="Edit file metadata"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + Object.entries(doc.properties || {}).map(([k, v]) => `<button data-file-property="${esc(k)}" title="Edit ${esc(k)}"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + '<button data-file-metadata>Edit file metadata…</button>');
 }
-function setHTML(element, html) { if (element.renderedHTML !== html) { element.innerHTML = html; element.renderedHTML = html; } }
+function setHTML(element, html) { patchHTML(element, html); }
 function setPreview(t, html) {
   const preview = t.surface.querySelector('[data-ui="preview"]'), prefix = t.surface.dataset.previewPrefix;
   if (preview.renderedHTML === html) return;
+  const scroll = preview.scrollTop;
   preview.renderedHTML = html;
   preview.innerHTML = html;
   const checkboxLines = []; let block = false, drawer = false;
@@ -383,7 +397,7 @@ function setPreview(t, html) {
       if (t.buffer !== buffer || !t.surface.isConnected) return;
       applySource(t.surface.querySelector('[data-ui="source"]'), buffer, changed);
       // Source updates may focus the editor; keep reading interaction in this pane.
-      box.focus(); preview.scrollTop = scroll;
+      box.focus({ preventScroll: true }); preview.scrollTop = scroll;
       await updatePreview(t.path);
     }));
   });
@@ -397,6 +411,7 @@ function setPreview(t, html) {
     const title = heading.textContent.trim();
     const task = t.headings?.[headingIndex++];
     if (task) {
+      heading.classList.toggle('org-clocked', !!task.clock);
       const selectHeading = () => {
         layout.select('file:' + t.surface.dataset.path);
         const offset = t.buffer.split('\n').slice(0, task.line - 1).reduce((n, line) => n + line.length + 1, 0);
@@ -433,6 +448,7 @@ function setPreview(t, html) {
   if (preview.querySelector('.src-mermaid, .src-latex') || /\\\(|\\\[|\$/.test(preview.textContent)) {
     import('./vendor/rich.js').then(module => module.renderRichPreview(preview)).catch(fail);
   }
+  preview.scrollTop = scroll;
 }
 function updateStatus(t = current()) {
   if (!t?.surface) return;
@@ -598,7 +614,7 @@ function entryColorStyle(e) {
 }
 function entryHTML(e) {
   const index = entries.indexOf(e);
-  const clock = e.done ? '' : `<button class="icon-button task-clock" data-clock="${index}" aria-label="${e.clock ? 'Clock out of' : 'Clock in to'} ${esc(e.title)}" title="${e.clock ? 'Clock out' : 'Clock in'}">${icon(e.clock ? 'square' : 'clock')}</button>`;
+  const clock = e.done ? '' : `<button class="icon-button task-clock" data-clock="${index}" aria-pressed="${!!e.clock}" aria-label="${e.clock ? 'Clock out of' : 'Clock in to'} ${esc(e.title)}" title="${e.clock ? 'Clock out' : 'Clock in'}">${icon(e.clock ? 'clock-stop' : 'clock')}</button>`;
   const actions = `<div class="agenda-row-actions">${clock}<button class="icon-button agenda-edit" data-edit-task="${index}" aria-label="Edit task: ${esc(e.title)}" title="Edit task">${icon('pencil')}</button></div>`;
   return `<div class="agenda-row ${e.done ? 'completed' : ''}">${e.state ? e.stamp.kind === 'completed' ? `<span class="task-state org-done">${esc(e.state)}</span>` : `<button class="agenda-complete task-state ${e.done ? 'org-done' : 'org-todo'}" data-complete="${index}" aria-label="${e.done ? 'Reopen' : 'Mark'} ${esc(e.title)}${e.done ? '' : ' as done'}">${esc(e.state)}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(e.stamp.time || (e.stamp.date ? 'All day' : 'Unscheduled'))}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button>${actions}</div>`;
 }
@@ -676,9 +692,9 @@ function renderAgenda() {
     const key = !d ? 'Unscheduled' : !e.done && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind) ? 'Overdue' : d === now ? 'Today' : dateLabel(d);
     if (!groups.has(key)) groups.set(key, []); groups.get(key).push(e);
   }
-  $('agenda-list').innerHTML = [...groups].map(([label, items]) => `<section class="agenda-group ${label === 'Overdue' ? 'overdue' : ''}"><h2>${esc(label)} <small>${items.length}</small></h2>${items.map(entryHTML).join('')}</section>`).join('') || empty('No tasks match this view');
+  const html = [...groups].map(([label, items]) => `<section data-key="${esc(label)}" class="agenda-group ${label === 'Overdue' ? 'overdue' : ''}"><h2>${esc(label)} <small>${items.length}</small></h2>${items.map(entryHTML).join('')}</section>`).join('') || empty('No tasks match this view');
   const clocks = runningClocks();
-  if (clocks.length) $('agenda-list').insertAdjacentHTML('afterbegin', `<section class="agenda-group clocked"><h2>Clocked</h2>${clocks.map(entryHTML).join('')}</section>`);
+  patchHTML($('agenda-list'), (clocks.length ? `<section data-key="clocked" class="agenda-group clocked"><h2>Clocked</h2>${clocks.map(entryHTML).join('')}</section>` : '') + html);
   renderClocks();
   const count = [...groups.values()].reduce((n, items) => n + items.length, 0);
   $('agenda-results-count').textContent = `${count} matching ${count === 1 ? 'entry' : 'entries'}`;
@@ -694,13 +710,17 @@ function calendarMatches(e) {
   return matchesAgendaQuery(e, query) && (!query.kind || query.kind === e.stamp.kind) && text.includes(query.text.trim().toLowerCase());
 }
 function dayEntries(key) { return entries.filter(e => calendarMatches(e) && e.stamp.date && e.stamp.date <= key && (e.stamp.endDate || e.stamp.date) >= key); }
+function monthEntry(e) {
+  const format = $('calendar-time-format').value;
+  return `<div class="calendar-item" data-key="${esc(e.path+':'+e.line+':'+e.stamp.kind)}"><button class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''} ${e.clock ? 'is-clocked' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entries.indexOf(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}"><span class="calendar-event-title">${esc(e.title)}</span>${e.stamp.time ? `<span class="calendar-event-time">${esc(formatTime(e.stamp.time,format))}${e.stamp.endTime ? '–'+esc(formatTime(e.stamp.endTime,format)) : ''}</span>` : ''}</button>${calendarActions(e,entries.indexOf(e))}</div>`;
+}
 function monthGrid(year, month) {
   const first = new Date(year, month, 1, 12), start = new Date(first); start.setDate(1 - (first.getDay() + 6) % 7);
   let html = '<div class="month-grid">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="weekday">${d}</div>`).join('');
   const weeks = Math.ceil(((first.getDay() + 6) % 7 + new Date(year, month + 1, 0).getDate()) / 7);
   for (let i = 0; i < weeks * 7; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i); const key = dateKey(d);
-    html += `<div class="calendar-cell ${d.getMonth() !== month ? 'outside' : ''} ${key === today() ? 'is-today' : ''}" data-drop-date="${key}"><button class="day-number" data-capture="${key}" title="Create task on ${key}">${d.getDate()}</button>${dayEntries(key).map(e => `<button class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entries.indexOf(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}${e.stamp.time ? ' · ' + esc(e.stamp.time) : ''}"><span class="calendar-event-title">${esc(e.title)}</span>${e.stamp.time ? `<span class="calendar-event-time">${esc(e.stamp.time)}${e.stamp.endTime ? '–' + esc(e.stamp.endTime) : ''}</span>` : ''}</button>`).join('')}</div>`;
+    html += `<div data-key="${key}" class="calendar-cell ${d.getMonth() !== month ? 'outside' : ''} ${key === today() ? 'is-today' : ''}" data-drop-date="${key}"><button class="day-number" data-capture="${key}" title="Create task on ${key}">${d.getDate()}</button>${dayEntries(key).map(monthEntry).join('')}</div>`;
   }
   return html + '</div>';
 }
@@ -708,7 +728,7 @@ function renderCalendar() {
   document.querySelectorAll('[data-calendar]').forEach(b => b.classList.toggle('active', b.dataset.calendar === calendarMode));
   const y = calendarDate.getFullYear(), m = calendarDate.getMonth();
   $('calendar-title').textContent = calendarMode === 'year' ? String(y) : calendarMode === 'day' ? dateLabel(dateKey(calendarDate)) : calendarDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  if (calendarMode === 'month') { $('calendar-grid').innerHTML = monthGrid(y, m); return; }
+  if (calendarMode === 'month') { patchHTML($('calendar-grid'), monthGrid(y, m)); return; }
   if (calendarMode === 'year') {
     let html = '<div class="year-grid">';
     for (let month = 0; month < 12; month++) {
@@ -717,10 +737,11 @@ function renderCalendar() {
       for (let d = 1; d <= new Date(y, month + 1, 0).getDate(); d++) { const key = dateKey(new Date(y, month, d, 12)); html += `<button data-day="${key}" class="${dayEntries(key).length ? 'has-events' : ''} ${key === today() ? 'is-today' : ''}">${d}</button>`; }
       html += '</div></section>';
     }
-    $('calendar-grid').innerHTML = html + '</div>'; return;
+    patchHTML($('calendar-grid'), html + '</div>'); return;
   }
   const start = new Date(calendarDate); if (calendarMode === 'week') start.setDate(start.getDate() - (start.getDay() + 6) % 7);
-  $('calendar-grid').innerHTML = timeGrid(start, calendarMode === 'week' ? 7 : 1, entries.filter(calendarMatches), entryColorStyle, e => entries.indexOf(e));
+  patchHTML($('calendar-grid'), timeGrid(start, calendarMode === 'week' ? 7 : 1, entries.filter(calendarMatches), entryColorStyle, e => entries.indexOf(e), $('calendar-time-format').value));
+  updateNowLine($('calendar-grid'), $('calendar-time-format').value);
 }
 function shiftCalendar(delta) {
   if (calendarMode === 'month') calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + delta, 1, 12);
@@ -1032,13 +1053,16 @@ document.querySelector('#calendar .filterbar').append(calendarView);
 listen('calendar-view', 'change', renderCalendar);
 $('agenda-query-builder').addEventListener('saved-views-changed', e => {
   const selected = calendarView.value;
-  calendarView.innerHTML = '<option value="">All entries</option>' + e.detail.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
+  patchHTML(calendarView, '<option value="">All entries</option>' + e.detail.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join(''));
   calendarView.value = e.detail.some(v => v.name === selected) ? selected : '';
   renderCalendar();
 });
 $('line-numbers').value = localStorage.getItem('orbitalnote-line-numbers') || 'off';
 listen('line-numbers', 'change', () => { localStorage.setItem('orbitalnote-line-numbers', $('line-numbers').value); for (const t of tabs.values()) t.surface?.querySelector('[data-ui="source"]')?.setLineNumbers($('line-numbers').value); });
 $('monospace-mode').checked = localStorage.getItem('orbitalnote-monospace') === 'true';
+$('calendar-time-format').value = localStorage.getItem('orbitalnote-calendar-time-format') || '12';
+listen('calendar-time-format', 'change', () => { localStorage.setItem('orbitalnote-calendar-time-format', $('calendar-time-format').value); renderCalendar(); });
+setInterval(() => updateNowLine($('calendar-grid'), $('calendar-time-format').value), 30000);
 const applyMonospace = () => document.documentElement.classList.toggle('monospace-mode', $('monospace-mode').checked);
 applyMonospace();
 listen('monospace-mode', 'change', () => { localStorage.setItem('orbitalnote-monospace', String($('monospace-mode').checked)); applyMonospace(); });

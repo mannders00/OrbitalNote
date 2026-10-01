@@ -340,7 +340,20 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .shortcut-row button { min-height: 34px; font-size: 12px; }
 .editor-heading-fold, .preview-heading-fold { display: inline-flex; align-items: center; justify-content: center; width: 26px; min-height: 28px; padding: 0; margin-right: 5px; border: 0; background: transparent; color: var(--muted); font: 16px/1 sans-serif; vertical-align: middle; cursor: pointer; }
 .editor-heading-fold:hover, .preview-heading-fold:hover { background: var(--hover); color: var(--text); }
-.editor-heading-control { display: inline-block; width: 0; height: 0; padding: 0; border: 0; vertical-align: baseline; }
+.editor-heading-control { display: inline-block; width: 0; height: 1em; padding: 0; border: 0; vertical-align: text-bottom; }
+.source-pane .cm-line.org-jump-highlight, .ui-preview .preview-jump-highlight { background: color-mix(in srgb, #f4cb42 28%, transparent); }
+.org-heading.org-clocked, .ui-preview .org-clocked { box-shadow: inset 3px 0 0 var(--accent); }
+.calendar-event.is-clocked, .timed-event.is-clocked { box-shadow: inset 3px 0 0 var(--accent); }
+.task-clock[aria-pressed="true"], .calendar-actions [aria-pressed="true"] { color: var(--accent); }
+.calendar-item { position: relative; }
+.calendar-item .calendar-event { padding-right: 46px; }
+.calendar-actions { position: absolute; display: flex; gap: 1px; right: 2px; bottom: 7px; z-index: 3; }
+.calendar-actions .icon-button { width: 20px; height: 20px; padding: 3px; border: 0; background: var(--side); color: var(--muted); }
+.calendar-actions .icon { width: 14px; height: 14px; }
+.time-block .timed-event { padding-right: 42px; }
+.calendar-now-line { position: absolute; left: 0; right: 0; z-index: 4; height: 1px; background: var(--accent); pointer-events: none; }
+.calendar-now-line::before { content: ''; position: absolute; left: -3px; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.time-labels > span { font-size: 10px; }
 .source-pane .cm-editor .cm-content .cm-foldPlaceholder { background: none; border: 0; border-radius: 0; box-shadow: none; color: inherit; font: inherit; padding: 0 .2em; cursor: pointer; }
 .ui-preview .is-folded::after { content: ' …'; color: inherit; font: inherit; }
 .org-heading, .ui-preview :is(h1,h2,h3,h4,h5,h6) { position: relative; }

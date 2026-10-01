@@ -1,4 +1,5 @@
 import { escapeHTML as esc } from './editor.js';
+import { patchHTML } from './dom.js';
 
 const fields = { tag: 'Tag', state: 'Task state', file: 'File', type: 'Entry type', date: 'Date' };
 const kinds = { scheduled: 'Scheduled', deadline: 'Deadline', todo: 'Undated TODO', timestamp: 'Timestamp' };
@@ -19,7 +20,7 @@ export function matchesAgendaQuery(entry, { rules = [], mode = 'all' }) {
 
 export function createAgendaQuery(root, changed, context) {
   let rules = [], entries = [], workspaceKey, views = [], active = '';
-  root.innerHTML = `<select data-saved-view aria-label="Saved agenda view"><option value="">Custom view</option></select><div class="query-chips" aria-label="Active agenda filters"></div><details class="agenda-query-builder"><summary>+ Filter <span data-rule-count></span></summary><div class="query-popup">
+  root.innerHTML = `<select data-saved-view aria-label="Saved agenda view"><option value="">Custom view</option></select><details class="agenda-query-builder"><summary>+ Filter <span data-rule-count></span></summary><div class="query-popup"><div class="query-chips" aria-label="Active agenda filters"></div>
     <strong>Filter this agenda</strong>
     <label class="query-match">Match <select data-query-mode aria-label="Combine query filters"><option value="all">all filters</option><option value="any">any filter</option></select></label>
     <div class="query-add"><label>Filter<select data-query-field>${Object.entries(fields).map(([key, name]) => `<option value="${key}">${name}</option>`).join('')}</select></label>
@@ -30,10 +31,10 @@ export function createAgendaQuery(root, changed, context) {
   function choices() {
     const previous = find('[data-query-value]')?.value;
     const data = field.value === 'tag' ? entries.flatMap(e => [...(e.tags || []), ...(e.fileTags || [])]) :
-      field.value === 'file' ? entries.map(e => e.path) : field.value === 'state' ? entries.filter(e => !e.done).map(e => e.state) : entries.map(e => e.stamp.kind);
+      field.value === 'file' ? entries.map(e => e.path) : field.value === 'state' ? entries.map(e => e.state) : entries.map(e => e.stamp.kind);
     const values = [...new Set(data.filter(Boolean))].sort();
-    if (field.value === 'date') find('[data-query-value-host]').innerHTML = '<input data-query-value type="date" aria-label="Filter value">';
-    else find('[data-query-value-host]').innerHTML = `<select data-query-value aria-label="Filter value">${values.length ? values.map(value => `<option value="${esc(value)}">${esc(field.value === 'type' ? kinds[value] || value : value)}</option>`).join('') : '<option value="">No values in this workspace</option>'}</select>`;
+    if (field.value === 'date') patchHTML(find('[data-query-value-host]'), '<input data-query-value type="date" aria-label="Filter value">');
+    else patchHTML(find('[data-query-value-host]'), `<select data-query-value aria-label="Filter value">${values.length ? values.map(value => `<option value="${esc(value)}">${esc(field.value === 'type' ? kinds[value] || value : value)}</option>`).join('') : '<option value="">No values in this workspace</option>'}</select>`);
     if (previous && (field.value === 'date' || values.includes(previous))) find('[data-query-value]').value = previous;
   }
   function configure() {
@@ -41,14 +42,15 @@ export function createAgendaQuery(root, changed, context) {
   }
   function render() {
     find('[data-rule-count]').textContent = rules.length ? `(${rules.length})` : '';
-    find('.query-chips').innerHTML = rules.map((rule, i) => {
+    patchHTML(find('.query-chips'), rules.map((rule, i) => {
       const label = `${fields[rule.field]} ${operators(rule.field).find(([op]) => op === rule.operator)[1]} ${rule.field === 'type' ? kinds[rule.value] || rule.value : rule.value}`;
       return `<button type="button" data-remove-rule="${i}" aria-label="Remove filter: ${esc(label)}">${esc(label)} <span aria-hidden="true">×</span></button>`;
-    }).join('') + (rules.length ? '<button type="button" data-query-clear>Clear filters</button>' : '');
-    find('[data-saved-view]').innerHTML = '<option value="">Custom view</option>' + views.map(view => `<option value="${esc(view.name)}">${esc(view.name)}${active === view.name && JSON.stringify(view.query) !== JSON.stringify(snapshot()) ? ' · edited' : ''}</option>`).join('');
+    }).join('') + (rules.length ? '<button type="button" data-query-clear>Clear filters</button>' : ''));
+    patchHTML(find('[data-saved-view]'), '<option value="">Custom view</option>' + views.map(view => `<option value="${esc(view.name)}">${esc(view.name)}${active === view.name && JSON.stringify(view.query) !== JSON.stringify(snapshot()) ? ' · edited' : ''}</option>`).join(''));
     find('[data-saved-view]').value = active;
     find('[data-delete-view]').hidden = !active;
-    root.dispatchEvent(new CustomEvent('saved-views-changed', { detail: views }));
+    const signature = JSON.stringify(views);
+    if (root.viewsSignature !== signature) { root.viewsSignature = signature; root.dispatchEvent(new CustomEvent('saved-views-changed', { detail: views })); }
   }
   const snapshot = () => ({ rules: rules.map(r => ({ ...r })), mode: find('[data-query-mode]').value, ...context.read() });
   const persist = () => localStorage.setItem('orbitalnote-agenda-views-' + workspaceKey, JSON.stringify({ views, active }));

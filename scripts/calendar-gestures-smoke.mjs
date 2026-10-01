@@ -19,7 +19,10 @@ try {
   let a=await center(page.locator('.timed-event').filter({hasText:'Gesture timed'}));
   await drag(a,{x:a.x,y:a.y+60}); await waitStamp('10:00-11:00');
   const block=page.locator('.time-block').filter({hasText:'Gesture timed'});
+  const scrollBeforeResize=await page.locator('#calendar').evaluate(el=>el.scrollTop);
   a=await center(block.locator('[data-resize="end"]')); await drag(a,{x:a.x,y:a.y+30}); await waitStamp('10:00-11:30');
+  await page.waitForFunction(()=>[...document.querySelectorAll('.time-block')].some(el=>el.textContent.includes('Gesture timed') && el.style.height==='90px'));
+  assert.equal(await page.locator('#calendar').evaluate(el=>el.scrollTop),scrollBeforeResize,'resizing preserves calendar scroll');
   a=await center(page.locator('.timed-event').filter({hasText:'Gesture timed'}));
   await drag(a,await center(page.locator('.all-day-row [data-drop-date="2026-09-30"]'))); await waitStamp('SCHEDULED: <2026-09-30 Wed>');
   a=await center(page.locator('.all-day-row .calendar-event').filter({hasText:'Gesture day'}));

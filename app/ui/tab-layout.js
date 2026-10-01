@@ -1,5 +1,6 @@
 import { escapeHTML as esc } from './editor.js';
 import { icon } from './icons.js';
+import { patchHTML } from './dom.js';
 
 // Tabs own their DOM; groups only move those surfaces. Moving a note therefore
 // preserves its buffer, selection, undo history, and edit/preview mode.
@@ -47,17 +48,22 @@ export class TabLayout {
     });
     root.addEventListener('dragover', e => {
       if (!this.dragged) return;
-      const target = this.dropTarget(e); if (!target) return;
       e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+      this.dragPoint = {target:e.target, clientX:e.clientX, clientY:e.clientY};
+      if (this.dragFrame) return;
+      this.dragFrame = requestAnimationFrame(() => {
+      this.dragFrame = 0;
+      const point = this.dragPoint, target = this.dropTarget(point); if (!target || !this.dragged) return;
       this.clearDrop();
       if (target.strip) {
         const rect = target.strip.getBoundingClientRect();
         this.dropMarker.hidden = false;
         this.dropMarker.style.cssText = `left:${target.x}px;top:${rect.top + 5}px;height:${rect.height - 7}px`;
         const items = target.strip.querySelector('.tab-items'), box = items.getBoundingClientRect();
-        if (e.clientX < box.left + 24) items.scrollLeft -= 12;
-        else if (e.clientX > box.right - 24) items.scrollLeft += 12;
+        if (point.clientX < box.left + 24) items.scrollLeft -= 12;
+        else if (point.clientX > box.right - 24) items.scrollLeft += 12;
       } else target.element.dataset.drop = target.edge;
+      });
     });
     root.addEventListener('dragleave', e => { if (!root.contains(e.relatedTarget)) this.clearDrop(); });
     root.addEventListener('dragend', () => { this.dragged = null; this.clearDrop(); });
@@ -158,7 +164,7 @@ export class TabLayout {
     }
     return { element, group: element.dataset.group, edge };
   }
-  clearDrop() { this.dropMarker.hidden = true; this.root.querySelectorAll('[data-drop]').forEach(el => delete el.dataset.drop); }
+  clearDrop() { if (this.dragFrame) cancelAnimationFrame(this.dragFrame); this.dragFrame = 0; this.dropMarker.hidden = true; this.root.querySelectorAll('[data-drop]').forEach(el => delete el.dataset.drop); }
   changed() { this.callbacks.changed?.(this.snapshot()); }
   snapshot() { return { tree: this.tree, focused: this.focused }; }
   restore(saved) {
@@ -201,10 +207,10 @@ export class TabLayout {
         group.querySelector('.tab-items').addEventListener('scroll', () => this.updateTabBaselines());
       }
       const strip = group.querySelector('.tab-items');
-      strip.innerHTML = node.tabs.map(id => {
+      patchHTML(strip, node.tabs.map(id => {
         const tab = this.tabs.get(id);
         return `<div class="tab ${id === node.active ? 'active' : ''}" draggable="true" data-tab-id="${esc(id)}"><button role="tab" aria-selected="${id === node.active}" data-tab-select="${esc(id)}" title="${esc(tab.title)}">${icon(tab.icon)}<span class="tab-label">${esc(tab.title)}</span>${tab.dirty ? '<span class="dirty-dot">•</span>' : ''}</button><button class="icon-button close-tab" data-tab-close="${esc(id)}" aria-label="Close ${esc(tab.title)}">${icon('close')}</button></div>`;
-      }).join('');
+      }).join(''));
       for (const id of node.tabs) {
         const element = this.tabs.get(id).element;
         let surface = this.surfaces.get(id);
@@ -247,8 +253,9 @@ export class TabLayout {
   placeControls() {
     const strip = this.root.querySelector(`[data-group="${this.focusedGroup().id}"] .tab-strip`);
     if (!strip) return;
-    strip.querySelector('.tab-left-slot').append(this.leftControl);
-    strip.querySelector('.tab-right-slot').append(this.rightControl);
+    const left = strip.querySelector('.tab-left-slot'), right = strip.querySelector('.tab-right-slot');
+    if (this.leftControl.parentElement !== left) left.append(this.leftControl);
+    if (this.rightControl.parentElement !== right) right.append(this.rightControl);
     this.toolbar.remove();
     this.updateTabBaselines();
   }
@@ -275,13 +282,18 @@ export class TabLayout {
     }
   }
   position() {
-    const place = (el, x, y, width, height) => Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${Math.max(0, width)}px`, height: `${Math.max(0, height)}px` });
+    const place = (el, x, y, width, height) => {
+      const geometry = `${x},${y},${width},${height}`;
+      if (el.layoutGeometry === geometry) return false;
+      el.layoutGeometry = geometry;
+      Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${Math.max(0, width)}px`, height: `${Math.max(0, height)}px` }); return true;
+    };
     const visit = (node, x, y, width, height) => {
       if (!node.children) {
         const group = this.root.querySelector(`[data-group="${node.id}"]`);
         if (group) place(group, x, y, width, height);
         const stripHeight = group ? parseFloat(getComputedStyle(group.querySelector('.tab-strip')).height) || 36 : 36;
-        for (const id of node.tabs) { const surface = this.surfaces.get(id); if (surface) { place(surface, x, y + stripHeight, width, height - stripHeight); if (!surface.hidden) surface.querySelector('[data-ui="source"]')?.refresh?.(); } }
+        for (const id of node.tabs) { const surface = this.surfaces.get(id); if (surface) { const moved = place(surface, x, y + stripHeight, width, height - stripHeight); if (moved && !surface.hidden) surface.querySelector('[data-ui="source"]')?.refresh?.(); } }
         return;
       }
       const horizontal = node.axis === 'horizontal', size = Math.max(0, (horizontal ? width : height) - 5), first = size * node.ratio;

@@ -149,7 +149,7 @@ export function attachVi(editor, status, findPrompt) {
     const text=editor.value,p=pos();
     let q=backward ? text.lastIndexOf(search,p-1) : text.indexOf(search,p+1);
     if(q<0) q=backward ? text.lastIndexOf(search) : text.indexOf(search);
-    if(q>=0) move(q);
+    if(q>=0) { if (editor.jumpTo) editor.jumpTo(q); else move(q); }
   }
   // Prevent accidental text input/paste while in normal or visual mode.
   editor.addEventListener('beforeinput', e => { if(enabled && mode!=='insert' && e.isTrusted && !['historyUndo','historyRedo','insertText','deleteContentBackward'].includes(e.inputType)) e.preventDefault(); });

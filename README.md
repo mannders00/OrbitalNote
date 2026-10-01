@@ -2,7 +2,7 @@
 
 # OrbitalNote
 
-[What's new in preview.13](CHANGELOG.md)
+[What's new in preview.14](CHANGELOG.md)
 
 [Ask a question](https://github.com/mannders00/OrbitalNote/discussions) ·
 [Request an improvement](https://github.com/mannders00/OrbitalNote/issues/new?template=improvement.yml) ·
@@ -30,16 +30,16 @@ tested on real devices.
 
 ## Download and try it
 
-The app is free. These are direct downloads for **0.1.0-preview.13**, including
+The app is free. These are direct downloads for **0.1.0-preview.14**, including
 task clocks, repeating tasks, interactive checklists, and encrypted Sync.
 
 | Your device | Download | Getting started |
 |---|---|---|
-| Mac with Apple Silicon | [Download for Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.13/orbitalnote-0.1.0-preview.13-darwin-arm64.zip) | M1 or newer. Unzip and move the app to Applications. |
-| Intel Mac | [Download for Intel Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.13/orbitalnote-0.1.0-preview.13-darwin-amd64.zip) | Unzip and move the app to Applications. |
-| Windows | [Download for Windows](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.13/orbitalnote-0.1.0-preview.13-windows-amd64.zip) | x64. Extract the ZIP and open OrbitalNote.exe. Requires WebView2. |
-| Linux | [Download for Linux](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.13/orbitalnote-0.1.0-preview.13-linux-amd64.tar.gz) | x64, Ubuntu 24.04-compatible. Requires GTK4 and WebKitGTK 6.0. |
-| Android | [Download the APK](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.13/orbitalnote-0.1.0-preview.13-android-arm64.apk) | Android 7+, ARM64. Open the APK and allow installation from your browser. |
+| Mac with Apple Silicon | [Download for Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.14/orbitalnote-0.1.0-preview.14-darwin-arm64.zip) | M1 or newer. Unzip and move the app to Applications. |
+| Intel Mac | [Download for Intel Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.14/orbitalnote-0.1.0-preview.14-darwin-amd64.zip) | Unzip and move the app to Applications. |
+| Windows | [Download for Windows](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.14/orbitalnote-0.1.0-preview.14-windows-amd64.zip) | x64. Extract the ZIP and open OrbitalNote.exe. Requires WebView2. |
+| Linux | [Download for Linux](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.14/orbitalnote-0.1.0-preview.14-linux-amd64.tar.gz) | x64, Ubuntu 24.04-compatible. Requires GTK4 and WebKitGTK 6.0. |
+| Android | [Download the APK](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.14/orbitalnote-0.1.0-preview.14-android-arm64.apk) | Android 7+, ARM64. Open the APK and allow installation from your browser. |
 
 macOS builds aren't notarized yet; you may need to allow the app in System
 Settings → Privacy & Security after the first launch attempt. Windows builds
@@ -48,7 +48,7 @@ aren't Authenticode-signed yet and may show a SmartScreen prompt.
 **iPhone and iPad:** the app builds and opens in the iOS simulator. An installable
 iPhone preview is still to come. Android is available now.
 
-[Release notes and checksums](https://github.com/mannders00/OrbitalNote/releases/tag/v0.1.0-preview.13)
+[Release notes and checksums](https://github.com/mannders00/OrbitalNote/releases/tag/v0.1.0-preview.14)
 · [Find the newest downloads](https://orbitalnote.org/#download)
 
 ## What's here today
