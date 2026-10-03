@@ -13,6 +13,16 @@ import (
 
 type previewWriter struct{ *org.HTMLWriter }
 
+func (w *previewWriter) WriteDrawer(d org.Drawer) {
+	if d.Name == "LOGBOOK" {
+		w.WriteString(`<div class="preview-logbook">`)
+		org.WriteNodes(w, d.Children...)
+		w.WriteString("</div>")
+		return
+	}
+	w.HTMLWriter.WriteDrawer(d)
+}
+
 func (w *previewWriter) WritePropertyDrawer(d org.PropertyDrawer) {
 	w.WriteString("<details><summary>Properties</summary><table>")
 	for _, pair := range d.Properties {

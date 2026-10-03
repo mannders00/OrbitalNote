@@ -1,6 +1,11 @@
 # OrbitalNote Theme v1
 
-Choose a built-in theme in Settings → Appearance. Custom CSS is applied after
+Choose a built-in family in Settings → Theme, then choose **System**, **Light**, or
+**Dark** under Appearance. All thirteen themes include matching light/dark
+palettes. System follows the operating system without switching theme families.
+Existing fixed theme choices retain their appearance; new installs follow System.
+
+Custom CSS is applied after
 the selected theme and saved locally. Paste it into Custom theme CSS and choose
 Apply custom CSS. Clear custom CSS restores the selected built-in theme.
 
@@ -38,9 +43,9 @@ elements, though internal class names may change. Custom styles do not alter
 note contents. Use a matching light/dark base for native window appearance.
 
 Built-ins: Workbench, Paper, Focus, Nord, Field Notes, Studio, Terminal,
-Editorial, Soft Focus, and Blueprint. They change typography, spacing, controls,
-tabs, and document treatment as well as colors. System follows the operating
-system's light/dark preference.
+Editorial, Soft Focus, Blueprint, **Aurora** (indigo/mint), **Ember** (charcoal/copper),
+and **Iris** (violet/lavender). They change typography, spacing, controls,
+tabs, and document treatment as well as colors.
 
 Self-contained examples are in `examples/Themes/`. A comment containing
 `Base appearance: light` or `Base appearance: dark` selects that native appearance

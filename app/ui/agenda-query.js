@@ -20,8 +20,9 @@ export function matchesAgendaQuery(entry, { rules = [], mode = 'all' }) {
 
 export function createAgendaQuery(root, changed, context) {
   let rules = [], entries = [], workspaceKey, views = [], active = '';
-  root.innerHTML = `<select data-saved-view aria-label="Saved agenda view"><option value="">Custom view</option></select><details class="agenda-query-builder"><summary>+ Filter <span data-rule-count></span></summary><div class="query-popup"><div class="query-chips" aria-label="Active agenda filters"></div>
-    <strong>Filter this agenda</strong>
+  root.innerHTML = `<select data-saved-view aria-label="Saved agenda view"><option value="">Custom view</option></select><details class="agenda-query-builder"><summary>+ Filter <span data-rule-count></span></summary><div class="query-popup">
+    <div class="query-header"><strong>Filter this agenda</strong><button type="button" data-query-clear hidden>Clear filters</button></div>
+    <div class="query-active" hidden><span class="query-section-label">Active filters</span><div class="query-chips" aria-label="Active agenda filters"></div></div>
     <label class="query-match">Match <select data-query-mode aria-label="Combine query filters"><option value="all">all filters</option><option value="any">any filter</option></select></label>
     <div class="query-add"><label>Filter<select data-query-field>${Object.entries(fields).map(([key, name]) => `<option value="${key}">${name}</option>`).join('')}</select></label>
     <label>Condition<select data-query-operator></select></label><label class="query-value-label">Value<span data-query-value-host></span></label><button type="button" data-query-add>Add filter</button></div>
@@ -45,7 +46,9 @@ export function createAgendaQuery(root, changed, context) {
     patchHTML(find('.query-chips'), rules.map((rule, i) => {
       const label = `${fields[rule.field]} ${operators(rule.field).find(([op]) => op === rule.operator)[1]} ${rule.field === 'type' ? kinds[rule.value] || rule.value : rule.value}`;
       return `<button type="button" data-remove-rule="${i}" aria-label="Remove filter: ${esc(label)}">${esc(label)} <span aria-hidden="true">×</span></button>`;
-    }).join('') + (rules.length ? '<button type="button" data-query-clear>Clear filters</button>' : ''));
+    }).join(''));
+    find('.query-active').hidden = !rules.length;
+    find('[data-query-clear]').hidden = !rules.length;
     patchHTML(find('[data-saved-view]'), '<option value="">Custom view</option>' + views.map(view => `<option value="${esc(view.name)}">${esc(view.name)}${active === view.name && JSON.stringify(view.query) !== JSON.stringify(snapshot()) ? ' · edited' : ''}</option>`).join(''));
     find('[data-saved-view]').value = active;
     find('[data-delete-view]').hidden = !active;
@@ -100,10 +103,12 @@ export function createAgendaQuery(root, changed, context) {
   });
   find('.query-chips').addEventListener('click', e => {
     const button = e.target.closest('button'); if (!button) return;
-    if (button.hasAttribute('data-query-clear')) rules = [];
-    else rules.splice(Number(button.dataset.removeRule), 1);
+    rules.splice(Number(button.dataset.removeRule), 1);
     render(); changed();
     (find('.query-chips button') || find('summary')).focus();
+  });
+  find('[data-query-clear]').addEventListener('click', () => {
+    rules = []; render(); changed(); find('summary').focus();
   });
   configure(); render();
   return {

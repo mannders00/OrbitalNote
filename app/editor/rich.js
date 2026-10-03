@@ -31,8 +31,7 @@ export function renderRichPreview(root) {
           result.setAttribute('role', 'img'); result.setAttribute('aria-label', 'Mermaid diagram');
         }
         if (!block.isConnected) continue;
-        const details = document.createElement('details'), summary = document.createElement('summary'); summary.textContent = 'Source';
-        details.append(summary, ...block.childNodes); block.append(result, details);
+        block.replaceChildren(result);
       } catch {
         const error = document.createElement('p'); error.className = 'rich-error'; error.textContent = 'Could not render this block. Edit the source to correct its syntax.';
         if (block.isConnected) block.prepend(error);

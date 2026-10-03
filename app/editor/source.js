@@ -1,8 +1,21 @@
 import { EditorState, EditorSelection, StateField, StateEffect, Compartment } from '@codemirror/state';
 import { EditorView, Decoration, WidgetType, keymap, drawSelection, lineNumbers, gutter, GutterMarker } from '@codemirror/view';
 import { history, defaultKeymap, undo, redo } from '@codemirror/commands';
-import { codeFolding, foldService, foldEffect, unfoldEffect, foldedRanges, unfoldAll } from '@codemirror/language';
+import { codeFolding, foldService, foldEffect, unfoldEffect, foldedRanges } from '@codemirror/language';
 import { headingRanges } from './headings.js';
+import { metadataRanges } from './metadata.js';
+import { attachVim } from './vi.js';
+import { noteSearch, openNoteSearch } from './search.js';
+
+const metadataLabels = new WeakMap();
+function metadataLabel(state, from) {
+  let labels = metadataLabels.get(state.doc);
+  if (!labels) {
+    labels = new Map(metadataRanges(state.doc.toString()).map(range => [range.from, range.label]));
+    metadataLabels.set(state.doc, labels);
+  }
+  return labels.get(from);
+}
 
 function isFolded(state, from) {
   let folded = false;
@@ -55,12 +68,31 @@ class HeadingMenu extends WidgetType {
   ignoreEvent() { return true; }
 }
 
+class MetadataFold extends WidgetType {
+  constructor(range, collapsed) { super(); this.range = range; this.collapsed = collapsed; }
+  eq(other) { return this.collapsed === other.collapsed && this.range.from === other.range.from && this.range.to === other.range.to && this.range.label === other.range.label; }
+  toDOM(view) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'editor-heading-fold editor-metadata-fold';
+    button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 5 7 7-7 7"/></svg>';
+    button.setAttribute('aria-expanded', String(!this.collapsed));
+    button.setAttribute('aria-label', `${this.collapsed ? 'Expand' : 'Collapse'} ${this.range.label.toLowerCase()}`);
+    button.addEventListener('mousedown', event => event.preventDefault());
+    button.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); foldHeading(view, this.range); });
+    return headingControl(button);
+  }
+  ignoreEvent() { return true; }
+}
+
 function decorations(state) {
   const ranges = [], source = state.doc.toString();
   const headings = headingRanges(source), clocked = new Set();
   for (const [index, heading] of headings.entries()) {
     if (/^[ \t]*CLOCK:\s*\[[^\]\n]+\][ \t]*$/m.test(source.slice(heading.start, headings[index+1]?.start ?? source.length))) clocked.add(heading.start);
     if (heading.to > heading.from) ranges.push(Decoration.widget({ widget: new HeadingFold(heading, isFolded(state, heading.from)), side: -2 }).range(heading.start));
+  }
+  for (const range of metadataRanges(source)) {
+    ranges.push(Decoration.widget({ widget: new MetadataFold(range, isFolded(state, range.from)), side: -2 }).range(range.start));
+    ranges.push(Decoration.line({ class: 'org-metadata-fold-line' }).range(range.start));
   }
   const keywords = source.match(/^#\+TODO:\s*(.+)$/im)?.[1] || 'TODO | DONE';
   const [pending, finished = 'DONE'] = keywords.split('|');
@@ -137,11 +169,22 @@ export function createEditor(host) {
     eq(other) { return this.text === other.text; }
     toDOM() { return document.createTextNode(this.text); }
   }
-  const numbers = new Compartment();
-  const extensions = [history(), drawSelection(), EditorView.lineWrapping, jumpHighlight,
+  const numbers = new Compartment(), vi = new Compartment();
+  let viAdapter;
+  const extensions = [vi.of([]), history(), drawSelection(), EditorView.lineWrapping, jumpHighlight, noteSearch,
+    EditorView.scrollMargins.of(view => view.state.selection.main.head >= view.state.doc.line(view.state.doc.lines).from ? { bottom: view.scrollDOM.clientHeight / 2 } : {}),
     numbers.of([]), EditorView.atomicRanges.of(view => foldedRanges(view.state)),
-    codeFolding({ placeholderText: '…' }),
-    foldService.of((state, from) => headingRanges(state.doc.toString()).find(h => h.start === from && h.to > h.from) || null), orgStyle,
+    codeFolding({ preparePlaceholder: (state, range) => metadataLabel(state, range.from),
+      placeholderDOM(view, onclick, label) {
+      const placeholder = document.createElement('span'); placeholder.className = 'cm-foldPlaceholder' + (label ? ' editor-metadata-placeholder' : '');
+      placeholder.textContent = label ? `${label} …` : '…';
+      placeholder.setAttribute('aria-label', label ? `Expand ${label.toLowerCase()}` : 'Expand folded heading');
+      placeholder.setAttribute('role', 'button'); placeholder.tabIndex = 0;
+      placeholder.onclick = onclick;
+      placeholder.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onclick(event); } };
+      return placeholder;
+    } }),
+    foldService.of((state, from) => [...headingRanges(state.doc.toString()), ...metadataRanges(state.doc.toString())].find(h => h.start === from && h.to > h.from) || null), orgStyle,
     EditorView.domEventHandlers({ click(event, view) {
       const box = event.target.closest('[data-checkbox-line]'); if (box) { event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('checkbox-toggle', { bubbles: true, detail: { line: Number(box.dataset.checkboxLine) } })); return true; }
       const task = event.target.closest('[data-task-line]'); if (!task) return false;
@@ -167,14 +210,19 @@ export function createEditor(host) {
     } }, ...defaultKeymap]),
     EditorView.contentAttributes.of({ class: 'ui-source', 'aria-label': 'Org source editor', spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off', autocomplete: 'off', 'data-ui': 'source' }),
     EditorView.updateListener.of(update => {
-      if (update.docChanged && !silent) queueMicrotask(() => update.view.contentDOM.dispatchEvent(new Event('editor-input', { bubbles: true })));
+      if (update.docChanged && !silent) {
+        const changes = [];
+        update.changes.iterChanges((from, to, _fromB, _toB, insert) => changes.push({ from, to, insert: insert.toString() }));
+        const detail = { before: update.startState.doc.toString(), after: update.state.doc.toString(), changes };
+        queueMicrotask(() => update.view.contentDOM.dispatchEvent(new CustomEvent('editor-input', { bubbles: true, detail })));
+      }
       if (update.selectionSet) queueMicrotask(() => update.view.contentDOM.dispatchEvent(new Event('editor-selection')));
     })];
   const view = new EditorView({ parent: host, state: EditorState.create({ extensions }) });
   const editor = view.contentDOM;
   editor.classList.add('ui-source');
   Object.defineProperties(editor, {
-    value: { get: () => view.state.doc.toString(), set: value => { silent = true; view.setState(EditorState.create({ doc: value, extensions })); editor.setLineNumbers(numberMode); silent = false; } },
+    value: { get: () => view.state.doc.toString(), set: value => { silent = true; viAdapter?.beforeReset(); view.setState(EditorState.create({ doc: value, extensions })); editor.setLineNumbers(numberMode); viAdapter?.restore(); editor.setMetadataFolds(metadataRanges(editor.value).map(range => range.start)); silent = false; } },
     selectionStart: { get: () => view.state.selection.main.from },
     selectionEnd: { get: () => view.state.selection.main.to },
     selectionDirection: { get: () => view.state.selection.main.anchor > view.state.selection.main.head ? 'backward' : 'forward' },
@@ -201,8 +249,48 @@ export function createEditor(host) {
   document.addEventListener('keydown', clearJump);
   view.scrollDOM.addEventListener('wheel', clearJump, {passive:true});
   editor.undo = () => undo(view); editor.redo = () => redo(view);
+  editor.attachVi = status => (viAdapter = attachVim(view, vi, status));
+  editor.openSearch = replace => openNoteSearch(view, replace);
+  editor.getHeadingFolds = () => headingRanges(editor.value).filter(h => isFolded(view.state, h.from)).map(h => h.start);
+  editor.metadataRanges = () => metadataRanges(editor.value).map(range => ({ ...range, folded: isFolded(view.state, range.from) }));
+  editor.getMetadataFolds = () => editor.metadataRanges().filter(range => range.folded).map(range => range.start);
+  editor.setMetadataFolds = starts => {
+    const selected = new Set(starts), ranges = metadataRanges(editor.value), effects = [];
+    for (const range of ranges) effects.push((selected.has(range.start) ? foldEffect : unfoldEffect).of(range));
+    const parent = ranges.find(range => selected.has(range.start) && range.from < view.state.selection.main.head && range.to >= view.state.selection.main.head);
+    view.dispatch({ effects, ...(parent ? { selection: { anchor: parent.start } } : {}) });
+  };
+  editor.setHeadingFolds = starts => {
+    const selected = new Set(starts), headings = headingRanges(editor.value), effects = [];
+    const headingEnds = new Set(headings.map(h => h.from));
+    foldedRanges(view.state).between(0, view.state.doc.length, (from, to) => { if (headingEnds.has(from)) effects.push(unfoldEffect.of({ from, to })); });
+    const collapsed = headings.filter(h => selected.has(h.start) && h.to > h.from);
+    effects.push(...collapsed.map(h => foldEffect.of(h)));
+    const parent = collapsed.find(h => h.from < view.state.selection.main.head && h.to >= view.state.selection.main.head);
+    view.dispatch({ effects, ...(parent ? { selection: { anchor: parent.start } } : {}) });
+  };
+  editor.captureViewport = () => {
+    const bounds = view.scrollDOM.getBoundingClientRect(), content = editor.getBoundingClientRect();
+    const pos = view.posAtCoords({ x: content.left + parseFloat(getComputedStyle(editor).paddingLeft) + 5, y: bounds.top + Math.min(24, bounds.height / 4) }, false) ?? 0;
+    const rect = view.coordsAtPos(pos);
+    return { pos, offset: rect ? rect.top - bounds.top : 0, scroll: view.scrollDOM.scrollTop };
+  };
+  editor.restoreViewport = (anchor, restored = () => {}) => {
+    if (!anchor.relocate && anchor.scroll != null) {
+      view.scrollDOM.scrollTop = anchor.scroll;
+      view.requestMeasure({ key: editor, read: () => anchor.scroll, write: scroll => { if (editor.getClientRects().length) { view.scrollDOM.scrollTop = scroll; restored(); } } });
+      return;
+    }
+    const pos = Math.max(0, Math.min(view.state.doc.length, Math.round(anchor.pos)));
+    if (anchor.relocate) editor.setSelectionRange(pos, pos);
+    view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: 'start', yMargin: 0 }) });
+    view.requestMeasure({ key: editor, read: () => view.coordsAtPos(pos), write: rect => {
+      if (rect && editor.getClientRects().length) view.scrollDOM.scrollTop += rect.top - view.scrollDOM.getBoundingClientRect().top - anchor.offset;
+      restored();
+    } });
+  };
   editor.foldHeading = action => {
-    if (action === 'unfold-all') return unfoldAll(view);
+    if (action === 'unfold-all') { editor.setHeadingFolds([]); return true; }
     const headings = headingRanges(view.state.doc.toString()).filter(h => h.to > h.from);
     if (action === 'fold-all') {
       const head = view.state.selection.main.head;
@@ -245,6 +333,10 @@ export function createEditor(host) {
   editor.caretRect = () => { const head = view.state.selection.main.head; return view.coordsAtPos(head, head === view.state.doc.lineAt(head).from ? 1 : -1); };
   editor.refresh = () => view.requestMeasure();
   editor.viewport = view.scrollDOM;
-  editor.dispose = () => { document.removeEventListener('pointerdown', clearJump); document.removeEventListener('keydown', clearJump); view.destroy(); };
+  const tail = new ResizeObserver(() => {
+    if (view.scrollDOM.clientHeight) { editor.style.setProperty('--document-tail', `${view.scrollDOM.clientHeight / 2}px`); view.requestMeasure(); }
+  });
+  tail.observe(view.scrollDOM);
+  editor.dispose = () => { tail.disconnect(); document.removeEventListener('pointerdown', clearJump); document.removeEventListener('keydown', clearJump); view.destroy(); };
   return editor;
 }

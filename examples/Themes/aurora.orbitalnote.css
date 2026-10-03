@@ -1,0 +1,9 @@
+/* OrbitalNote Theme v1: Aurora
+ * Deep indigo and luminous mint, paired with a crisp daylight palette.
+ * Base appearance: dark. Self-contained; paste into Custom theme CSS.
+ */
+:root { --bg:#151a2b; --side:#1d253a; --ribbon:#1d253a; --panel:#1d253a; --text:#e2e9f5; --accent:#80deca; --button:#347ed7; --muted:color-mix(in srgb, #e2e9f5 65%, #151a2b); --faint:color-mix(in srgb, #e2e9f5 45%, #151a2b); --border:color-mix(in srgb, #e2e9f5 16%, #151a2b); --hover:color-mix(in srgb, #e2e9f5 9%, #151a2b); --selected:color-mix(in srgb, #80deca 18%, #151a2b); --blue-soft:color-mix(in srgb, #80deca 12%, #151a2b); --code:#80deca; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+
+.ui-preview :is(h1,h2,h3) { letter-spacing: -.025em; }
+.ui-preview blockquote { border-left-color: var(--accent); background: var(--blue-soft); padding: 12px 18px; }

@@ -1,29 +1,31 @@
-# OrbitalNote 0.1.0-preview.15
+# OrbitalNote 0.1.0-preview.16
 
-Quantum branding, better Android icon sizing, reliable Outline state, and clearer calendar history.
+Polished reading, synchronized document views, stronger Vim editing, and paired light/dark themes.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.14
+## What's new since preview.15
 
-### Quantum Confident branding
-- Adopt the selected Quantum outline mark across the app and platform icons.
-- Reduce Android adaptive foreground size by 20% so the note and orbit fit comfortably inside circular launcher masks.
-- Regenerate legacy Android launcher sizes and full-bleed iOS artwork.
+### Reading and source, together
+- Refine rendered typography, headings, task badges, planning dates, tables, code, quotes, and checklists.
+- Open task editing directly from rendered Scheduled and Deadline dates.
+- Group Properties, Logbook, and repeat history into collapsible metadata; fold drawers and history independently in source mode too.
+- Share heading folds, Properties expansion, and reading position between source and preview, retaining nested folds and cursor position on round trips.
+- Add Fold all / Unfold all to the file menu, with batched updates for large notes, and space below the last line in both modes.
+- Show Mermaid diagrams and LaTeX output without a Source dropdown in rendered preview.
 
-### Tasks and Calendar
-- Undated task dialogs default to today; existing dates and the No date option are preserved.
-- Completed repeating occurrences stay on their original scheduled/deadline dates and time ranges. Actual completion timestamps remain in the log.
-- Older completion logs without original occurrence dates remain in the note instead of appearing on misleading calendar dates.
-- Remove calendar clock/done action buttons while retaining running-clock display.
-- Align timed entry edges with their blocks and hour grid.
+### Vim and search
+- Expand Vim support with composed counts/operators, text objects, visual-line selection, character finds, dot-repeat, and session-local macros.
+- Make counted `j`/`k` motions match relative source-line offsets across folds; `gj`/`gk` move by visible rows.
+- Add a bottom find/replace bar with regular expressions, capture replacements, case/word options, match counts, and selection scope.
+- Preserve untouched mixed line endings across multi-range edits and replacements.
 
-### Outline, keyboard navigation, and layout
-- Preserve nested Outline fold selections when edits insert headings or shift line numbers.
-- Restore editor focus and retained cursor/selection when activating tabs, with keyboard targets for reading and built-in views.
-- Match line-number gutters to the app theme.
-- Remove the extra gap around split dividers while keeping a comfortable resize target.
+### Themes and Agenda
+- Add Aurora (indigo/mint), Ember (charcoal/copper), and Iris (violet/lavender).
+- Pair all thirteen themes with light/dark palettes and a separate System / Light / Dark appearance setting.
+- Align Agenda state labels, task text, and tag-color bars across rows.
+- Give the filter popup a clear heading, spaced active-filter chips, consistent fields, and a separate Clear filters action.
 
-The [engineer example](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.15/examples/Engineer) includes the backend project and everyday tasks shown in the README's workspace screenshot, matching the website hero. The [rich Org showcase](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.15/examples/Showcase) is also included.
+The [Systems notebook example](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.16/examples/Engineer) includes the worker-capacity notes, LaTeX, Mermaid diagram, Go instrumentation, and everyday tasks shown in the README. The [rich Org showcase](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.16/examples/Showcase) is also included.
 See the [changelog](CHANGELOG.md) and [interaction notes](docs/interaction-update.md) for details.
 
 Default shortcuts remain Cmd/Ctrl+, for Settings, Cmd/Ctrl+P for Run command,

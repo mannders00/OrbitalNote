@@ -31,6 +31,7 @@ try {
   assert.match(await page.locator('.agenda-entry').innerText(), /Work meeting/);
   await add('state', 'TODO');
   assert.equal(await page.locator('.agenda-entry').count(), 0);
+  await page.locator('.agenda-query-builder summary').click();
   await page.getByRole('button', { name: 'Remove filter: Task state is TODO', exact: true }).click();
   assert.equal(await page.locator('.agenda-entry').count(), 1);
   await page.locator('[data-query-clear]').click();
@@ -41,6 +42,7 @@ try {
   await page.locator('#agenda-query').fill('milk');
   assert.equal(await page.locator('.agenda-entry').count(), 1);
   await page.locator('#agenda-query').fill('');
+  if (!(await page.locator('.agenda-query-builder').evaluate(el => el.open))) await page.locator('.agenda-query-builder summary').click();
   await page.locator('[data-query-clear]').click();
   await page.locator('[data-query-mode]').selectOption('all');
   await add('tag', 'queryfixture'); await add('date', '2026-09-29', 'before');

@@ -36,7 +36,7 @@ try {
   await page.keyboard.press('j'); await page.keyboard.press('$');
   const caret=await editor.evaluate(el=>el.caretRect()), menu=await doc.locator('.heading-menu-button').first().boundingBox();
   assert.ok(caret.left<menu.x,'Caret belongs to text, not the heading menu');
-  await page.keyboard.press('i');
+  await page.keyboard.press('A');
   await page.keyboard.type('!');
   await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   const insertCaret=await doc.locator('.cm-cursor').first().boundingBox();

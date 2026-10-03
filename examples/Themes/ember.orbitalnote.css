@@ -1,0 +1,10 @@
+/* OrbitalNote Theme v1: Ember
+ * Warm charcoal and copper after dark; soft porcelain and burnt orange by day.
+ * Base appearance: dark. Self-contained; paste into Custom theme CSS.
+ */
+:root { --bg:#221c1a; --side:#2e2521; --ribbon:#2e2521; --panel:#2e2521; --text:#eee2d8; --accent:#efad78; --button:#347ed7; --muted:color-mix(in srgb, #eee2d8 65%, #221c1a); --faint:color-mix(in srgb, #eee2d8 45%, #221c1a); --border:color-mix(in srgb, #eee2d8 16%, #221c1a); --hover:color-mix(in srgb, #eee2d8 9%, #221c1a); --selected:color-mix(in srgb, #efad78 18%, #221c1a); --blue-soft:color-mix(in srgb, #efad78 12%, #221c1a); --code:#efad78; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+
+.ui-preview :is(h1,h2) { letter-spacing: -.03em; }
+.ui-preview h2 { border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+.ui-preview blockquote { border-left: 2px solid var(--accent); }

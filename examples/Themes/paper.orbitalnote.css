@@ -6,7 +6,7 @@
 .ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
 
 :root { --document-leading: 1.9; }
-.ui-preview { font-family: Georgia, "Times New Roman", serif; font-size: 17px; line-height: 1.9; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.8; }
 .ui-preview :is(h1,h2,h3) { font-family: -apple-system, sans-serif; letter-spacing: -.025em; }
 .tab-strip .tab { border-radius: 9px 9px 0 0; }
 .document-toolbar { padding-block: 10px; }

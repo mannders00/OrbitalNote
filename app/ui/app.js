@@ -7,7 +7,8 @@ document.addEventListener('appearance-change', () => {
   if (previews.length) import('./vendor/rich.js').then(module => Promise.all(previews.map(p => module.renderRichPreview(p)))).catch(fail);
 });
 import { attachVi } from './vi.js';
-import { escapeHTML as esc, command, replaceSelection, updateRaw } from './editor.js';
+import { createDocumentView } from './document-view.js';
+import { escapeHTML as esc, command, replaceSelection, updateRaw, updateRawChanges } from './editor.js';
 import { icon, mountIcons } from './icons.js';
 import { TabLayout } from './tab-layout.js';
 import { createEditor } from './vendor/editor.js';
@@ -128,7 +129,7 @@ async function confirm(title, message, action) { return !!await dialog(title, `<
 function tabFrom(note, previous = {}) {
   const eol = note.source.includes('\r\n') && !note.source.replaceAll('\r\n', '').includes('\n') ? '\r\n' : '\n';
   const normalized = note.source.replace(/\r\n?/g, '\n');
-  return { ...note, raw: note.source, buffer: normalized, saved: normalized, eol, position: previous.position || 0, scroll: previous.scroll || 0, mode: previous.mode || 'edit', surface: previous.surface, vi: previous.vi, conflict: false, saving: false };
+  return { ...note, raw: note.source, buffer: normalized, saved: normalized, eol, position: previous.position || 0, scroll: previous.scroll || 0, mode: previous.mode || 'edit', surface: previous.surface, vi: previous.vi, documentView: previous.documentView, conflict: false, saving: false };
 }
 function rememberPosition() { const t = current(); if (t && view === 'document') { t.position = source.selectionStart; t.scroll = source.scrollTop; } }
 function renderTabs() {
@@ -153,8 +154,9 @@ function createDocumentSurface(path, t) {
   surface.dataset.previewPrefix = `note-${++documentSerial}-`;
   const find = id => surface.querySelector(`[data-ui="${id}"]`);
   const editor = createEditor(surface.querySelector('.source-pane'));
+  t.documentView = createDocumentView(surface, editor);
   editor.setLineNumbers($('line-numbers').value);
-  t.surface = surface; t.vi = attachVi(editor, find('vi-state'), value => askText('Find in note', 'Search text', value, 'Find'));
+  t.surface = surface; t.vi = attachVi(editor, find('vi-state'));
   t.vi.setEnabled($('vi-mode').checked);
   const focused = fn => run(e => { activateTab('file:' + surface.dataset.path); return fn(e); });
   const bind = (id, event, fn) => find(id).addEventListener(event, focused(fn));
@@ -182,9 +184,11 @@ function createDocumentSurface(path, t) {
     if (surface === activeSurface) updateSidebars();
   });
   observer.observe(surface); t.resizeObserver = observer;
-  editor.addEventListener('editor-input', () => {
+  editor.addEventListener('editor-input', event => {
     const t = tabs.get(surface.dataset.path); if (!t) return;
-    t.raw = updateRaw(t.raw, t.buffer, editor.value, t.eol); t.buffer = editor.value;
+    const change = event.detail;
+    const after = change?.after ?? editor.value;
+    t.raw = change?.before === t.buffer ? updateRawChanges(t.raw, change.changes, t.eol) : updateRaw(t.raw, t.buffer, after, t.eol); t.buffer = after;
     updateStatus(t); renderTabs();
     clearTimeout(t.previewTimer); t.previewTimer = setTimeout(() => updatePreview(surface.dataset.path).catch(fail), 250);
     scheduleSave(t);
@@ -251,12 +255,10 @@ function setActiveSurface(surface) {
   if (activeSurface) {
     if (activeSurface.contains(document.activeElement)) document.activeElement.blur();
     for (const el of [activeSurface, ...activeSurface.querySelectorAll('[data-ui]')]) el.removeAttribute('id');
-    activeSurface.querySelector('.vi-cursor-layer')?.removeAttribute('id');
   }
   activeSurface = surface;
   if (surface) {
     for (const el of [surface, ...surface.querySelectorAll('[data-ui]')]) el.id = el.dataset.ui;
-    surface.querySelector('.vi-cursor-layer').id = 'vi-cursor-layer';
   }
 }
 function closeViewTab(id) {
@@ -385,10 +387,60 @@ function renderContext(doc, surface = activeSurface) {
 function setHTML(element, html) { patchHTML(element, html); }
 function setPreview(t, html) {
   const preview = t.surface.querySelector('[data-ui="preview"]'), prefix = t.surface.dataset.previewPrefix;
-  if (preview.renderedHTML === html) return;
+  if (preview.renderedHTML === html) { t.documentView.prepare((t.outlineSource ?? t.source).replace(/\r\n?/g, '\n'), t.headings); return; }
   const scroll = preview.scrollTop;
   preview.renderedHTML = html;
   preview.innerHTML = html;
+  // Planning is supporting document metadata, rather than body prose. Only
+  // decorate standalone planning paragraphs; mixed content stays untouched.
+  for (const paragraph of preview.querySelectorAll('p')) {
+    const text = paragraph.textContent.trim();
+    if (!/^(?:(?:SCHEDULED|DEADLINE|CLOSED):\s*(?:<[^>]+>|\[[^\]]+\])\s*)+$/.test(text)) continue;
+    paragraph.classList.add('preview-planning');
+    paragraph.replaceChildren();
+    for (const match of text.matchAll(/(SCHEDULED|DEADLINE|CLOSED):\s*[<\[]([^>\]]+)[>\]]/g)) {
+      const item = document.createElement(match[1] === 'CLOSED' ? 'span' : 'button'), label = document.createElement('span');
+      if (item.tagName === 'BUTTON') {
+        item.type = 'button'; item.dataset.planningKind = match[1].toLowerCase();
+        item.setAttribute('aria-label', `Edit task ${match[1].toLowerCase()}`);
+      }
+      label.className = 'preview-planning-label';
+      label.textContent = match[1][0] + match[1].slice(1).toLowerCase();
+      item.append(label, document.createTextNode(' ' + match[2]));
+      paragraph.append(item);
+    }
+  }
+  // Older Org files keep repeat history outside LOGBOOK. Collect only history
+  // entries owned by this heading; retain ordinary list items and nested notes.
+  for (const content of preview.querySelectorAll('[class^="outline-text-"]')) {
+    const history = [];
+    for (const child of [...content.children]) {
+      if (child.matches('.preview-logbook')) history.push(child);
+      else if (child.matches('ul')) {
+        for (const item of [...child.children]) {
+          if (/^State\s+"[^"]+"\s+from\s+"[^"]*"\s+\[\d{4}-\d{2}-\d{2}[^\]]*\]/.test(item.textContent.trim()) && !item.querySelector('ul, ol')) history.push(item);
+        }
+      }
+    }
+    if (!history.length) continue;
+    let details = [...content.children].find(child => child.tagName === 'DETAILS' && child.querySelector('summary')?.textContent === 'Properties');
+    if (!details) {
+      details = document.createElement('details');
+      const summary = document.createElement('summary'); summary.textContent = 'Properties';
+      details.append(summary); history[0].closest('ul, .preview-logbook').before(details);
+    }
+    let table = details.querySelector('table');
+    if (!table) { table = document.createElement('table'); details.append(table); }
+    for (const entry of history) {
+      const row = table.insertRow(), label = document.createElement('th'), value = row.insertCell();
+      label.textContent = entry.matches('.preview-logbook') ? 'Logbook' : 'State change';
+      row.prepend(label);
+      if (entry.matches('li')) {
+        const list = entry.parentElement; value.append(...entry.childNodes); entry.remove();
+        if (!list.children.length) list.remove();
+      } else value.append(entry);
+    }
+  }
   const checkboxLines = []; let block = false, drawer = false;
   t.buffer.split('\n').forEach((line, index) => {
     if (/^\s*#\+begin_/i.test(line)) block = true;
@@ -417,7 +469,6 @@ function setPreview(t, html) {
   // share a window, including their in-document links.
   for (const el of preview.querySelectorAll('[id]')) el.id = prefix + el.id;
   for (const link of preview.querySelectorAll('a[href^="#"]')) link.setAttribute('href', '#' + prefix + link.getAttribute('href').slice(1));
-  t.previewFolds ||= new Set();
   let headingIndex = 0;
   for (const heading of preview.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
     const title = heading.textContent.trim();
@@ -429,6 +480,10 @@ function setPreview(t, html) {
         const offset = t.buffer.split('\n').slice(0, task.line - 1).reduce((n, line) => n + line.length + 1, 0);
         source.setSelectionRange(offset, offset); t.previewHeading = heading.id;
       };
+      for (const planning of heading.parentElement.querySelectorAll('[data-planning-kind]')) {
+        if (planning.closest('[id^="' + prefix + 'outline-container-"]') !== heading.parentElement) continue;
+        planning.addEventListener('click', run(async () => { selectHeading(); await editTaskAtCursor(planning.dataset.planningKind); }));
+      }
       const menu = document.createElement('button'); menu.type = 'button'; menu.className = 'heading-menu-button'; menu.textContent = '⋮';
       menu.setAttribute('aria-label', 'Heading actions'); menu.setAttribute('aria-haspopup', 'menu');
       menu.addEventListener('click', e => { e.stopPropagation(); selectHeading(); showHeadingMenu(menu); }); heading.append(menu);
@@ -444,15 +499,15 @@ function setPreview(t, html) {
     if (!body?.className.startsWith('outline-text-') || !body.textContent.trim()) continue;
     const button = document.createElement('button'); button.type = 'button'; button.className = 'preview-heading-fold';
     button.setAttribute('aria-controls', body.id);
-    button.updateFold = collapsed => {
+    button.updateFold = (collapsed, sync = true) => {
       body.hidden = collapsed;
       heading.classList.toggle('is-folded', collapsed);
       button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 5 7 7-7 7"/></svg>';
       button.setAttribute('aria-expanded', String(!collapsed));
       button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} heading: ${title}`);
-      if (collapsed) t.previewFolds.add(heading.id); else t.previewFolds.delete(heading.id);
+      if (sync && heading.dataset.sourceHeading !== undefined) t.documentView.fold(Number(heading.dataset.sourceHeading), collapsed);
     };
-    button.updateFold(t.previewFolds.has(heading.id));
+    button.updateFold(false, false);
     heading.addEventListener('click', () => { t.previewHeading = heading.id; });
     button.addEventListener('click', e => { e.preventDefault(); button.updateFold(!body.hidden); });
     heading.prepend(button);
@@ -461,6 +516,7 @@ function setPreview(t, html) {
     import('./vendor/rich.js').then(module => module.renderRichPreview(preview)).catch(fail);
   }
   preview.scrollTop = scroll;
+  t.documentView.prepare((t.outlineSource ?? t.source).replace(/\r\n?/g, '\n'), t.headings);
 }
 function updateStatus(t = current()) {
   if (!t?.surface) return;
@@ -475,9 +531,15 @@ function syncEditorScroll(surface) { /* The rich editor owns wrapping, highlight
 function syncScroll() { if (activeSurface) syncEditorScroll(activeSurface); }
 function setMode(next) {
   const t = current(); if (!t) return;
+  next = next === 'preview' ? 'preview' : 'edit';
+  const anchor = next !== t.mode ? t.documentView.capture(t.mode) : null;
   mode = t.mode = next === 'preview' ? 'preview' : 'edit'; updateMode(t);
   if (mode === 'edit') source.refresh();
   if (mode === 'preview') { setPreview(t, t.html); hydrateImages(t); if (dirty(t)) updatePreview(active).catch(fail); }
+  if (anchor) {
+    if (mode === 'edit') source.focus({ preventScroll: true });
+    t.documentView.restore(mode, anchor);
+  }
   layout.changed();
 }
 function updateMode(t) {
@@ -546,7 +608,7 @@ async function closeTab(path) {
   if (!layout.tabs.size) { active = ''; view = 'agenda'; activeSurface = null; setView('agenda'); }
   renderTabs();
 }
-function disposeDocument(t) { clearTimeout(t?.previewTimer); clearTimeout(t?.saveTimer); t?.resizeObserver?.disconnect(); t?.vi?.dispose(); t?.surface?.querySelector('[data-ui="source"]')?.dispose(); }
+function disposeDocument(t) { clearTimeout(t?.previewTimer); clearTimeout(t?.saveTimer); t?.resizeObserver?.disconnect(); t?.documentView?.dispose(); t?.vi?.dispose(); t?.surface?.querySelector('[data-ui="source"]')?.dispose(); }
 async function createFile() {
   const path = await askText('New note', 'Workspace-relative path', 'untitled.org', 'Create note'); if (!path) return;
   await call('Save', { id: workspace.id, path, source: '', revision: '' }); workspace = await call('Status'); await refreshData(); await openNote(path);
@@ -558,7 +620,8 @@ async function saveCopy() {
 }
 function fileActions(event) { showFileMenu(active, event?.currentTarget || $('file-actions')); }
 function showFileMenu(path, anchor) {
-  showActionMenu(anchor, 'File actions', [['File metadata…', async () => { if (active !== path || view !== 'document') await openNote(path); await fileMetadata(); }], ['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
+  const fold = async action => { if (active !== path || view !== 'document') await openNote(path); headingFoldCommand(action); };
+  showActionMenu(anchor, 'File actions', [['File metadata…', async () => { if (active !== path || view !== 'document') await openNote(path); await fileMetadata(); }], ['Fold all headings', () => fold('fold-all')], ['Unfold all headings', () => fold('unfold-all')], ['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
 }
 async function fileAction(path, action) {
   const t = tabs.get(path), id = workspace.id;
@@ -954,7 +1017,8 @@ function headingFoldCommand(action) {
   if (t.mode === 'preview') {
     const buttons = [...t.surface.querySelectorAll('.preview-heading-fold')];
     if (action.endsWith('-all')) {
-      for (const button of buttons) button.updateFold(action === 'fold-all');
+      t.surface.querySelector('[data-ui="source"]').foldHeading(action);
+      t.documentView.syncFolds();
     } else {
       const button = buttons.find(b => b.parentElement.id === t.previewHeading) || buttons.find(b => b.getClientRects().length);
       if (button) button.updateFold(action === 'fold' ? true : action === 'unfold' ? false : button.getAttribute('aria-expanded') === 'true');
@@ -995,6 +1059,8 @@ const actionDefinitions = [
     ['indent', 'Indent line', 'Tab'], ['outdent', 'Outdent line', 'Shift+Tab'],
   ].map(([id, label, key]) => [id, label, key, () => editorCommand(id), 'editor']),
   ['undo', 'Undo edit', 'Mod+Z', () => source?.undo(), 'editor'],
+  ['find-note', 'Find in note', 'Mod+F', () => { if (view === 'document') { if (mode !== 'edit') setMode('edit'); source?.openSearch(); } }],
+  ['replace-note', 'Find and replace in note', 'Mod+Alt+F', () => { if (view === 'document') { if (mode !== 'edit') setMode('edit'); source?.openSearch(true); } }],
   ['redo', 'Redo edit', 'Mod+Shift+Z', () => source?.redo(), 'editor'],
   ['preview', 'Preview document', '', () => setMode('preview')], ['edit', 'Edit source', '', () => setMode('edit')],
   ['zoom-in', 'Zoom in', 'Mod+=', () => zoomNative(1)], ['zoom-out', 'Zoom out', 'Mod+-', () => zoomNative(-1)], ['zoom-reset', 'Actual size', 'Mod+0', () => zoomNative(0)],

@@ -1,6 +1,20 @@
 // Layout treatments are intentionally useful, not hue rotations. Selectors in
 // downloadable samples are the same ones used by the built-in presets.
 export const themeTreatments = {
+  aurora: ['Aurora', 'Deep indigo and luminous mint, paired with a crisp daylight palette.', `
+.ui-preview :is(h1,h2,h3) { letter-spacing: -.025em; }
+.ui-preview blockquote { border-left-color: var(--accent); background: var(--blue-soft); padding: 12px 18px; }
+`],
+  ember: ['Ember', 'Warm charcoal and copper after dark; soft porcelain and burnt orange by day.', `
+.ui-preview :is(h1,h2) { letter-spacing: -.03em; }
+.ui-preview h2 { border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+.ui-preview blockquote { border-left: 2px solid var(--accent); }
+`],
+  iris: ['Iris', 'Inky violet and lavender with a clean, understated studio feel.', `
+.ui-preview :is(h1,h2,h3) { letter-spacing: -.025em; font-weight: 600; }
+.ui-preview img { border-radius: 10px; }
+.ui-preview blockquote { background: var(--blue-soft); padding: 12px 18px; }
+`],
   dark: ['Workbench', 'Compact, neutral chrome for project work and split panes.', `
 .tab-strip { height: 32px; }
 .tree button[data-open] { min-height: 26px; font-size: 12px; }
@@ -9,7 +23,7 @@ export const themeTreatments = {
 `],
   light: ['Paper', 'Clean white pages with spacious reading typography.', `
 :root { --document-leading: 1.9; }
-.ui-preview { font-family: Georgia, "Times New Roman", serif; font-size: 17px; line-height: 1.9; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.8; }
 .ui-preview :is(h1,h2,h3) { font-family: -apple-system, sans-serif; letter-spacing: -.025em; }
 .tab-strip .tab { border-radius: 9px 9px 0 0; }
 .document-toolbar { padding-block: 10px; }

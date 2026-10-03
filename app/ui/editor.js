@@ -10,6 +10,21 @@ export function updateRaw(raw, before, after, eol) {
   return raw.slice(0, rawOffset(start)) + after.slice(start, newEnd).replaceAll('\n', eol) + raw.slice(rawOffset(oldEnd));
 }
 
+// Multiple replacements are one transaction. Preserve the exact bytes between
+// them, including mixed line endings, rather than flattening the entire span.
+export function updateRawChanges(raw, changes, eol) {
+  let rawPos = 0, normalizedPos = 0, result = '';
+  const advance = to => {
+    while (normalizedPos < to) { rawPos += raw[rawPos] === '\r' && raw[rawPos + 1] === '\n' ? 2 : 1; normalizedPos++; }
+  };
+  for (const change of changes) {
+    const previous = rawPos;
+    advance(change.from); result += raw.slice(previous, rawPos) + change.insert.replaceAll('\n', eol);
+    advance(change.to);
+  }
+  return result + raw.slice(rawPos);
+}
+
 // Cosmetic highlighting only: this never rewrites the buffer or parses agenda dates.
 export function highlight(source) {
   let block = false;

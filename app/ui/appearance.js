@@ -11,25 +11,56 @@ export const themes = [
   ['sand', 'Sand', 'light', '#faf5e9', '#eee6d5', '#443c30', '#98652a'],
   ['rose', 'Rose', 'light', '#fff6f8', '#f2e5e9', '#49323c', '#ad4671'],
   ['ocean', 'Ocean', 'light', '#f2fafc', '#e2eff3', '#203f4b', '#147e98'],
+  ['aurora', 'Aurora', 'dark', '#151a2b', '#1d253a', '#e2e9f5', '#80deca'],
+  ['ember', 'Ember', 'dark', '#221c1a', '#2e2521', '#eee2d8', '#efad78'],
+  ['iris', 'Iris', 'dark', '#201d30', '#2a263e', '#e9e4f5', '#bca7f5'],
 ].map(theme => [theme[0], themeTreatments[theme[0]][0], ...theme.slice(2)]);
+
+// Every family retains its typography and layout in either appearance.
+const companionPalettes = {
+  dark: ['#f7f8fa', '#eceef2', '#292e38', '#2864b4'],
+  light: ['#202225', '#292c30', '#e2e4e7', '#8eb8ed'],
+  midnight: ['#f3f6fc', '#e7edf7', '#26364f', '#3563ac'],
+  nord: ['#eceff4', '#e0e5ed', '#2e3440', '#356f83'],
+  forest: ['#f4f7ef', '#e6eddf', '#2c3e30', '#397248'],
+  plum: ['#faf5fc', '#eee5f3', '#45334f', '#8750a4'],
+  coffee: ['#f2f5ed', '#e4eadc', '#29352a', '#466d32'],
+  sand: ['#26221c', '#302b23', '#e9dfcb', '#d2b079'],
+  rose: ['#291f26', '#362831', '#efdee6', '#e5a1bc'],
+  ocean: ['#15262e', '#1d333e', '#dcebf1', '#78c9dd'],
+  aurora: ['#f1f8f8', '#e2eeef', '#243c48', '#197a70'],
+  ember: ['#fcf6ef', '#f0e5d9', '#47352a', '#a35426'],
+  iris: ['#f8f5fe', '#ece6f6', '#39304c', '#7750b5'],
+};
+export function themeVariant(theme, mode) {
+  return mode === theme[2] ? theme : [...theme.slice(0, 2), mode, ...companionPalettes[theme[0]]];
+}
 export function setupAppearance(select, nativeTheme) {
   const description = document.getElementById('theme-description');
   const builtIn = document.createElement('style'), custom = document.createElement('style');
   document.head.append(builtIn, custom);
   const system = matchMedia('(prefers-color-scheme: dark)');
-  select.replaceChildren(...[['system', 'System'], ...themes].map(([id, name]) => new Option(name, id)));
-  select.value = localStorage.getItem('org-theme') || 'dark'; if (!select.value) select.value = 'dark';
+  const appearance = document.getElementById('theme-mode');
+  const saved = localStorage.getItem('org-theme');
+  select.replaceChildren(...themes.map(([id, name]) => new Option(name, id)));
+  select.value = saved === 'system' ? 'dark' : saved || 'dark'; if (!select.value) select.value = 'dark';
+  // Retain existing fixed appearances; new installs and legacy System follow OS.
+  appearance.value = localStorage.getItem('org-theme-mode') || (saved && saved !== 'system' ? themes.find(t => t[0] === select.value)[2] : 'system');
+  if (!appearance.value) appearance.value = 'system';
   function apply() {
-    const id = select.value === 'system' ? system.matches ? 'dark' : 'light' : select.value;
+    const id = select.value;
     const customBase = /Base appearance:\s*(light|dark)/i.exec(custom.textContent)?.[1].toLowerCase();
-    const mode = customBase || themes.find(t => t[0] === id)[2];
+    const mode = customBase || (appearance.value === 'system' ? system.matches ? 'dark' : 'light' : appearance.value);
     document.documentElement.dataset.theme = mode;
+    document.documentElement.dataset.themeFamily = id;
     description.textContent = customBase ? 'Standalone custom CSS is active. Clear it below to use the selected preset.' : themeTreatments[id][1];
-    builtIn.textContent = customBase ? '' : themeCSS(themes.find(t => t[0] === id));
+    builtIn.textContent = customBase ? '' : themeCSS(themeVariant(themes.find(t => t[0] === id), mode));
     nativeTheme(mode === 'dark');
     document.dispatchEvent(new Event('appearance-change'));
   }
-  select.addEventListener('change', () => { localStorage.setItem('org-theme', select.value); apply(); });
+  const save = () => { localStorage.setItem('org-theme', select.value); localStorage.setItem('org-theme-mode', appearance.value); apply(); };
+  select.addEventListener('change', save);
+  appearance.addEventListener('change', save);
   system.addEventListener('change', apply); apply();
   const input = document.getElementById('theme-css');
   input.placeholder = '/* OrbitalNote Theme v1: My theme */\n:root {\n  --bg: #18231d;\n  --text: #dce9df;\n  --accent: #91c9a0;\n}';

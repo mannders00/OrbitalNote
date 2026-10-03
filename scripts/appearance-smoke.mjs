@@ -7,7 +7,22 @@ try {
   const base = process.env.BASE_URL || 'http://127.0.0.1:9245';
   await page.goto(base);
   await page.keyboard.press('ControlOrMeta+,');
-  assert.equal(await page.locator('#theme option').count(), 11);
+  assert.equal(await page.locator('#theme option').count(), 13);
+  for (const id of await page.locator('#theme option').evaluateAll(options => options.map(o => o.value))) {
+    await page.locator('#theme').selectOption(id);
+    await page.locator('#theme-mode').selectOption('system');
+    const colors = [];
+    for (const mode of ['light', 'dark']) {
+      await page.emulateMedia({ colorScheme: mode });
+      await page.waitForFunction(mode => document.documentElement.dataset.theme === mode, mode);
+      assert.equal(await page.locator('#theme').inputValue(), id);
+      colors.push(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()));
+    }
+    assert.notEqual(colors[0], colors[1], `${id} has distinct light/dark palettes`);
+  }
+  await page.locator('#theme-mode').selectOption('dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
   await page.locator('#theme').selectOption('forest');
   await page.locator('#theme-css').fill('/* OrbitalNote Theme v1: Test */\n:root { --accent: #ff1234; }');
   await page.locator('#theme-apply').click();
@@ -15,6 +30,7 @@ try {
   await page.reload();
   await page.keyboard.press('ControlOrMeta+,');
   assert.equal(await page.locator('#theme').inputValue(), 'forest');
+  assert.equal(await page.locator('#theme-mode').inputValue(), 'dark');
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()), '#ff1234');
   await page.locator('#theme-clear').click();
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()), '#91c9a0');

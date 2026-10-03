@@ -1,5 +1,48 @@
 # Changelog
 
+## Unreleased
+
+## 0.1.0-preview.16 — 2026-10-03
+
+- Add Aurora, Ember, and Iris themes, and matching light/dark palettes for every
+  theme with an independent System/Light/Dark appearance setting.
+- Give Agenda filters a clear header, spaced active-filter chips, and a separate
+  Clear filters action inside the popup.
+
+- Align Agenda state labels, task text, and continuous tag-color bars across rows.
+- Show rendered Mermaid and LaTeX blocks without a Source disclosure in preview.
+
+- Batch Fold all/Unfold all in rendered mode and cache folded metadata labels to
+  avoid repeated full-document work on large notes.
+
+- Make Vim `j`/`k` counts match relative source-line numbers across folded text;
+  `gj`/`gk` retain visible-row movement.
+
+- Collapse Properties, Logbook, custom drawers, and repeat/clock history in source
+  mode, with Properties expansion shared with rendered preview.
+
+- Use the Systems notebook screenshot for the website hero and repository README,
+  with matching worker-capacity, LaTeX, Mermaid, and instrumentation examples.
+
+- Synchronize heading folds and reading position between source and preview,
+  retaining nested folds and the editor cursor on round trips. Add Fold all /
+  Unfold all to file actions and half-pane trailing space below both views.
+
+- Expand Vi mode with composed counts and motions, text objects, linewise visual
+  selections, dot-repeat, character finds, paragraph and bracket navigation,
+  Org folding commands, and session-local record/replay macros.
+- Add a bottom find/replace bar with regex capture replacements, match counts,
+  case/word options, and selection-scoped replacement. Preserve untouched mixed
+  line endings across multi-range editor transactions.
+
+- Open the task editor from rendered Scheduled and Deadline dates. Keep legacy
+  repeat-state history and LOGBOOK entries inside the collapsible Properties
+  table, alongside regular Org properties.
+
+- Refine reading mode with consistent sans-serif typography, balanced headings
+  and spacing, compact task badges, quieter planning metadata, lighter tables,
+  and coordinated code, quote, property, and checklist styling in light and dark.
+
 ## 0.1.0-preview.15 — 2026-10-03
 
 - Adopt Quantum Confident (outline study 04) across app, Android/iOS,
