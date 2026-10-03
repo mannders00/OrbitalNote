@@ -32,6 +32,33 @@ async function setup(text, vi = true) {
 }
 const searchField = name => note.locator(`.note-search [name="${name}"]`);
 try {
+  const parent = '* Project\n', subtree = '** TODO First\nFirst body\n*** Child\nChild body\n', sibling = '** TODO Second\nSecond body\n', tail = '* Next project\nNext body\n';
+  await setup(parent + subtree + sibling + tail);
+  await editor.evaluate(el => {
+    el.setHeadingFolds(['** TODO First', '*** Child', '** TODO Second'].map(title => el.value.indexOf(title)));
+    el.jumpTo(el.value.indexOf('** TODO First'));
+  });
+  await keys('$llll');
+  assert.equal(await pos(), parent.length + '** TODO First'.length - 1, 'Normal cursor stays on heading text, before ellipsis');
+  await keys('dd'); assert.equal(await value(), parent + sibling + tail);
+  await keys('p'); assert.equal(await value(), parent + sibling + subtree + tail);
+  assert.equal((await editor.evaluate(el => el.getHeadingFolds())).length, 3, 'Pasted subtree retains nested folds');
+  await keys('u'); assert.equal(await value(), parent + sibling + tail);
+  await keys('u'); assert.equal(await value(), parent + subtree + sibling + tail);
+  console.log('PASS folded subtree dd/p, sibling placement, nested folds, cursor bounds, and undo');
+  await setup('* First\nFirst body\n* Last\nLast body');
+  await editor.evaluate(el => { el.setHeadingFolds([0, el.value.indexOf('* Last')]); el.jumpTo(el.value.indexOf('* Last')); });
+  await keys('"add'); assert.equal(await value(), '* First\nFirst body\n');
+  await keys('gg"aP'); assert.equal(await value(), '* Last\nLast body\n* First\nFirst body\n');
+  console.log('PASS folded EOF subtree without final newline, named register, and paste-before');
+  await setup(parent + subtree + sibling + tail);
+  await editor.evaluate(el => { el.setHeadingFolds([el.value.indexOf('** TODO First'), el.value.indexOf('** TODO Second')]); el.jumpTo(el.value.indexOf('** TODO First')); });
+  await keys('Vy');
+  await editor.evaluate(el => el.jumpTo(el.value.indexOf('** TODO Second')));
+  await keys('p'); assert.equal(await value(), parent + subtree + sibling + subtree + tail);
+  await keys('Vd'); assert.equal(await value(), parent + subtree + sibling + tail);
+  console.log('PASS visual-line folded subtree copy/paste and delete');
+
   const foldedText = '* Start\n* Folded\n' + 'hidden\n'.repeat(100) + '* After\none\ntwo\nTARGET\nlast\n';
   await setup(foldedText);
   await editor.evaluate(el => el.setHeadingFolds([el.value.indexOf('* Folded')]));
@@ -40,6 +67,38 @@ try {
   assert.equal((await editor.evaluate(el => el.getHeadingFolds())).length, 1);
   await keys('jgj'); assert.equal(await pos(), foldedText.indexOf('* After'));
   console.log('PASS counted source-line motions across folds and visible-row gj');
+
+  const metadataText = '* Task\nDEADLINE: <2026-10-03 Sat>\n:LOGBOOK:\nCLOCK: [2026-10-03 Sat 09:00]\n:END:\nBody\n';
+  await setup(metadataText);
+  const placeholder = editor.locator('.editor-metadata-placeholder');
+  const alignment = await placeholder.evaluate(el => {
+    const line = el.closest('.cm-line');
+    return el.getBoundingClientRect().left - line.getBoundingClientRect().left - parseFloat(getComputedStyle(line).paddingLeft);
+  });
+  assert.ok(Math.abs(alignment) < .5, `Folded LOGBOOK is indented by ${alignment}px`);
+  await keys('3j');
+  assert.equal((await editor.evaluate(el => el.getMetadataFolds())).length, 1, 'Counted motion must not open metadata');
+  await keys('k');
+  assert.equal((await editor.evaluate(el => el.getMetadataFolds())).length, 1, 'Backward motion must not open metadata');
+  await keys('gg');
+  await keys('2jza');
+  assert.deepEqual(await editor.evaluate(el => el.getMetadataFolds()), []);
+  assert.deepEqual(await editor.evaluate(el => el.getHeadingFolds()), []);
+  await keys('jzc');
+  assert.equal((await editor.evaluate(el => el.getMetadataFolds())).length, 1);
+  await keys('zo');
+  assert.deepEqual(await editor.evaluate(el => el.getMetadataFolds()), []);
+  assert.equal(await value(), metadataText);
+  await keys('zM');
+  assert.equal((await editor.evaluate(el => el.getMetadataFolds())).length, 1);
+  await keys('zR');
+  assert.deepEqual(await editor.evaluate(el => el.getMetadataFolds()), []);
+  assert.deepEqual(await editor.evaluate(el => el.getHeadingFolds()), []);
+  await page.keyboard.press('ControlOrMeta+e');
+  assert.ok(await note.locator('.ui-preview').isVisible());
+  await page.keyboard.press('ControlOrMeta+e');
+  assert.ok(await editor.isVisible());
+  console.log('PASS flush metadata labels and current-line za/zc/zo on and inside drawers');
 
   await setup('one two three four five six seven eight\n');
   await keys('2d3w'); assert.equal(await value(), 'seven eight\n');
@@ -59,7 +118,16 @@ try {
   console.log('PASS quoted/nested text objects and repeated character finds');
 
   await setup('alpha\nbeta\ngamma\ndelta\n');
-  await keys('Vjd'); assert.equal(await value(), 'gamma\ndelta\n');
+  await keys('Vj');
+  await page.waitForFunction(() => document.querySelector('.cm-selectionBackground'));
+  const selectionBounds = await editor.evaluate(el => {
+    const content = el.getBoundingClientRect();
+    return { width: content.width, contained: [...el.closest('.cm-editor').querySelectorAll('.cm-selectionBackground')].every(mark => {
+      const rect = mark.getBoundingClientRect(); return rect.left >= content.left - 1 && rect.right <= content.right + 1;
+    }) };
+  });
+  assert.ok(selectionBounds.width <= 808 && selectionBounds.contained, JSON.stringify(selectionBounds));
+  await keys('d'); assert.equal(await value(), 'gamma\ndelta\n');
   await keys('P'); assert.equal(await value(), 'alpha\nbeta\ngamma\ndelta\n');
   await keys('ggJ'); assert.equal(await value(), 'alpha beta\ngamma\ndelta\n');
   await keys('0rX'); assert.equal(await value(), 'Xlpha beta\ngamma\ndelta\n');

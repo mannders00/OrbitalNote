@@ -16,6 +16,7 @@ import { taskDialog } from './task-dialog.js';
 import { timeGrid, bindCalendarGestures, formatTime, calendarClock, updateNowLine } from './calendar.js';
 import { patchHTML } from './dom.js';
 import { reconcileOutline } from './outline.js';
+import { localNeighbors, localGraphHTML } from './local-graph.js';
 import { setupSyncSettings } from './sync.js';
 
 for (const event of ['pointerdown', 'keydown', 'wheel']) document.addEventListener(event, () => {
@@ -233,7 +234,12 @@ function activateTab(id, restoreFocus = false) {
       const target = mode === 'edit' ? source : $('preview');
       if (mode === 'preview') target.tabIndex = 0;
       target.focus({ preventScroll: true });
-    } else pages.get(view)?.querySelector('input:not([type="hidden"]), button, select, [tabindex="0"]')?.focus({ preventScroll: true });
+    } else {
+      const page = pages.get(view);
+      const primary = page?.querySelector('#capture, #calendar-capture');
+      const target = primary?.getClientRects().length && !primary.disabled ? primary : [...(page?.querySelectorAll('input:not([type="hidden"]), button, select, [tabindex="0"]') || [])].find(el => !el.disabled && el.getClientRects().length);
+      target?.focus({ preventScroll: true });
+    }
   };
   if (view === 'document' && id === 'file:' + active && activeSurface === tabs.get(active)?.surface) { focusContent(); return; }
   rememberPosition();
@@ -328,7 +334,7 @@ async function refresh() {
         }
       } catch { if (tabs.get(p) === t) t.conflict = true; }
     }
-    renderTabs(); for (const t of tabs.values()) updateStatus(t);
+    renderTabs(); for (const t of tabs.values()) { updateStatus(t); renderLocalGraph(t, t.surface); }
   } finally { refreshing = false; }
 }
 async function openNote(path, line) {
@@ -382,7 +388,23 @@ function renderContext(doc, surface = activeSurface) {
   }
   patchHTML(outline, doc.headings.length ? fragment.innerHTML : '<p class="empty">No headings</p>');
   for (const details of outline.querySelectorAll('details')) details.open = !closed.has(details.dataset.key);
+  renderLocalGraph(doc, surface);
   setHTML(surface.querySelector('[data-ui="properties"]'), Object.entries(doc.metadata || {}).map(([k,v]) => `<button data-file-metadata title="Edit file metadata"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + Object.entries(doc.properties || {}).map(([k, v]) => `<button data-file-property="${esc(k)}" title="Edit ${esc(k)}"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + '<button data-file-metadata>Edit file metadata…</button>');
+}
+async function renderLocalGraph(doc, surface) {
+  const root = surface?.querySelector('[data-ui="local-graph"]');
+  if (!root || !workspace.id) return;
+  const path = surface.dataset.path, id = workspace.id;
+  const signature = JSON.stringify([id, workspace.version, path, doc.links]);
+  if (root.graphSignature === signature) return;
+  root.graphSignature = signature;
+  try {
+    const backlinks = await call('Backlinks', { id, path });
+    if (!root.isConnected || workspace.id !== id || root.graphSignature !== signature) return;
+    patchHTML(root, localGraphHTML(path, localNeighbors(path, doc.links, backlinks, workspace.files)));
+  } catch {
+    if (root.graphSignature === signature) { root.graphSignature = null; patchHTML(root, '<p class="local-graph-empty">Linked notes could not be loaded.</p>'); }
+  }
 }
 function setHTML(element, html) { patchHTML(element, html); }
 function setPreview(t, html) {
@@ -441,6 +463,9 @@ function setPreview(t, html) {
       } else value.append(entry);
     }
   }
+  for (const details of preview.querySelectorAll('details')) {
+    if (details.querySelector(':scope > summary')?.textContent === 'Properties') details.classList.add('preview-properties');
+  }
   const checkboxLines = []; let block = false, drawer = false;
   t.buffer.split('\n').forEach((line, index) => {
     if (/^\s*#\+begin_/i.test(line)) block = true;
@@ -474,6 +499,7 @@ function setPreview(t, html) {
     const title = heading.textContent.trim();
     const task = t.headings?.[headingIndex++];
     if (task) {
+      heading.parentElement.classList.add('preview-section');
       heading.classList.toggle('org-clocked', !!task.clock);
       const selectHeading = () => {
         layout.select('file:' + t.surface.dataset.path);
@@ -554,7 +580,7 @@ async function updatePreview(path = active) {
   const seq = t.previewSequence = (t.previewSequence || 0) + 1, buffer = t.buffer;
   const doc = await call('Preview', { source: buffer });
   if (seq !== t.previewSequence || t.buffer !== buffer || tabs.get(path) !== t) return;
-  t.html = doc.html; t.headings = doc.headings; t.outlineSource = buffer; t.properties = doc.properties; t.metadata = doc.metadata;
+  t.html = doc.html; t.headings = doc.headings; t.links = doc.links; t.outlineSource = buffer; t.properties = doc.properties; t.metadata = doc.metadata;
   setPreview(t, doc.html); hydrateImages(t); renderContext(doc, t.surface); if (doc.warning) notify(doc.warning);
 }
 function relativePath(target, path = active) {
@@ -596,7 +622,7 @@ async function saveNote(path) {
     const note = await call('Save', { id, path, source: raw, revision: t.revision });
     if (workspace.id !== id || tabs.get(path) !== t) return;
     t.revision = note.revision; t.saved = buffer; t.conflict = false;
-    if (t.buffer === buffer) { t.html = note.html; t.headings = note.headings; t.outlineSource = buffer; t.properties = note.properties; t.metadata = note.metadata; setPreview(t, t.html); renderContext(t, t.surface); if (t.mode === 'preview') hydrateImages(t); }
+    if (t.buffer === buffer) { t.html = note.html; t.headings = note.headings; t.links = note.links; t.outlineSource = buffer; t.properties = note.properties; t.metadata = note.metadata; setPreview(t, t.html); renderContext(t, t.surface); if (t.mode === 'preview') hydrateImages(t); }
     notify(''); await refreshData();
   } catch (err) { t.saveError = true; if (String(err).includes('changed on disk')) t.conflict = true; throw err; }
   finally { t.saving = false; renderTabs(); updateStatus(t); if (!t.saveError && !t.conflict && tabs.get(path) === t && dirty(t)) scheduleSave(t); }
@@ -691,7 +717,8 @@ function entryHTML(e) {
   const index = entries.indexOf(e);
   const clock = e.done ? '' : `<button class="icon-button task-clock" data-clock="${index}" aria-pressed="${!!e.clock}" aria-label="${e.clock ? 'Clock out of' : 'Clock in to'} ${esc(e.title)}" title="${e.clock ? 'Clock out' : 'Clock in'}">${icon(e.clock ? 'clock-stop' : 'clock')}</button>`;
   const actions = `<div class="agenda-row-actions">${clock}<button class="icon-button agenda-edit" data-edit-task="${index}" aria-label="Edit task: ${esc(e.title)}" title="Edit task">${icon('pencil')}</button></div>`;
-  return `<div class="agenda-row ${e.done ? 'completed' : ''}">${e.state ? e.stamp.kind === 'completed' ? `<span class="task-state org-done">${esc(e.state)}</span>` : `<button class="agenda-complete task-state ${e.done ? 'org-done' : 'org-todo'}" data-complete="${index}" aria-label="${e.done ? 'Reopen' : 'Mark'} ${esc(e.title)}${e.done ? '' : ' as done'}">${esc(e.state)}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(e.stamp.time || (e.stamp.date ? 'All day' : 'Unscheduled'))}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button>${actions}</div>`;
+  const time = e.stamp.time ? formatTime(e.stamp.time, $('calendar-time-format').value) : e.stamp.date ? 'All day' : 'Unscheduled';
+  return `<div class="agenda-row ${e.done ? 'completed' : ''}">${e.state ? e.stamp.kind === 'completed' ? `<span class="task-state org-done">${esc(e.state)}</span>` : `<button class="agenda-complete task-state ${e.done ? 'org-done' : 'org-todo'}" data-complete="${index}" aria-label="${e.done ? 'Reopen' : 'Mark'} ${esc(e.title)}${e.done ? '' : ' as done'}">${esc(e.state)}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(time)}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button>${actions}</div>`;
 }
 async function editAgendaTask(item) {
   if (!item) return;
@@ -1063,6 +1090,7 @@ const actionDefinitions = [
   ['replace-note', 'Find and replace in note', 'Mod+Alt+F', () => { if (view === 'document') { if (mode !== 'edit') setMode('edit'); source?.openSearch(true); } }],
   ['redo', 'Redo edit', 'Mod+Shift+Z', () => source?.redo(), 'editor'],
   ['preview', 'Preview document', '', () => setMode('preview')], ['edit', 'Edit source', '', () => setMode('edit')],
+  ['toggle-editor-source', 'Toggle editor / source', 'Mod+E', () => { if (view === 'document') setMode(mode === 'edit' ? 'preview' : 'edit'); else if (view === 'agenda') $('agenda-minimal').click(); }],
   ['zoom-in', 'Zoom in', 'Mod+=', () => zoomNative(1)], ['zoom-out', 'Zoom out', 'Mod+-', () => zoomNative(-1)], ['zoom-reset', 'Actual size', 'Mod+0', () => zoomNative(0)],
   ...Array.from({ length: 9 }, (_, i) => [`tab-${i + 1}`, `Select tab ${i + 1}`, `Mod+${i + 1}`, () => { const id = layout.focusedGroup().tabs[i]; if (id) layout.select(id); }]),
 ].map(([id, label, key, execute, scope = 'app']) => ({ id, label, key, execute, scope }));
@@ -1125,7 +1153,13 @@ listen('quick-open', 'click', () => openPalette('files')); listen('palette-butto
 listen('palette-input', 'input', renderPalette);
 listen('palette-input', 'keydown', async e => { const key = e.ctrlKey && !e.altKey && !e.metaKey ? ({ n: 'ArrowDown', p: 'ArrowUp' }[e.key.toLowerCase()] || e.key) : e.key; if (key === 'ArrowDown' || key === 'ArrowUp') { e.preventDefault(); paletteSelection = Math.max(0, Math.min(paletteItems.length - 1, paletteSelection + (key === 'ArrowDown' ? 1 : -1))); drawPalette(); $('palette-results').querySelector('.selected')?.scrollIntoView({ block: 'nearest' }); } else if (key === 'Enter') { e.preventDefault(); await executePalette(paletteSelection); } });
 listen('palette', 'click', e => { const r = $('palette').getBoundingClientRect(); if (e.target === $('palette') && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) $('palette').close(); });
-listen('agenda-minimal', 'click', () => { const enabled = $('agenda').classList.toggle('minimal'), label = enabled ? 'Exit minimal view' : 'Enter minimal view'; $('agenda-minimal').setAttribute('aria-pressed', String(enabled)); $('agenda-minimal').setAttribute('aria-label', label); $('agenda-minimal').title = label; });
+listen('agenda-minimal', 'click', () => {
+  const enabled = $('agenda').classList.toggle('minimal'), label = enabled ? 'Exit minimal view' : 'Enter minimal view';
+  $('agenda-minimal').setAttribute('aria-pressed', String(enabled)); $('agenda-minimal').setAttribute('aria-label', label); $('agenda-minimal').title = label;
+  $('agenda-minimal').innerHTML = icon(enabled ? 'pencil' : 'book');
+  $('capture').disabled = enabled;
+  (enabled ? $('agenda-minimal') : $('capture')).focus({ preventScroll: true });
+});
 const calendarView = $('calendar-view');
 document.querySelector('#calendar .filterbar').append(calendarView);
 listen('calendar-view', 'change', renderCalendar);
@@ -1139,7 +1173,7 @@ $('line-numbers').value = localStorage.getItem('orbitalnote-line-numbers') || 'o
 listen('line-numbers', 'change', () => { localStorage.setItem('orbitalnote-line-numbers', $('line-numbers').value); for (const t of tabs.values()) t.surface?.querySelector('[data-ui="source"]')?.setLineNumbers($('line-numbers').value); });
 $('monospace-mode').checked = localStorage.getItem('orbitalnote-monospace') === 'true';
 $('calendar-time-format').value = localStorage.getItem('orbitalnote-calendar-time-format') || '12';
-listen('calendar-time-format', 'change', () => { localStorage.setItem('orbitalnote-calendar-time-format', $('calendar-time-format').value); renderCalendar(); });
+listen('calendar-time-format', 'change', () => { localStorage.setItem('orbitalnote-calendar-time-format', $('calendar-time-format').value); renderCalendar(); renderAgenda(); });
 setInterval(() => updateNowLine($('calendar-grid'), $('calendar-time-format').value), 30000);
 const applyMonospace = () => document.documentElement.classList.toggle('monospace-mode', $('monospace-mode').checked);
 applyMonospace();

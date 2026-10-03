@@ -71,6 +71,7 @@
           <header class="context-header"><span data-icon="outline"></span><span class="panel-title">Outline</span><button id="outline-toggle-all" type="button">Collapse all</button><button id="context-close" class="icon-button" data-icon="panel-right" title="Hide right sidebar" aria-label="Hide right sidebar" aria-controls="context"></button></header>
           <div id="outline"></div>
           <div class="section-label"><span data-icon="sliders"></span>File metadata</div><div id="properties"></div>
+          <div class="section-label">Local graph</div><div id="local-graph" aria-label="Linked notes"></div>
         </aside>
       </div>
       <footer class="statusbar"><button id="save" class="save-status" title="Save now (⌘ / Ctrl S)"><span id="save-state">Saved</span></button><span id="vi-state" hidden aria-live="polite"></span><span id="cursor">Ln 1, Col 1</span><span class="status-detail">Org</span><span class="status-detail">UTF-8</span></footer>
@@ -97,7 +98,7 @@
       <div class="page-heading"><h1>Settings</h1></div>
       <div class="setting"><label for="line-numbers"><strong>Line numbers</strong></label><select id="line-numbers"><option value="off">Off</option><option value="absolute">Absolute</option><option value="relative">Relative</option></select></div>
       <div class="setting"><label for="monospace-mode"><strong>Monospace text</strong><p>Use a uniform monospace text size, including headings.</p></label><input id="monospace-mode" type="checkbox" role="switch"></div>
-      <div class="setting"><label for="calendar-time-format"><strong>Calendar time format</strong></label><select id="calendar-time-format"><option value="12">12 hour (AM/PM)</option><option value="24">24 hour</option></select></div>
+      <div class="setting"><label for="calendar-time-format"><strong>Agenda and Calendar time format</strong></label><select id="calendar-time-format"><option value="12">12 hour (AM/PM)</option><option value="24">24 hour</option></select></div>
       <div class="setting"><div><strong>Theme</strong><p id="theme-description"></p></div><select id="theme" aria-label="Theme"></select></div>
       <div class="setting"><div><strong>Appearance</strong><p>Each theme includes matching light and dark palettes.</p></div><select id="theme-mode" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
       <section class="custom-theme"><label for="theme-css">Custom theme CSS</label><p>OrbitalNote Theme v1: use a :root rule to override color variables, or add your own CSS. Applied on this device.</p><textarea id="theme-css" rows="9" spellcheck="false" aria-label="Custom theme CSS"></textarea><button id="theme-apply" type="button">Apply custom CSS</button><button id="theme-clear" type="button">Clear custom CSS</button><p id="theme-status" role="status"></p></section>

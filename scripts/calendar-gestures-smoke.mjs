@@ -40,6 +40,18 @@ try {
   assert.equal(await page.locator('#modal [name="time"]').inputValue(),'10:00');
   assert.equal(await page.locator('#modal [name="endTime"]').inputValue(),'11:00');
   await page.keyboard.press('Escape');
+  // A small drag within the bottom half must keep the hovered slot, including
+  // when pointer movement passes the gesture threshold before release.
+  const lower=await slot('2026-10-01','10:00').boundingBox();
+  const x=lower.x+lower.width/2, y=lower.y+lower.height-3;
+  await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+8,y);
+  const preview=page.locator('.calendar-drag-preview');
+  assert.equal(await preview.evaluate(el=>el.style.top),'600px');
+  assert.equal(await preview.evaluate(el=>el.style.height),'30px');
+  await page.mouse.up();await page.locator('#modal').waitFor();
+  assert.equal(await page.locator('#modal [name="time"]').inputValue(),'10:00');
+  assert.equal(await page.locator('#modal [name="endTime"]').inputValue(),'10:30');
+  await page.keyboard.press('Escape');
   await page.locator('#calendar').evaluate(el=>el.scrollTop=600);
   const pinned=await page.locator('.time-day-headers').boundingBox(), pane=await page.locator('#calendar').boundingBox();
   assert.ok(Math.abs(pinned.y-pane.y)<1,JSON.stringify({pinned,pane}));

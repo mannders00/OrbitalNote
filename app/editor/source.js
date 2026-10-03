@@ -1,7 +1,7 @@
 import { EditorState, EditorSelection, StateField, StateEffect, Compartment } from '@codemirror/state';
 import { EditorView, Decoration, WidgetType, keymap, drawSelection, lineNumbers, gutter, GutterMarker } from '@codemirror/view';
 import { history, defaultKeymap, undo, redo } from '@codemirror/commands';
-import { codeFolding, foldService, foldEffect, unfoldEffect, foldedRanges } from '@codemirror/language';
+import { codeFolding, foldService, foldEffect, unfoldEffect, foldedRanges, unfoldAll } from '@codemirror/language';
 import { headingRanges } from './headings.js';
 import { metadataRanges } from './metadata.js';
 import { attachVim } from './vi.js';
@@ -22,6 +22,23 @@ function isFolded(state, from) {
   foldedRanges(state).between(from, from, start => { if (start === from) folded = true; });
   return folded;
 }
+// Programmatic Vim/scroll motions can land inside an atomic fold, bypassing
+// CodeMirror's arrow-key skipping. Keep navigation outside hidden ranges;
+// explicit reveals (search/jumps) carry unfold effects and remain intentional.
+const skipFoldedSelection = EditorState.transactionFilter.of(tr => {
+  if (!tr.selection || tr.docChanged || tr.effects.some(effect => effect.is(unfoldEffect))) return tr;
+  const folds = foldedRanges(tr.startState), previous = tr.startState.selection.main;
+  const skip = (pos, old) => {
+    let target = pos;
+    folds.between(0, tr.startState.doc.length, (from, to) => {
+      if (from < pos && pos <= to) target = pos >= old && to < tr.startState.doc.length ? Math.max(target, to + 1) : Math.min(target, from);
+    });
+    return target;
+  };
+  const ranges = tr.selection.ranges.map(range => EditorSelection.range(skip(range.anchor, previous.anchor), skip(range.head, previous.head)));
+  const selection = EditorSelection.create(ranges, tr.selection.mainIndex);
+  return selection.eq(tr.selection) ? tr : [tr, { selection }];
+});
 function foldHeading(view, heading, collapse = !isFolded(view.state, heading.from)) {
   if (heading.to <= heading.from) return false;
   const head = view.state.selection.main.head;
@@ -173,7 +190,7 @@ export function createEditor(host) {
   let viAdapter;
   const extensions = [vi.of([]), history(), drawSelection(), EditorView.lineWrapping, jumpHighlight, noteSearch,
     EditorView.scrollMargins.of(view => view.state.selection.main.head >= view.state.doc.line(view.state.doc.lines).from ? { bottom: view.scrollDOM.clientHeight / 2 } : {}),
-    numbers.of([]), EditorView.atomicRanges.of(view => foldedRanges(view.state)),
+    numbers.of([]), EditorView.atomicRanges.of(view => foldedRanges(view.state)), skipFoldedSelection,
     codeFolding({ preparePlaceholder: (state, range) => metadataLabel(state, range.from),
       placeholderDOM(view, onclick, label) {
       const placeholder = document.createElement('span'); placeholder.className = 'cm-foldPlaceholder' + (label ? ' editor-metadata-placeholder' : '');
@@ -290,16 +307,18 @@ export function createEditor(host) {
     } });
   };
   editor.foldHeading = action => {
-    if (action === 'unfold-all') { editor.setHeadingFolds([]); return true; }
+    if (action === 'unfold-all') return unfoldAll(view);
     const headings = headingRanges(view.state.doc.toString()).filter(h => h.to > h.from);
     if (action === 'fold-all') {
+      const ranges = [...headings, ...metadataRanges(editor.value)].sort((a, b) => a.start - b.start);
       const head = view.state.selection.main.head;
-      const parent = headings.find(h => h.from < head && h.to >= head);
-      view.dispatch({ effects: headings.map(h => foldEffect.of(h)), ...(parent ? { selection: { anchor: parent.start } } : {}) });
-      return headings.length > 0;
+      const parent = ranges.find(h => h.from < head && h.to >= head);
+      view.dispatch({ effects: ranges.map(h => foldEffect.of(h)), ...(parent ? { selection: { anchor: parent.start } } : {}) });
+      return ranges.length > 0;
     }
     const head = view.state.selection.main.head;
-    const heading = headings.find(h => h.start <= head && h.from >= head) || headings.filter(h => h.start <= head && h.to >= head).at(-1);
+    const metadata = metadataRanges(editor.value).find(range => range.start <= head && range.to >= head);
+    const heading = metadata || headings.find(h => h.start <= head && h.from >= head) || headings.filter(h => h.start <= head && h.to >= head).at(-1);
     if (!heading) return false;
     return foldHeading(view, heading, action === 'fold' ? true : action === 'unfold' ? false : undefined);
   };

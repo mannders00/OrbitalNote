@@ -1,0 +1,13 @@
+#+TITLE: Release plan
+#+FILETAGS: :work:milestone:
+
+* TODO Friday release
+SCHEDULED: <2026-10-09 Fri 11:00>
+
+- [ ] Run the smoke suite
+- [ ] Review [[file:Observability.org][alerts and dashboards]]
+- [ ] Deploy to the pilot team
+- [ ] Watch the queue for thirty minutes
+
+** TODO Prepare the rollback note
+Keep the previous package handy and record the database version.

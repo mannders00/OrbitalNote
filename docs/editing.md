@@ -13,8 +13,24 @@ custom drawers, and repeat/clock history. They start collapsed; click the arrow
 or labeled ellipsis to reveal the original text. Properties expansion is shared
 with rendered preview. Folding metadata never changes the file contents.
 
+Cursor navigation skips collapsed metadata without opening it. Current-line
+fold commands target the drawer or history under the cursor, and Fold all /
+Unfold all includes metadata as well as headings. Explicit search and note jumps
+can still reveal their destination.
+
+Use **Toggle editor / source** (Cmd/Ctrl+E) to switch between rendered preview and
+source. Its binding can be changed in Settings → Keyboard shortcuts.
+The same command switches Agenda between normal and reading/minimal mode.
+New task is hidden and disabled in reading/minimal Agenda.
+
 Vim `j`/`k` counts use source-line offsets, matching the relative line-number
 gutter even across folds. Use `gj`/`gk` to move by visible rows instead.
+
+On a folded heading, `dd` cuts the full subtree, including nested headings.
+Linewise `p` pastes after the destination's folded subtree; `P` pastes before it.
+Moved heading folds are retained, making sibling sections easy to reorder.
+Visual-line `V` selections and `yy` also include a folded heading's subtree when
+copying; use `Vy` to copy or `Vd` to cut the selected folded section.
 
 The top-right file menu includes **Fold all headings** and **Unfold all headings**
 in either view. Folding is view-only. Both views leave half a pane of space below

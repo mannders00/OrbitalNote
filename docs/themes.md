@@ -47,6 +47,10 @@ Editorial, Soft Focus, Blueprint, **Aurora** (indigo/mint), **Ember** (charcoal/
 and **Iris** (violet/lavender). They change typography, spacing, controls,
 tabs, and document treatment as well as colors.
 
+Terminal uses Base16 Default-inspired charcoal and gray surfaces with muted
+blue, green, amber, red, cyan, and violet accents. Its light counterpart uses
+neutral paper surfaces and deeper accents for readability.
+
 Self-contained examples are in `examples/Themes/`. A comment containing
 `Base appearance: light` or `Base appearance: dark` selects that native appearance
 and replaces the built-in treatment with the custom file. Without the comment,

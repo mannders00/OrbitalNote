@@ -1,31 +1,34 @@
-# OrbitalNote 0.1.0-preview.16
+# OrbitalNote 0.1.0-preview.17
 
-Polished reading, synchronized document views, stronger Vim editing, and paired light/dark themes.
+Connected notes, clearer hierarchy, predictable folding, and a refined Terminal theme.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.15
+## What's new since preview.16
 
-### Reading and source, together
-- Refine rendered typography, headings, task badges, planning dates, tables, code, quotes, and checklists.
-- Open task editing directly from rendered Scheduled and Deadline dates.
-- Group Properties, Logbook, and repeat history into collapsible metadata; fold drawers and history independently in source mode too.
-- Share heading folds, Properties expansion, and reading position between source and preview, retaining nested folds and cursor position on round trips.
-- Add Fold all / Unfold all to the file menu, with batched updates for large notes, and space below the last line in both modes.
-- Show Mermaid diagrams and LaTeX output without a Source dropdown in rendered preview.
+### Connected notes and richer examples
+- Add a clickable Local graph as the last section of the right sidebar, showing incoming, outgoing, and mutual note links.
+- Include the Connected sample vault with engineering notes, a journal, a decision record, and a rich Systems notebook.
+- Fix rendered internal links opening nonexistent .html exports instead of the original .org notes.
+- Showcase Default, Terminal, and Editorial with real screenshots and a guide to custom CSS themes.
 
-### Vim and search
-- Expand Vim support with composed counts/operators, text objects, visual-line selection, character finds, dot-repeat, and session-local macros.
-- Make counted `j`/`k` motions match relative source-line offsets across folds; `gj`/`gk` move by visible rows.
-- Add a bottom find/replace bar with regular expressions, capture replacements, case/word options, match counts, and selection scope.
-- Preserve untouched mixed line endings across multi-range edits and replacements.
+### Folding and Vim
+- Cut a folded heading's whole subtree with `dd` and paste after another folded subtree with `p`, retaining nested heading folds. `P`, named registers, and undo are supported.
+- Keep the normal cursor on visible heading text before the fold ellipsis.
+- Include folded subtrees in visual-line cut/copy and keep selection highlights within the editor column.
+- Keep metadata folds closed during navigation; include them in Fold all / Unfold all and current-line folding commands.
+- Remove the remaining metadata-label indentation and align Vim `:` and `/` prompt text.
+- Add a configurable Toggle editor / source command, default Cmd/Ctrl+E, which also switches Agenda reading mode.
 
-### Themes and Agenda
-- Add Aurora (indigo/mint), Ember (charcoal/copper), and Iris (violet/lavender).
-- Pair all thirteen themes with light/dark palettes and a separate System / Light / Dark appearance setting.
-- Align Agenda state labels, task text, and tag-color bars across rows.
-- Give the filter popup a clear heading, spaced active-filter chips, consistent fields, and a separate Clear filters action.
+### Reading, Agenda, and Calendar
+- Distinguish nested headings and TODOs with indentation and hierarchy guides, including in monospace mode.
+- Show collapsed Properties as a compact disclosure beneath planning metadata, with a bordered card only when expanded.
+- Align Outline arrows and explicitly hide collapsed descendants to prevent stale blank space.
+- Keep reading/editing icons neutral. Focus New task on entering normal Agenda/Calendar; hide and disable it in minimal Agenda.
+- Apply the same 12/24-hour preference to Agenda and Calendar.
+- Create calendar blocks from the highlighted half-hour cells, fixing lower-half pointer rounding. Use a red current-time line and dot.
+- Restyle Terminal with Base16 Default-inspired neutral surfaces and muted accents, including a matching light palette.
 
-The [Systems notebook example](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.16/examples/Engineer) includes the worker-capacity notes, LaTeX, Mermaid diagram, Go instrumentation, and everyday tasks shown in the README. The [rich Org showcase](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.16/examples/Showcase) is also included.
+Open the [Connected sample vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.17/examples/Connected) and start with Dispatch.org to explore the graph, or Systems-notebook.org for the theme showcase. The Engineer and Showcase examples are also included.
 See the [changelog](CHANGELOG.md) and [interaction notes](docs/interaction-update.md) for details.
 
 Default shortcuts remain Cmd/Ctrl+, for Settings, Cmd/Ctrl+P for Run command,

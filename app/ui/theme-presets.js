@@ -60,7 +60,7 @@ button, input, select, textarea { border-radius: 9px; }
 .agenda-entry { border-bottom: 0; }
 .ui-preview img { border-radius: 14px; }
 `],
-  coffee: ['Terminal', 'Square edges, monospace typography, and dense information.', `
+  coffee: ['Terminal', 'Base16 Default-inspired neutral grays, muted syntax colors, and dense monospace typography.', `
 :root { font-family: "SFMono-Regular", Menlo, Consolas, monospace; --document-leading: 1.65; }
 button, input, select, textarea, dialog, .segmented, .segmented button, .tab-strip .tab, .agenda-query-input { border-radius: 0; }
 .tab-strip { height: 31px; }
@@ -100,8 +100,19 @@ button, input, select { min-height: 34px; }
 
 export function themeCSS([id, , mode, bg, side, text, accent]) {
   const [name, description, treatment] = themeTreatments[id];
+  // Base16 Default dark accents; deeper companions retain readability on paper.
+  const terminal = mode === 'dark'
+    ? ['#b8b8b8', '#888888', '#383838', '#ab4642', '#a1b56c', '#f7ca88', '#dc9656', '#ba8baf', '#86c1b9']
+    : ['#585858', '#686868', '#d8d8d8', '#ab4642', '#536b2f', '#805d23', '#985c28', '#83557a', '#37776e'];
+  const [muted, faint, border, red, green, amber, orange, purple, cyan] = terminal;
+  const terminalCSS = id === 'coffee' ? `
+:root { --muted:${muted}; --faint:${faint}; --border:${border}; --todo:${red}; --done:${green}; --warn:${amber}; --code:${cyan}; --button:#416f80; --warn-bg:${mode === 'dark' ? '#302a21' : '#f4eadb'}; }
+.chroma :is(.k,.kd,.kn,.kt) { color:${purple}; }
+.chroma :is(.nf,.nb,.nc) { color:var(--accent); }
+.chroma :is(.mi,.mf,.mh) { color:${orange}; }
+` : '';
   return `/* OrbitalNote Theme v1: ${name}\n * ${description}\n * Base appearance: ${mode}. Self-contained; paste into Custom theme CSS.\n */
 :root { --bg:${bg}; --side:${side}; --ribbon:${side}; --panel:${side}; --text:${text}; --accent:${accent}; --button:${mode === 'dark' ? '#347ed7' : accent}; --muted:color-mix(in srgb, ${text} 65%, ${bg}); --faint:color-mix(in srgb, ${text} 45%, ${bg}); --border:color-mix(in srgb, ${text} 16%, ${bg}); --hover:color-mix(in srgb, ${text} 9%, ${bg}); --selected:color-mix(in srgb, ${accent} 18%, ${bg}); --blue-soft:color-mix(in srgb, ${accent} 12%, ${bg}); --code:${accent}; --todo:${mode === 'dark' ? '#e88787' : '#bd3535'}; --done:${mode === 'dark' ? '#7fc59a' : '#287943'}; --warn:${mode === 'dark' ? '#d4ad73' : '#956726'}; --warn-bg:${mode === 'dark' ? '#352e23' : '#fbf2e3'}; --shadow:${mode === 'dark' ? '#0006' : '#0002'}; color-scheme:${mode}; }
 .ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
-${treatment}`;
+${treatment}${terminalCSS}`;
 }

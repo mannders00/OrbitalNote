@@ -1,0 +1,7 @@
+#+TITLE: Weekend
+#+FILETAGS: :personal:
+
+* TODO Take the long trail
+Pack coffee, a rain shell, and something to sketch with.
+
+This note is intentionally unlinked. Its local graph shows how to add a first link.

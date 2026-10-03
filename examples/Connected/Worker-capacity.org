@@ -1,0 +1,19 @@
+#+TITLE: Worker capacity
+#+FILETAGS: :work:performance:
+
+* TODO Measure before adding workers
+SCHEDULED: <2026-10-05 Mon 13:00>
+
+Capacity notes for [[file:Dispatch.org][Dispatch]].
+
+\[
+L = \lambda W = 40 \times 0.15 = 6
+\]
+
+Start with eight workers. Track queue age using the
+[[file:Observability.org][observability checklist]].
+
+** TODO Replay lunchtime traffic
+- [X] Record the staging baseline
+- [ ] Compare p95 queue wait with four and eight workers
+- [ ] Write down the saturation point

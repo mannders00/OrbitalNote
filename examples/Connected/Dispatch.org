@@ -1,0 +1,35 @@
+#+TITLE: Dispatch
+#+FILETAGS: :work:project:
+
+* TODO Ship a calmer support queue
+DEADLINE: <2026-10-09 Fri>
+:PROPERTIES:
+:OWNER: Pilot team
+:STATUS: Ready for review
+:END:
+
+Small teams should spend their afternoon helping people, not sorting tickets.
+
+** TODO Finish the engineering pass
+Start with the [[file:Architecture.org][architecture]], then check
+[[file:Worker-capacity.org][worker capacity]] and [[file:Observability.org][observability]].
+
+*** TODO Review the retry budget
+SCHEDULED: <2026-10-05 Mon 10:00>
+
+One request should create one ticket, even when the network retries.
+
+*** TODO Verify queue alerts
+SCHEDULED: <2026-10-06 Tue 14:00>
+
+Wake a human only when a customer is actually waiting.
+
+** TODO Prepare the handoff
+Follow the [[file:Release-plan.org][release plan]] and write a short demo script.
+
+* Notes for the demo
+The [[file:Systems-notebook.org][systems notebook]] brings the capacity equation,
+service diagram, and engineering checklist together.
+
+Open this note's Local graph. Architecture links both ways; the journal links
+here; the release plan is an outgoing connection.

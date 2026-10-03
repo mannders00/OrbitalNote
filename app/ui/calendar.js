@@ -58,6 +58,9 @@ export function timeGrid(start, days, entries, colorStyle, indexOf = entry => en
 export function bindCalendarGestures(root, { entry, create, change }) {
   let gesture, suppressClick = false;
   const snap = (column, y) => Math.max(0, Math.min(1425, Math.round((y - column.getBoundingClientRect().top) / column.getBoundingClientRect().height * 1440 / 15) * 15));
+  // Creation selects the visible half-hour cells, rather than rounding the
+  // pointer to the nearest resize/move increment inside those cells.
+  const slotStart = (column, y) => Math.max(0, Math.min(1410, Math.floor((y - column.getBoundingClientRect().top) / column.getBoundingClientRect().height * 1440 / 30) * 30));
   const cleanup = () => { root.querySelectorAll('.calendar-drag-preview').forEach(el => el.remove()); root.classList.remove('calendar-dragging'); };
   root.addEventListener('click', e => {
     if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopImmediatePropagation(); return; }
@@ -72,7 +75,7 @@ export function bindCalendarGestures(root, { entry, create, change }) {
     if (!column && !allDay) return;
     if (item && (item.stamp.kind === 'completed' || item.stamp.endDate)) return;
     if (!item && !column) return;
-    const start = column ? snap(column, e.clientY) : 0;
+    const start = column ? item ? snap(column, e.clientY) : slotStart(column, e.clientY) : 0;
     gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, item, column, start, resize: target?.dataset.resize, offset: item?.stamp.time && column ? start - minutes(item.stamp.time) : 0 };
   });
   root.addEventListener('pointermove', e => {
@@ -97,7 +100,7 @@ export function bindCalendarGestures(root, { entry, create, change }) {
       } else if (g.item) {
         const duration = g.item.stamp.endTime && g.item.stamp.time ? minutes(g.item.stamp.endTime) - minutes(g.item.stamp.time) : 60;
         start = Math.max(0, Math.min(1439 - duration, at - g.offset)); end = start + duration;
-      } else { if (cell !== g.column) return; start = Math.min(g.start, at); end = Math.min(1439, Math.max(g.start, at) + 15); }
+      } else { if (cell !== g.column) return; const selected = slotStart(cell, e.clientY); start = Math.min(g.start, selected); end = Math.min(1439, Math.max(g.start, selected) + 30); }
     }
     g.value = { date: cell.dataset.dropDate, time: timed ? clock(start) : '', endTime: timed ? clock(end) : '' };
     const preview = document.createElement('div'); preview.className = 'calendar-drag-preview';

@@ -1,0 +1,12 @@
+#+TITLE: Engineering journal
+#+FILETAGS: :journal:
+
+* Monday, October 5
+The [[file:Dispatch.org][Dispatch]] demo is finally small enough to explain in
+five minutes. The most useful change was separating queue wait from request
+latency in [[file:Observability.org][the metrics notebook]].
+
+** TODO Ask the pilot team about their busiest hour
+SCHEDULED: <2026-10-05 Mon 15:30>
+
+Use their answer to improve the next traffic replay.

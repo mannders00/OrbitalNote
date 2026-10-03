@@ -1,0 +1,10 @@
+#+TITLE: Postgres queue
+#+FILETAGS: :work:decision:
+
+* DONE Start with the database we already operate
+For [[file:../Dispatch.org][Dispatch]], a transactional queue is enough for the
+pilot. See the [[file:../Architecture.org][architecture]] for the request flow.
+
+** Tradeoff
+Fewer moving parts today. Revisit when queue volume competes with interactive
+queries, using evidence from [[file:../Worker-capacity.org][capacity measurements]].

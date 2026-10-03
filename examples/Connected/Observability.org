@@ -1,0 +1,17 @@
+#+TITLE: Observability
+#+FILETAGS: :work:operations:
+
+* TODO Know when customers are waiting
+Signals for [[file:Dispatch.org][Dispatch]] and its
+[[file:Architecture.org][request and worker architecture]].
+
+| Signal | Initial goal |
+|--------+--------------|
+| Queue age p95 | Under 2 seconds |
+| API error rate | Under 0.5% |
+| Duplicate tickets | Zero |
+
+** TODO Add queue wait histogram
+#+begin_src go
+queueWait.Observe(time.Since(job.EnqueuedAt).Seconds())
+#+end_src

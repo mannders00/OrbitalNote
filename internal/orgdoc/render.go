@@ -13,6 +13,22 @@ import (
 
 type previewWriter struct{ *org.HTMLWriter }
 
+// The default HTML exporter rewrites note.org to note.html. App navigation
+// needs the workspace note path, not the name of a hypothetical HTML export.
+func (w *previewWriter) WriteRegularLink(l org.RegularLink) {
+	target := strings.TrimPrefix(l.URL, "file:")
+	path := strings.SplitN(strings.SplitN(target, "::", 2)[0], "#", 2)[0]
+	if (l.Protocol == "file" || l.Protocol == "") && strings.HasSuffix(strings.ToLower(path), ".org") {
+		description := html.EscapeString(target)
+		if l.Description != nil {
+			description = w.WriteNodesAsString(l.Description...)
+		}
+		w.WriteString(`<a href="` + html.EscapeString(target) + `">` + description + `</a>`)
+		return
+	}
+	w.HTMLWriter.WriteRegularLink(l)
+}
+
 func (w *previewWriter) WriteDrawer(d org.Drawer) {
 	if d.Name == "LOGBOOK" {
 		w.WriteString(`<div class="preview-logbook">`)

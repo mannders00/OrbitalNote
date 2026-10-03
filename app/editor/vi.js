@@ -1,6 +1,61 @@
 import { vim, Vim, getCM } from '@replit/codemirror-vim';
+import { foldedRanges, foldEffect } from '@codemirror/language';
+import { headingRanges } from './headings.js';
 
 let recordingOwner;
+const foldedCuts = new Map();
+function foldedHeadings(cm) {
+  const starts = new Set();
+  foldedRanges(cm.cm6.state).between(0, cm.cm6.state.doc.length, from => starts.add(from));
+  return headingRanges(cm.getValue()).filter(h => starts.has(h.from));
+}
+
+function subtreeRanges(cm, args, ranges) {
+  if (!args.linewise || cm.state.vim.visualBlock) return ranges;
+  const headings = foldedHeadings(cm), source = cm.getValue();
+  const expanded = ranges.map(range => {
+    let from = cm.indexFromPos(range.anchor), to = cm.indexFromPos(range.head);
+    if (from > to) [from, to] = [to, from];
+    for (const h of headings) if (from <= h.start && h.start < to) to = Math.max(to, Math.min(source.length, h.to + 1));
+    const folds = headings.filter(h => h.start >= from && h.start < to).map(h => h.start - from);
+    if (folds.length) {
+      foldedCuts.set(source.slice(from, to).replace(/\n?$/, '\n'), folds);
+      if (foldedCuts.size > 20) foldedCuts.delete(foldedCuts.keys().next().value);
+    }
+    return { anchor: cm.posFromIndex(from), head: cm.posFromIndex(to) };
+  });
+  return expanded;
+}
+Vim.defineOperator('orbitalDelete', function(cm, args, ranges, ...rest) {
+  return this.delete(cm, args, subtreeRanges(cm, args, ranges), ...rest);
+});
+Vim.mapCommand('d', 'operator', 'orbitalDelete', {});
+Vim.defineOperator('orbitalYank', function(cm, args, ranges, ...rest) {
+  return this.yank(cm, args, subtreeRanges(cm, args, ranges), ...rest);
+});
+Vim.mapCommand('y', 'operator', 'orbitalYank', {});
+
+Vim.defineAction('orbitalPaste', function(cm, args, state) {
+  const register = Vim.getVimGlobalState_().registerController.getRegister(args.registerName);
+  const text = register.toString(), savedFolds = foldedCuts.get(text);
+  const normal = !state.visualMode;
+  const cursor = cm.getCursor(), heading = normal && register.linewise && args.after
+    ? foldedHeadings(cm).find(h => cm.cm6.state.doc.lineAt(h.start).number - 1 === cursor.line) : null;
+  const getCursor = cm.getCursor;
+  // Native linewise paste inserts after the current source line. For a closed
+  // subtree its visible line represents the entire range, not just its title.
+  if (heading) cm.getCursor = function() { cm.getCursor = getCursor; return cm.posFromIndex(heading.to); };
+  try { this.paste(cm, args, state); }
+  finally { cm.getCursor = getCursor; }
+  if (savedFolds && normal && register.linewise && args.registerName !== '+') {
+    const doc = cm.cm6.state.doc, start = doc.line(cm.getCursor().line + 1).from;
+    const starts = new Set();
+    for (let i = 0; i < (args.repeat || 1); i++) for (const offset of savedFolds) starts.add(start + i * text.length + offset);
+    const ranges = headingRanges(cm.getValue()).filter(h => starts.has(h.start) && h.to > h.from);
+    if (ranges.length) cm.cm6.dispatch({ effects: ranges.map(h => foldEffect.of(h)) });
+  }
+});
+for (const [key, after] of [['p', true], ['P', false]]) Vim.mapCommand(key, 'action', 'orbitalPaste', { after }, { isEdit: true });
 
 // Relative gutters count source lines. The upstream motion consults findPosV
 // to skip folded rows, which makes a count overshoot the gutter's destination.
@@ -38,6 +93,12 @@ export function attachVim(view, compartment, status) {
     view.dispatch({ effects: compartment.reconfigure(enabled ? vim({ status: false }) : []) });
     const cm = getCM(view);
     if (cm) {
+      cm.on('vim-command-done', () => {
+        if (cm.state.vim?.insertMode || cm.state.vim?.visualMode) return;
+        const pos = cm.indexFromPos(cm.getCursor());
+        const heading = foldedHeadings(cm).find(h => pos === h.from || pos === h.to);
+        if (heading) cm.setCursor(cm.posFromIndex(Math.max(heading.start, heading.from - 1)));
+      });
       for (const event of ['vim-mode-change', 'vim-command-done', 'vim-keypress']) cm.on(event, report);
       cm.on('dialog', () => {
         if (cm.state.dialog?.textContent.startsWith('recording @')) recordingOwner = cm;

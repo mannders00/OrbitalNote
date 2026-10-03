@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+## 0.1.0-preview.17 — 2026-10-03
+
+- Add Default, Terminal, and Editorial screenshots showing rich Org notes and
+  local graphs, with documentation for custom CSS themes.
+- Make the calendar current-time line and dot consistently red.
+
+- Make Vim linewise deletion include folded heading subtrees, paste after folded
+  destinations, preserve moved heading folds, and keep the normal cursor before
+  the fold ellipsis.
+- Include folded subtrees in visual-line cut/copy, and constrain selection
+  highlights to the centered editor column instead of the full pane margins.
+
+- Preserve .org destinations in rendered internal links instead of rewriting
+  them to .html export paths.
+
+- Create calendar blocks from the highlighted half-hour cells, avoiding a shifted
+  start when clicking or dragging in the lower half of a slot.
+
+- Align Vim command/search prompt prefixes with their input text.
+
+- Keep collapsed preview Properties compact beside planning metadata; show the
+  bordered card only when expanded.
+
+- Add a clickable Local graph at the bottom of the right sidebar, showing
+  incoming links, outgoing links, and notes linked both ways. Include the
+  Connected sample vault for exploring the graph.
+- Align Outline disclosure arrows using consistent geometry and explicitly hide
+  collapsed descendants to prevent stale blank layout space.
+
+- Apply the shared 12/24-hour time preference to Agenda as well as Calendar.
+
+- Focus New task when activating normal Agenda/Calendar so Enter opens task
+  creation immediately. Minimal Agenda uses a neutral book/pencil toggle and
+  hides and disables New task; the preview pencil also stays neutral. The shared
+  editor/source toggle shortcut also switches Agenda reading mode.
+
+- Keep metadata folds closed during cursor navigation; include them in Fold all /
+  Unfold all. Add a configurable Toggle editor / source command (Cmd/Ctrl+E).
+
+- Make nested headings and TODOs clearer in rendered preview with child-section
+  indentation and subtle hierarchy guides, including in monospace mode.
+
+- Restyle Terminal with Base16 Default-inspired neutral surfaces and muted syntax
+  accents, with a coordinated light palette.
+
+- Remove the remaining source metadata fold-label margin and let current-line
+  fold commands target drawers/history instead of their enclosing heading.
+
 ## 0.1.0-preview.16 — 2026-10-03
 
 - Add Aurora, Ember, and Iris themes, and matching light/dark palettes for every

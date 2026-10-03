@@ -1,0 +1,34 @@
+#+TITLE: Systems notebook
+#+FILETAGS: :work:engineering:
+
+* TODO Give the queue room to breathe :performance:
+DEADLINE: <2026-10-09 Fri>
+:PROPERTIES:
+:OWNER: Platform team
+:END:
+
+Capacity planning for [[file:Dispatch.org][Dispatch]]. Small steps, measured results.
+
+** TODO Size the worker pool
+SCHEDULED: <2026-10-05 Mon 13:00>
+
+\[
+L = \lambda W = 40\,\mathrm{s}^{-1} \times 0.15\,\mathrm{s} = 6
+\]
+
+Six concurrent jobs on average. Start with *eight workers*.
+
+#+begin_src mermaid
+flowchart LR
+  A[API] --> B[Job queue]
+  B --> C[8 workers]
+  C --> D[(Postgres)]
+#+end_src
+
+** TODO Prove it on staging :observability:
+- [X] Capture the baseline
+- [ ] Replay lunchtime traffic
+- [ ] Watch p95 queue age
+
+See the [[file:Architecture.org][architecture]], [[file:Observability.org][metrics]],
+and [[file:Release-plan.org][release checklist]].

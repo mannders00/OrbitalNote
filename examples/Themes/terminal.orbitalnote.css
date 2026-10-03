@@ -1,8 +1,8 @@
 /* OrbitalNote Theme v1: Terminal
- * Square edges, monospace typography, and dense information.
+ * Base16 Default-inspired neutral grays, muted syntax colors, and dense monospace typography.
  * Base appearance: dark. Self-contained; paste into Custom theme CSS.
  */
-:root { --bg:#121916; --side:#18211c; --ribbon:#18211c; --panel:#18211c; --text:#d9e6d9; --accent:#9acb8b; --button:#347ed7; --muted:color-mix(in srgb, #d9e6d9 65%, #121916); --faint:color-mix(in srgb, #d9e6d9 45%, #121916); --border:color-mix(in srgb, #d9e6d9 16%, #121916); --hover:color-mix(in srgb, #d9e6d9 9%, #121916); --selected:color-mix(in srgb, #9acb8b 18%, #121916); --blue-soft:color-mix(in srgb, #9acb8b 12%, #121916); --code:#9acb8b; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
+:root { --bg:#181818; --side:#282828; --ribbon:#282828; --panel:#282828; --text:#d8d8d8; --accent:#7cafc2; --button:#347ed7; --muted:color-mix(in srgb, #d8d8d8 65%, #181818); --faint:color-mix(in srgb, #d8d8d8 45%, #181818); --border:color-mix(in srgb, #d8d8d8 16%, #181818); --hover:color-mix(in srgb, #d8d8d8 9%, #181818); --selected:color-mix(in srgb, #7cafc2 18%, #181818); --blue-soft:color-mix(in srgb, #7cafc2 12%, #181818); --code:#7cafc2; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
 .ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
 
 :root { font-family: "SFMono-Regular", Menlo, Consolas, monospace; --document-leading: 1.65; }
@@ -12,3 +12,8 @@ button, input, select, textarea, dialog, .segmented, .segmented button, .tab-str
 .page-heading h1 { font-size: 21px; font-weight: 500; }
 .sidebar-header .panel-title { text-transform: uppercase; letter-spacing: .1em; }
 .agenda-entry { padding-block: 9px; }
+
+:root { --muted:#b8b8b8; --faint:#888888; --border:#383838; --todo:#ab4642; --done:#a1b56c; --warn:#f7ca88; --code:#86c1b9; --button:#416f80; --warn-bg:#302a21; }
+.chroma :is(.k,.kd,.kn,.kt) { color:#ba8baf; }
+.chroma :is(.nf,.nb,.nc) { color:var(--accent); }
+.chroma :is(.mi,.mf,.mh) { color:#dc9656; }

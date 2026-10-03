@@ -1,0 +1,18 @@
+#+TITLE: Architecture
+#+FILETAGS: :work:design:
+
+* Keep the request path short
+The [[file:Dispatch.org][Dispatch project]] accepts a ticket, commits it, and queues
+the follow-up work. The [[file:Decisions/Postgres-queue.org][Postgres queue decision]]
+keeps the first version small enough to operate confidently.
+
+#+begin_src mermaid
+flowchart LR
+  API[Ticket API] --> DB[(Postgres)]
+  DB --> Workers[Worker pool]
+  Workers --> Mail[Email delivery]
+#+end_src
+
+** TODO Check failure boundaries
+Use [[file:Observability.org][metrics and traces]] to tell slow requests apart
+from a growing queue.
