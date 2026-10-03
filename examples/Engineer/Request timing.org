@@ -1,0 +1,11 @@
+#+TITLE: Request timing
+
+* Measure the queue, not just the handler
+Keep a histogram of queue wait time beside request latency.
+
+#+begin_src go
+wait := time.Since(job.EnqueuedAt)
+queueWait.Observe(wait.Seconds())
+err := worker.Process(ctx, job)
+jobsProcessed.WithLabelValues(status(err)).Inc()
+#+end_src

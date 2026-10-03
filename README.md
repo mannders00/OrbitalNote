@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/assets/workspace.png" alt="OrbitalNote: Calendar and minimal Agenda on the left, backend project source above rendered endpoint checks on the right." width="1200"></p>
+<p align="center"><img src="docs/assets/workspace.png" alt="OrbitalNote Systems notebook: Calendar and minimal Agenda beside rendered TODO tasks, tags, a LaTeX equation, and a Mermaid service diagram, with Go instrumentation source below." width="1200"></p>
 
 # OrbitalNote
 

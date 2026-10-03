@@ -1,0 +1,27 @@
+#+TITLE: Worker capacity
+#+FILETAGS: :backend:
+
+* TODO Size the worker pool :performance:
+SCHEDULED: <2026-10-01 Thu 11:30-12:30>
+
+Start with measurements. Keep the queue short without running idle workers all afternoon.
+
+\[
+L = \lambda W = 40\,\mathrm{s}^{-1} \times 0.15\,\mathrm{s} = 6
+\]
+
+Six concurrent jobs on average. Start with *eight workers* and watch the p95 wait time.
+
+#+begin_src mermaid
+flowchart LR
+  A[API] --> B[Job queue]
+  B --> C[8 workers]
+  C --> D[(Postgres)]
+#+end_src
+
+** Check the assumption
+- [X] Measure mean service time on staging
+- [ ] Replay the lunchtime traffic sample
+- [ ] Alert when queue age exceeds 2 seconds
+
+** DONE Add request timing :observability:
