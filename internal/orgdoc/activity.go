@@ -34,6 +34,30 @@ func ownBody(source string, line int) (int, int, string) {
 	return at, end, eol
 }
 
+// logbookStart keeps new activity drawers before prose, after planning and properties.
+func logbookStart(source string, at, end int) int {
+	pos := at
+	for _, raw := range strings.SplitAfter(source[at:end], "\n") {
+		text := strings.TrimSpace(raw)
+		if strings.HasPrefix(text, "SCHEDULED:") || strings.HasPrefix(text, "DEADLINE:") || strings.HasPrefix(text, "CLOSED:") {
+			pos += len(raw)
+			continue
+		}
+		break
+	}
+	lines := strings.SplitAfter(source[pos:end], "\n")
+	if len(lines) > 0 && strings.EqualFold(strings.TrimSpace(lines[0]), ":PROPERTIES:") {
+		drawerEnd := pos + len(lines[0])
+		for _, raw := range lines[1:] {
+			drawerEnd += len(raw)
+			if strings.EqualFold(strings.TrimSpace(raw), ":END:") {
+				return drawerEnd
+			}
+		}
+	}
+	return pos
+}
+
 func editClock(source string, h Heading, operation string) (string, error) {
 	at, end, eol := ownBody(source, h.Line)
 	body := source[at:end]
@@ -68,11 +92,12 @@ func editClock(source string, h Heading, operation string) (string, error) {
 		p := at + drawer[1]
 		return source[:p] + entry + source[p:], nil
 	}
+	p := logbookStart(source, at, end)
 	prefix := ""
-	if end > 0 && source[end-1] != '\n' {
+	if p > 0 && source[p-1] != '\n' {
 		prefix = eol
 	}
-	return source[:end] + prefix + ":LOGBOOK:" + eol + entry + ":END:" + eol + source[end:], nil
+	return source[:p] + prefix + ":LOGBOOK:" + eol + entry + ":END:" + eol + source[p:], nil
 }
 
 func setClosed(source string, line int, done bool) string {

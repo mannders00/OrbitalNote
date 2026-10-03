@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.0-preview.18 — 2026-10-03
+
+- Add Calendar-style previous day / Today / next day navigation to Agenda.
+  Show the selected date in the heading and use it for new tasks.
+- Insert new completion and clock logbooks after planning/properties metadata,
+  before paragraph text, preserving body content and line endings.
+
 ## 0.1.0-preview.17 — 2026-10-03
 
 - Add Default, Terminal, and Editorial screenshots showing rich Org notes and

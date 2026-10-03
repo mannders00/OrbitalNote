@@ -121,11 +121,12 @@ func completeRepeaterAt(source string, h Heading, doneState string, now time.Tim
 		p := at + drawer[1]
 		out = out[:p] + entry + out[p:]
 	} else {
+		p := logbookStart(out, at, end)
 		prefix := ""
-		if end > 0 && out[end-1] != '\n' {
+		if p > 0 && out[p-1] != '\n' {
 			prefix = eol
 		}
-		out = out[:end] + prefix + ":LOGBOOK:" + eol + entry + ":END:" + eol + out[end:]
+		out = out[:p] + prefix + ":LOGBOOK:" + eol + entry + ":END:" + eol + out[p:]
 	}
 	return out, true, nil
 }

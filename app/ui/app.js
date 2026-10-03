@@ -41,6 +41,7 @@ let workspace = { id: 0, version: 0, files: [] };
 const tabs = new Map();
 const pendingSaves = new Map();
 let active = '', view = 'agenda', mode = 'edit', entries = [], tags = [], agendaFilter = 'today';
+let agendaDate = '';
 let calendarMode = 'month', calendarDate = new Date(), openSequence = 0;
 let refreshing = false, searchTimer, noticeTimer, searchSequence = 0, paletteItems = [], paletteSelection = 0, paletteKind = 'commands';
 const recent = [];
@@ -690,7 +691,7 @@ async function folderAction(path, action) {
 
 const agendaQuery = createAgendaQuery($('agenda-query-builder'), renderAgenda, {
   read: () => ({ range: agendaFilter, text: $('agenda-query').value, kind: $('kind-filter').value }),
-  apply: query => { agendaFilter = query.range; $('agenda-query').value = query.text; $('kind-filter').value = query.kind; },
+  apply: query => { agendaFilter = query.range; agendaDate = ''; $('agenda-query').value = query.text; $('kind-filter').value = query.kind; },
 });
 function agendaMatches(e) {
   const q = $('agenda-query').value.trim().toLowerCase(), kind = $('kind-filter').value;
@@ -784,14 +785,16 @@ async function completeAgendaEntry(item) {
 }
 function renderAgenda() {
   agendaQuery.update(entries, workspace.key);
-  document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('active', b.dataset.filter === agendaFilter));
+  const selectedDay = agendaDate || today();
+  $('today-label').textContent = dateLabel(agendaFilter === 'today' ? selectedDay : today());
+  document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('active', b.dataset.filter === agendaFilter && (agendaFilter !== 'today' || selectedDay === today())));
   const now = today(); const groups = new Map();
   for (const e of entries.filter(agendaMatches)) {
     const d = e.stamp.date;
-    if (agendaFilter === 'today' && d !== now && !(!e.done && d && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind))) continue;
+    if (agendaFilter === 'today' && d !== selectedDay && !(selectedDay === now && !e.done && d && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind))) continue;
     if (agendaFilter === 'upcoming' && (!d || d < now)) continue;
     if (agendaFilter === 'overdue' && !(!e.done && d && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind))) continue;
-    const key = !d ? 'Unscheduled' : !e.done && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind) ? 'Overdue' : d === now ? 'Today' : dateLabel(d);
+    const key = !d ? 'Unscheduled' : !(agendaFilter === 'today' && selectedDay !== now) && !e.done && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind) ? 'Overdue' : d === now ? 'Today' : dateLabel(d);
     if (!groups.has(key)) groups.set(key, []); groups.get(key).push(e);
   }
   const html = [...groups].map(([label, items]) => `<section data-key="${esc(label)}" class="agenda-group ${label === 'Overdue' ? 'overdue' : ''}"><h2>${esc(label)} <small>${items.length}</small></h2>${items.map(entryHTML).join('')}</section>`).join('') || empty('No tasks match this view');
@@ -1132,7 +1135,7 @@ document.addEventListener('click', run(async e => {
   if (b.dataset.fileActions) { e.preventDefault(); return showFileMenu(b.dataset.fileActions, b); }
   if (b.dataset.view) return setView(workspace.id ? b.dataset.view : 'welcome');
   if (b.dataset.mode) return setMode(b.dataset.mode);
-  if (b.dataset.filter) { agendaFilter = b.dataset.filter; renderAgenda(); }
+  if (b.dataset.filter) { agendaFilter = b.dataset.filter; if (agendaFilter === 'today') agendaDate = ''; renderAgenda(); }
   if (b.dataset.calendar) { calendarMode = b.dataset.calendar; renderCalendar(); }
   if (b.dataset.capture) return capture(b.dataset.capture, b.dataset.time || '');
   if (b.dataset.day) { calendarDate = civil(b.dataset.day); calendarMode = 'day'; renderCalendar(); }
@@ -1178,9 +1181,17 @@ setInterval(() => updateNowLine($('calendar-grid'), $('calendar-time-format').va
 const applyMonospace = () => document.documentElement.classList.toggle('monospace-mode', $('monospace-mode').checked);
 applyMonospace();
 listen('monospace-mode', 'change', () => { localStorage.setItem('orbitalnote-monospace', String($('monospace-mode').checked)); applyMonospace(); });
-listen('capture', 'click', () => capture()); listen('calendar-capture', 'click', () => capture(dateKey(calendarDate)));
+listen('capture', 'click', () => capture(agendaFilter === 'today' ? agendaDate || today() : today())); listen('calendar-capture', 'click', () => capture(dateKey(calendarDate)));
 listen('agenda-query', 'input', renderAgenda); listen('kind-filter', 'change', renderAgenda);
 listen('calendar-prev', 'click', () => shiftCalendar(-1)); listen('calendar-next', 'click', () => shiftCalendar(1)); listen('calendar-today', 'click', () => { calendarDate = new Date(); renderCalendar(); });
+function shiftAgendaDay(delta) {
+  const day = new Date((agendaDate || today()) + 'T12:00:00');
+  day.setDate(day.getDate() + delta);
+  agendaDate = dateKey(day); agendaFilter = 'today'; renderAgenda();
+}
+listen('agenda-prev', 'click', () => shiftAgendaDay(-1));
+listen('agenda-next', 'click', () => shiftAgendaDay(1));
+listen('agenda-today', 'click', () => { agendaDate = ''; agendaFilter = 'today'; renderAgenda(); });
 listen('search-input', 'input', () => { searchSequence++; clearTimeout(searchTimer); searchTimer = setTimeout(() => search().catch(fail), 150); });
 const systemTheme = matchMedia('(prefers-color-scheme: dark)');
 setupAppearance($('theme'), dark => setNativeTheme(dark).catch(fail));

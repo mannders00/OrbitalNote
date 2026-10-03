@@ -1,9 +1,18 @@
-# OrbitalNote 0.1.0-preview.17
+# OrbitalNote 0.1.0-preview.18
 
-Connected notes, clearer hierarchy, predictable folding, and a refined Terminal theme.
+Day-by-day Agenda navigation and correctly placed completion metadata.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.16
+## What's new since preview.17
+
+- Add Calendar-style **previous day / Today / next day** navigation to Agenda.
+- Display the selected day in the Agenda heading and use it for new tasks.
+- Place new completion and clock logbooks after planning/properties metadata,
+  before your paragraphs, preserving body text and line endings.
+- Repeating tasks continue to record completed occurrences and advance their dates;
+  the heading remains open for the next occurrence.
+
+## Also included from preview.17
 
 ### Connected notes and richer examples
 - Add a clickable Local graph as the last section of the right sidebar, showing incoming, outgoing, and mutual note links.

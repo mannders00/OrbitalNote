@@ -79,6 +79,7 @@
     <section id="agenda" class="page" hidden>
       <div class="page-heading"><div><h1>Agenda <small id="agenda-count"></small></h1><p id="today-label"></p></div><div class="actions agenda-actions"><button id="agenda-minimal" class="icon-button" data-icon="book" aria-label="Enter minimal view" title="Enter minimal view" aria-pressed="false"></button><button id="capture"><span data-icon="plus"></span>New task</button></div></div>
       <div class="filterbar agenda-filterbar"><div class="segmented" id="agenda-filters"><button data-filter="today">Today</button><button data-filter="upcoming">Upcoming</button><button data-filter="overdue">Overdue</button><button data-filter="all">All tasks</button></div><div class="agenda-query-input"><input id="agenda-query" aria-label="Filter agenda" placeholder="Search tasks…"><div id="agenda-query-builder"></div></div><select id="kind-filter" aria-label="Filter entry type" hidden><option value="">All types</option><option value="scheduled">Scheduled</option><option value="deadline">Deadlines</option><option value="todo">Undated TODOs</option></select></div>
+      <div class="filterbar"><div class="calendar-nav"><button id="agenda-prev" class="icon-button" data-icon="left" title="Previous day" aria-label="Previous day"></button><button id="agenda-today">Today</button><button id="agenda-next" class="icon-button" data-icon="right" title="Next day" aria-label="Next day"></button></div></div>
       <div id="agenda-results-count" role="status"></div>
       <div id="agenda-list"></div>
     </section>
