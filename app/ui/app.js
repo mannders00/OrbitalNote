@@ -12,8 +12,9 @@ import { icon, mountIcons } from './icons.js';
 import { TabLayout } from './tab-layout.js';
 import { createEditor } from './vendor/editor.js';
 import { taskDialog } from './task-dialog.js';
-import { timeGrid, bindCalendarGestures, formatTime, calendarActions, updateNowLine } from './calendar.js';
+import { timeGrid, bindCalendarGestures, formatTime, calendarClock, updateNowLine } from './calendar.js';
 import { patchHTML } from './dom.js';
+import { reconcileOutline } from './outline.js';
 import { setupSyncSettings } from './sync.js';
 
 for (const event of ['pointerdown', 'keydown', 'wheel']) document.addEventListener(event, () => {
@@ -221,8 +222,16 @@ function createDocumentSurface(path, t) {
   }));
   mountIcons(surface);
 }
-function activateTab(id) {
-  if (view === 'document' && id === 'file:' + active && activeSurface === tabs.get(active)?.surface) return;
+function activateTab(id, restoreFocus = false) {
+  const focusContent = () => {
+    if (!restoreFocus) return;
+    if (view === 'document') {
+      const target = mode === 'edit' ? source : $('preview');
+      if (mode === 'preview') target.tabIndex = 0;
+      target.focus({ preventScroll: true });
+    } else pages.get(view)?.querySelector('input:not([type="hidden"]), button, select, [tabindex="0"]')?.focus({ preventScroll: true });
+  };
+  if (view === 'document' && id === 'file:' + active && activeSurface === tabs.get(active)?.surface) { focusContent(); return; }
   rememberPosition();
   if (id.startsWith('file:')) {
     active = id.slice(5); view = 'document';
@@ -233,6 +242,7 @@ function activateTab(id) {
   } else { view = id.slice(5); setActiveSurface(null); source = null; vi = null; }
   document.querySelectorAll('#ribbon [data-view]').forEach(b => { b.classList.toggle('active', b.dataset.view === view); b.setAttribute('aria-pressed', String(b.dataset.view === view)); });
   closeMobileSidebars(); renderTree();
+  focusContent();
 }
 function setActiveSurface(surface) {
   if (activeSurface === surface) return;
@@ -358,16 +368,18 @@ function renderDocument(t) {
 function renderContext(doc, surface = activeSurface) {
   if (!surface) return;
   const outline = surface.querySelector('[data-ui="outline"]');
-  const closed = new Set([...outline.querySelectorAll('details:not([open])')].map(d => d.dataset.heading));
+  const closed = new Set([...outline.querySelectorAll('details:not([open])')].map(d => d.dataset.key));
+  outline.headingState = reconcileOutline(outline.headingState, (doc.outlineSource ?? doc.source).replace(/\r\n?/g, '\n'), doc.headings);
   const fragment = document.createElement('div');
   const stack = [{ level: 0, element: fragment }];
-  for (const h of doc.headings) {
+  for (const h of outline.headingState.headings) {
     while (stack.length > 1 && stack.at(-1).level >= h.level) stack.pop();
-    const details = document.createElement('details'); details.dataset.heading = String(h.line); details.dataset.key = String(h.line); details.open = !closed.has(String(h.line));
+    const details = document.createElement('details'); details.dataset.heading = String(h.line); details.dataset.key = h.key; details.open = !closed.has(h.key);
     details.innerHTML = `<summary><button data-jump="${h.line}">${esc(h.title)}</button></summary>`;
     stack.at(-1).element.append(details); stack.push({ level: h.level, element: details });
   }
   patchHTML(outline, doc.headings.length ? fragment.innerHTML : '<p class="empty">No headings</p>');
+  for (const details of outline.querySelectorAll('details')) details.open = !closed.has(details.dataset.key);
   setHTML(surface.querySelector('[data-ui="properties"]'), Object.entries(doc.metadata || {}).map(([k,v]) => `<button data-file-metadata title="Edit file metadata"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + Object.entries(doc.properties || {}).map(([k, v]) => `<button data-file-property="${esc(k)}" title="Edit ${esc(k)}"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + '<button data-file-metadata>Edit file metadata…</button>');
 }
 function setHTML(element, html) { patchHTML(element, html); }
@@ -480,7 +492,7 @@ async function updatePreview(path = active) {
   const seq = t.previewSequence = (t.previewSequence || 0) + 1, buffer = t.buffer;
   const doc = await call('Preview', { source: buffer });
   if (seq !== t.previewSequence || t.buffer !== buffer || tabs.get(path) !== t) return;
-  t.html = doc.html; t.headings = doc.headings; t.properties = doc.properties; t.metadata = doc.metadata;
+  t.html = doc.html; t.headings = doc.headings; t.outlineSource = buffer; t.properties = doc.properties; t.metadata = doc.metadata;
   setPreview(t, doc.html); hydrateImages(t); renderContext(doc, t.surface); if (doc.warning) notify(doc.warning);
 }
 function relativePath(target, path = active) {
@@ -522,7 +534,7 @@ async function saveNote(path) {
     const note = await call('Save', { id, path, source: raw, revision: t.revision });
     if (workspace.id !== id || tabs.get(path) !== t) return;
     t.revision = note.revision; t.saved = buffer; t.conflict = false;
-    if (t.buffer === buffer) { t.html = note.html; t.headings = note.headings; t.properties = note.properties; t.metadata = note.metadata; setPreview(t, t.html); renderContext(t, t.surface); if (t.mode === 'preview') hydrateImages(t); }
+    if (t.buffer === buffer) { t.html = note.html; t.headings = note.headings; t.outlineSource = buffer; t.properties = note.properties; t.metadata = note.metadata; setPreview(t, t.html); renderContext(t, t.surface); if (t.mode === 'preview') hydrateImages(t); }
     notify(''); await refreshData();
   } catch (err) { t.saveError = true; if (String(err).includes('changed on disk')) t.conflict = true; throw err; }
   finally { t.saving = false; renderTabs(); updateStatus(t); if (!t.saveError && !t.conflict && tabs.get(path) === t && dirty(t)) scheduleSave(t); }
@@ -712,7 +724,7 @@ function calendarMatches(e) {
 function dayEntries(key) { return entries.filter(e => calendarMatches(e) && e.stamp.date && e.stamp.date <= key && (e.stamp.endDate || e.stamp.date) >= key); }
 function monthEntry(e) {
   const format = $('calendar-time-format').value;
-  return `<div class="calendar-item" data-key="${esc(e.path+':'+e.line+':'+e.stamp.kind)}"><button class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''} ${e.clock ? 'is-clocked' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entries.indexOf(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}"><span class="calendar-event-title">${esc(e.title)}</span>${e.stamp.time ? `<span class="calendar-event-time">${esc(formatTime(e.stamp.time,format))}${e.stamp.endTime ? '–'+esc(formatTime(e.stamp.endTime,format)) : ''}</span>` : ''}</button>${calendarActions(e,entries.indexOf(e))}</div>`;
+  return `<div class="calendar-item" data-key="${esc(e.path+':'+e.line+':'+e.stamp.kind)}"><button class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''} ${e.clock ? 'is-clocked' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entries.indexOf(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}">${calendarClock(e)}<span class="calendar-event-title">${esc(e.title)}</span>${e.stamp.time ? `<span class="calendar-event-time">${esc(formatTime(e.stamp.time,format))}${e.stamp.endTime ? '–'+esc(formatTime(e.stamp.endTime,format)) : ''}</span>` : ''}</button></div>`;
 }
 function monthGrid(year, month) {
   const first = new Date(year, month, 1, 12), start = new Date(first); start.setDate(1 - (first.getDay() + 6) % 7);

@@ -1,0 +1,79 @@
+#+TITLE: Dispatch API
+#+FILETAGS: :backend:
+
+* Dispatch API
+A small Go + Postgres backend for a support inbox.
+This week: create tickets, list them, and ship to staging.
+
+** The first useful version
+- [X] Postgres schema + local Docker setup
+- [ ] Create and list tickets
+- [ ] Integration tests against a real database
+
+** Keep the API boring
+| Method | Route         | Result                |
+|--------+---------------+-----------------------|
+| POST   | /v1/tickets   | Create a ticket       |
+| GET    | /v1/tickets   | List newest first     |
+| PATCH  | /v1/tickets/7 | Change ticket status  |
+
+** Today's implementation
+Validate at the edge. Let Postgres own the constraints.
+
+#+begin_src go
+func (s *Server) createTicket(w http.ResponseWriter, r *http.Request) {
+    var input CreateTicketInput
+    if err := decodeJSON(r, &input); err != nil {
+        writeError(w, 400, "Invalid ticket")
+        return
+    }
+    s.saveTicket(w, r.Context(), input)
+}
+#+end_src
+
+** Before calling it done
+- [ ] Empty subject returns 422
+- [ ] Missing token returns 401
+- [ ] Retry with the same key returns the same ticket
+- [ ] Log request ID, status, and duration; never the token
+
+** DONE Sketch the ticket schema
+CLOSED: [2026-09-28 Mon 11:00]
+SCHEDULED: <2026-09-28 Mon 09:00-11:00>
+Keep status to open / closed. Save comments for v2.
+
+** DONE Add token authentication
+CLOSED: [2026-09-29 Tue 11:30]
+SCHEDULED: <2026-09-29 Tue 09:00-11:30>
+
+** DONE Test the migration rollback
+CLOSED: [2026-09-28 Mon 15:00]
+SCHEDULED: <2026-09-28 Mon 13:30-15:00>
+
+** DONE Review the API with Sam
+CLOSED: [2026-09-29 Tue 14:45]
+SCHEDULED: <2026-09-29 Tue 14:00-14:45>
+
+** DONE Wire up the database
+CLOSED: [2026-09-30 Wed 11:00]
+SCHEDULED: <2026-09-30 Wed 09:00-11:00>
+
+** DONE Add cursor pagination
+CLOSED: [2026-09-30 Wed 15:30]
+SCHEDULED: <2026-09-30 Wed 13:00-15:30>
+
+** TODO Build the ticket endpoint
+SCHEDULED: <2026-10-01 Thu 09:00-11:00>
+Start with POST, then share validation with PATCH.
+
+** TODO Ship to staging
+SCHEDULED: <2026-10-01 Thu 14:00-15:00>
+Run migrations first. Smoke-test with a throwaway ticket.
+
+** TODO Review logs + tidy the README
+SCHEDULED: <2026-10-02 Fri 09:00-10:30>
+Leave curl examples that another engineer can actually run.
+
+** TODO Demo the first version
+SCHEDULED: <2026-10-02 Fri 14:00-14:30>
+Create a ticket, list it, close it. That's the demo.

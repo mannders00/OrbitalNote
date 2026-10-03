@@ -8,7 +8,7 @@ try {
   const api = async (method, args={}) => { const r=await page.request.post(base+'/api',{data:{method,...args}}); assert.ok(r.ok()); return r.json(); };
   const state=await api('Status'), path='polish-review.org';
   const prior=state.files.some(f=>f.path===path)?await api('Read',{id:state.id,path}):null;
-  const source='\n* TODO Pending review\nSCHEDULED: <2026-09-30 Wed 09:00-10:00>\nBody\n* DONE Finished review\nSCHEDULED: <2026-09-30 Wed 11:00-12:00>\n* TODO Repeated review\nSCHEDULED: <2026-10-07 Wed +1w>\n:LOGBOOK:\n- State "DONE" from "TODO" [2026-09-30 Wed 10:00]\n:END:\n';
+  const source='\n* TODO Pending review\nSCHEDULED: <2026-09-30 Wed 09:00-10:00>\nBody\n* DONE Finished review\nSCHEDULED: <2026-09-30 Wed 11:00-12:00>\n* TODO Repeated review\nSCHEDULED: <2026-10-07 Wed +1w>\n:LOGBOOK:\n- State "DONE" from "TODO" [2026-10-02 Fri 10:00] ; occurrence SCHEDULED: [2026-09-30 Wed]\n:END:\n';
   await api('Save',{id:state.id,path,source,revision:prior?.revision||''});
   await page.clock.setFixedTime(new Date(2026,8,30,12));
   await page.goto(base); await page.locator('[data-filter="all"]').click();

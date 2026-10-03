@@ -1,28 +1,29 @@
-# OrbitalNote 0.1.0-preview.14
+# OrbitalNote 0.1.0-preview.15
 
-Stable live updates, clearer navigation feedback, and calendar interaction polish.
+Quantum branding, better Android icon sizing, reliable Outline state, and clearer calendar history.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.13
+## What's new since preview.14
 
-### Stable updates and navigation
-- Outline, Agenda, and Calendar patch existing elements rather than clearing panels on refresh.
-- Calendar resizing and preview checkbox updates preserve scroll position.
-- Jump destinations receive a temporary yellow highlight, cleared on interaction.
-- Heading jumps unfold only the ancestors needed to reveal the destination.
-- Improve caret geometry at the first character of headings.
+### Quantum Confident branding
+- Adopt the selected Quantum outline mark across the app and platform icons.
+- Reduce Android adaptive foreground size by 20% so the note and orbit fit comfortably inside circular launcher masks.
+- Regenerate legacy Android launcher sizes and full-bleed iOS artwork.
 
-### Calendar and clocks
-- Calendar uses 12-hour time by default, with a persistent 24-hour option in Settings.
-- Day/week Calendar shows a current-time line.
-- Calendar entries have direct clock and task-completion controls.
-- Clock-out uses a clock/pause icon. Running clocks have indicators in source, preview, and calendar.
+### Tasks and Calendar
+- Undated task dialogs default to today; existing dates and the No date option are preserved.
+- Completed repeating occurrences stay on their original scheduled/deadline dates and time ranges. Actual completion timestamps remain in the log.
+- Older completion logs without original occurrence dates remain in the note instead of appearing on misleading calendar dates.
+- Remove calendar clock/done action buttons while retaining running-clock display.
+- Align timed entry edges with their blocks and hour grid.
 
-### Filters and tabs
-- Active filter chips appear only inside the + Filter popup, keeping the search bar compact.
-- Tab movement and splitting retain tab-strip elements, skip redundant editor measurements, and update drag feedback once per animation frame.
+### Outline, keyboard navigation, and layout
+- Preserve nested Outline fold selections when edits insert headings or shift line numbers.
+- Restore editor focus and retained cursor/selection when activating tabs, with keyboard targets for reading and built-in views.
+- Match line-number gutters to the app theme.
+- Remove the extra gap around split dividers while keeping a comfortable resize target.
 
-The [showcase vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.14/examples/Showcase) includes the research workflow featured in the refreshed project banner.
+The [engineer example](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.15/examples/Engineer) includes the backend project and everyday tasks shown in the README's workspace screenshot, matching the website hero. The [rich Org showcase](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.15/examples/Showcase) is also included.
 See the [changelog](CHANGELOG.md) and [interaction notes](docs/interaction-update.md) for details.
 
 Default shortcuts remain Cmd/Ctrl+, for Settings, Cmd/Ctrl+P for Run command,

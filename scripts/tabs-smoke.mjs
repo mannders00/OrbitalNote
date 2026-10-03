@@ -41,6 +41,12 @@ try {
   await page.locator('#tree [data-open="tabs-smoke.org"]').click();
   await page.locator('#ribbon [data-view="calendar"]').click();
   await page.locator('[data-tab-select="file:tabs-smoke.org"]').click();
+  assert.ok(await file('tabs-smoke.org').locator('.ui-source').evaluate(el => el === document.activeElement), 'tab activation focuses source');
+  await file('tabs-smoke.org').locator('.ui-source').evaluate(el => el.setSelectionRange(2, 7, 'backward'));
+  await page.locator('[data-tab-select="view:calendar"]').click();
+  await page.locator('[data-tab-select="file:tabs-smoke.org"]').focus();
+  await page.keyboard.press('Enter');
+  assert.deepEqual(await file('tabs-smoke.org').locator('.ui-source').evaluate(el => [el === document.activeElement, el.selectionStart, el.selectionEnd, el.selectionDirection]), [true, 2, 7, 'backward']);
   const transfer = await page.evaluateHandle(() => new DataTransfer());
   const beforeTab = page.locator('[data-tab-id="file:tabs-smoke.org"]'), beforeBox = await beforeTab.boundingBox();
   await page.locator('[data-tab-id="view:calendar"]').dispatchEvent('dragstart', { dataTransfer: transfer });
@@ -55,6 +61,8 @@ try {
   await page.locator('[data-tab-select="file:tabs-smoke.org"]').click();
   await drag('view:calendar', page.locator('.tab-group'), 'right');
   assert.equal(await page.locator('.tab-group').count(), 2);
+  const splitBounds = await page.locator('.tab-group').evaluateAll(els => els.map(el => { const r = el.getBoundingClientRect(); return {left:r.left,right:r.right}; }).sort((a,b)=>a.left-b.left));
+  assert.ok(Math.abs(splitBounds[1].left - splitBounds[0].right - 1) < .1, 'split panes have only a one-pixel divider');
   assert.ok(await page.locator('#calendar').isVisible());
   const editor = file('tabs-smoke.org').locator('.ui-source');
   assert.ok(await editor.isVisible());

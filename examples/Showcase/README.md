@@ -7,9 +7,11 @@ Includes local PNG imagery, two Mermaid diagrams, inline/display math, a LaTeX
 math block, code, tables, links, custom task states, priorities, properties,
 tags, and dated tasks. Planning examples use September 28–October 2, 2026.
 
-**04 First-run study.org** is the research notebook shown in the website's main
-screenshot: a question, image, completion-rate math, Python snippet, and next
+**04 First-run study.org** is a research notebook with a question, image,
+completion-rate math, Python snippet, and next
 experiment, with its scheduled task also appearing in the agenda.
+
+The website's work-and-life demo is in the separate `examples/Engineer` workspace.
 
 Rich previews use bundled Mermaid and KaTeX; no network is required. The image
 lives in `attachments/fieldwork.png`. Current Sync transfers Org notes only,

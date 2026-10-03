@@ -1,0 +1,19 @@
+#+TITLE: Endpoint checks
+#+FILETAGS: :backend:
+
+* TODO Test retries + validation
+SCHEDULED: <2026-10-01 Thu 11:30-12:30>
+
+One request, one ticket. Retrying should return the same ID.
+
+#+begin_src sh
+curl -X POST localhost:8080/v1/tickets \
+  -H "Authorization: Bearer $DEV_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: smoke-001" \
+  -d '{"subject":"Cannot reset password"}'
+#+end_src
+
+- [X] New request returns 201 + ticket ID
+- [ ] Same key returns the original ticket
+- [ ] Empty subject returns 422

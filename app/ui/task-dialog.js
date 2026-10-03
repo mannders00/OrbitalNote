@@ -5,6 +5,7 @@ const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')
 const civil = text => { const [y, m, d] = text.split('-').map(Number); return new Date(y, m - 1, d, 12); };
 export async function taskDialog(dialog, { title = '', path = '', date = '', time = '', endTime = '', repeater = '', kind = 'scheduled', editing = false } = {}) {
   if (document.getElementById('modal').open) return null;
+  date ||= key(new Date());
   const pending = dialog(editing ? 'Edit task' : 'New task', `
     <label>Title<input name="title" required value="${esc(title)}" placeholder="Task title"></label>
     ${editing ? `<p class="task-location">${esc(path)} · selected heading</p><input type="hidden" name="path" value="${esc(path)}">` : `<label>Org file<input name="path" required value="${esc(path)}" placeholder="inbox.org"></label>`}

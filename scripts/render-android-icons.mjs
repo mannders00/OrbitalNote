@@ -1,12 +1,13 @@
-// Generate checked-in Android layers from the canonical Ion Blue artwork.
+// Generate checked-in Android layers from the canonical Quantum Confident artwork.
 import { chromium } from 'playwright';
 import { readFile, mkdir } from 'node:fs/promises';
 const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
 try {
   const mark = await readFile('app/ui/mark.svg', 'utf8');
   const defs = mark.match(/<defs>[\s\S]*?<\/defs>/)[0];
-  const art = mark.slice(mark.indexOf('<g stroke='), mark.lastIndexOf('</svg>'));
-  const background = '<rect width="256" height="256" fill="url(#bg01)"/><rect width="256" height="256" fill="url(#light01)"/>';
+  const art = mark.match(/<g id="foreground">([\s\S]*?)<\/g><!-- foreground-end -->/)[1];
+  const background = mark.match(/<g id="background">([\s\S]*?)<\/g><!-- background-end -->/)[1].replace(/ rx="[^"]*"/g, '');
+  const inset = scale => `<g transform="translate(${128 * (1 - scale)} ${128 * (1 - scale)}) scale(${scale})">${art}</g>`;
   const svg = body => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">${defs}${body}</svg>`;
   const root = 'app/build/android/res';
   const page = await browser.newPage({ deviceScaleFactor: 1 });
@@ -20,10 +21,11 @@ try {
     await page.screenshot({ path, omitBackground: true });
   }
   await render(`${root}/drawable-nodpi/ic_launcher_background.png`, 432, background);
-  // Keep the notebook/orbit inside the adaptive-icon safe region.
-  await render(`${root}/drawable-nodpi/ic_launcher_foreground.png`, 432, `<g transform="translate(19.2 19.2) scale(.85)">${art}</g>`);
+  // Android crops a 108dp layer to a nominal 72dp launcher viewport. Account
+  // for that 1.5x apparent zoom: .68 replaces .85 for 20% smaller foreground art.
+  await render(`${root}/drawable-nodpi/ic_launcher_foreground.png`, 432, inset(.68));
   for (const [density, size] of [['mdpi',48],['hdpi',72],['xhdpi',96],['xxhdpi',144],['xxxhdpi',192]]) {
-    await render(`${root}/mipmap-${density}/ic_launcher.png`, size, background + art);
+    await render(`${root}/mipmap-${density}/ic_launcher.png`, size, background + inset(.9));
   }
   console.log('Rendered Android adaptive layers and five opaque legacy launcher sizes.');
 } finally { await browser.close(); }

@@ -45,10 +45,16 @@ try {
   await page.locator('.timed-event').filter({hasText:'Live revised'}).waitFor();
   assert.ok(await page.evaluate(()=>window.agendaNode.isConnected && window.outlineNode.isConnected && window.calendarNode.isConnected));
   assert.equal(await page.locator('#calendar').evaluate(el=>el.scrollTop),scroll);
+  assert.equal(await page.locator('#calendar [data-clock], #calendar [data-complete]').count(),0);
+  await page.locator('#ribbon [data-view="agenda"]').click();
   await page.getByRole('button',{name:'Clock in to Live revised',exact:true}).click();
-  await page.getByRole('button',{name:'Clock out of Live revised',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Clock out of Live revised',exact:true}).first().waitFor();
+  await page.locator('#ribbon [data-view="calendar"]').click();
   assert.ok(await page.locator('.timed-event.is-clocked').filter({hasText:'Live revised'}).isVisible());
-  await page.getByRole('button',{name:'Mark Live revised as done',exact:true}).click();
+  assert.equal(await page.locator('.timed-event.is-clocked .calendar-clock').count(),1);
+  await page.locator('#ribbon [data-view="agenda"]').click();
+  await page.getByRole('button',{name:'Mark Live revised as done',exact:true}).first().click();
+  await page.locator('#ribbon [data-view="calendar"]').click();
   await page.locator('.timed-event.completed').filter({hasText:'Live revised'}).waitFor();
   assert.equal(await page.locator('#calendar').evaluate(el=>el.scrollTop),scroll);
   await page.locator('#ribbon [data-view="settings"]').click();await page.locator('#calendar-time-format').selectOption('24');
@@ -56,6 +62,38 @@ try {
   await page.locator('#ribbon [data-view="agenda"]').click();
   assert.equal(await page.locator('.query-popup .query-chips').count(),1);
   assert.ok(await page.locator('.query-chips').isHidden());
+  // Fold state belongs to headings, even when insertions shift every line number.
+  await page.locator('[data-tab-select="file:live-ui.org"]').click();
+  if (await preview.isVisible()) await doc.locator('[data-ui="preview-toggle"]').click();
+  const nested = '* Parent\n** Repeated\n*** Leaf\n** Repeated\n* Other\n* TODO Undated task\n';
+  await editor.evaluate((el,text)=>el.replaceText(text,0,el.value.length),nested);
+  await doc.locator('[data-ui="outline"] button').filter({hasText:'Undated task'}).waitFor();
+  const folds = doc.locator('[data-ui="outline"]');
+  await folds.evaluate(el=>{el.querySelector('[data-heading="1"]').open=false;el.querySelector('[data-heading="2"]').open=false;window.outlineKeys=[...el.querySelectorAll('details')].map(d=>d.dataset.key);});
+  const inserted = '* New\n'+nested.replace('*** Leaf','*** New child\n*** Leaf');
+  await editor.evaluate((el,text)=>el.replaceText(text,0,el.value.length),inserted);
+  await folds.locator('[data-jump="8"]').waitFor();
+  assert.deepEqual(await folds.evaluate(el=>[...el.querySelectorAll('details:not([open])')].map(d=>d.dataset.key)),await page.evaluate(()=>window.outlineKeys.slice(0,2)));
+  assert.ok(await folds.locator('[data-jump="4"]').isHidden(),'new child remains under collapsed ancestors');
+  await doc.locator('[data-ui="save-state"]').filter({hasText:'Saved to disk'}).waitFor();
+  await page.locator('#ribbon [data-view="agenda"]').click();
+  await page.getByRole('button',{name:'Edit task: Undated task',exact:true}).click();
+  assert.equal(await page.locator('#modal [name="date"]').inputValue(),'2026-10-01');
+  const taskSaved = page.waitForResponse(response => {
+    if (!response.url().endsWith('/api') || response.request().method() !== 'POST') return false;
+    const request = response.request().postDataJSON();
+    return request.method === 'Save' && request.path === path && request.source.includes('SCHEDULED: <2026-10-01');
+  });
+  await page.keyboard.press('Enter');
+  await page.locator('#modal').waitFor({state:'hidden'});
+  const dated = await (await taskSaved).json();
+  assert.match(dated.source,/\* TODO Undated task\nSCHEDULED: <2026-10-01(?: Thu)?>/);
+  // Gutters use the same theme surface as the editor, including custom colors.
+  await page.locator('#ribbon [data-view="settings"]').click();
+  await page.locator('#line-numbers').selectOption('absolute');
+  await page.locator('[data-tab-select="file:live-ui.org"]').click();
+  await page.evaluate(()=>{document.documentElement.style.setProperty('--bg','#142536');document.documentElement.style.setProperty('--muted','#abcabc');});
+  assert.deepEqual(await doc.locator('.cm-gutters').evaluate(el=>[getComputedStyle(el).backgroundColor,getComputedStyle(el).color,getComputedStyle(el).borderRightWidth]),['rgb(20, 37, 54)','rgb(171, 202, 188)','0px']);
   assert.deepEqual(errors,[]);
-  console.log('PASS: minimal-unfold jumps/highlight, first-column caret, preview and calendar scroll, stable DOM refresh, calendar clock/completion, current-time marker and time-format setting.');
+  console.log('PASS: jumps/caret, scroll and stable DOM, nested Outline identity, today-by-default task save, themed gutters, calendar clock display without action buttons, current-time marker and time format.');
 } finally {await browser.close();}

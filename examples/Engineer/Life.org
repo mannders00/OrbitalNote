@@ -1,0 +1,61 @@
+#+TITLE: Life outside the terminal
+#+FILETAGS: :life:
+
+* The ordinary stuff
+Work finishes. The dog still needs a walk.
+
+** DONE Walk Milo
+CLOSED: [2026-10-01 Thu 07:30]
+SCHEDULED: <2026-10-01 Thu 07:00-07:30>
+River loop. Bring the long lead.
+
+** DONE Strength workout :health:
+CLOSED: [2026-10-01 Thu 08:10]
+SCHEDULED: <2026-10-01 Thu 07:30-08:10>
+Squats, rows, push-ups. Forty minutes is enough.
+
+** DONE Pay rent :home:
+CLOSED: [2026-10-01 Thu 08:20]
+SCHEDULED: <2026-10-01 Thu 08:15-08:30>
+Transfer sent. Receipt saved.
+
+** TODO Get groceries :home:
+SCHEDULED: <2026-10-01 Thu 17:15-17:45>
+- [ ] Chickpeas + coconut milk
+- [ ] Spinach, onions, limes
+- [ ] Rice, eggs, coffee
+- [ ] Dog food
+
+** TODO Cook dinner :home:
+SCHEDULED: <2026-10-01 Thu 18:00-18:45>
+Chickpea curry. Make enough for tomorrow's lunch.
+
+** TODO Evening walk with Milo
+SCHEDULED: <2026-10-01 Thu 19:00-19:30>
+Leave the phone in a pocket.
+
+** TODO Take out the trash :home:
+SCHEDULED: <2026-10-01 Thu 20:00-20:10>
+Recycling too. Collection is Friday morning.
+
+** TODO Run before work :health:
+SCHEDULED: <2026-10-02 Fri 07:00-07:40>
+Easy pace, no watch goals.
+
+** TODO Walk Milo at the park
+SCHEDULED: <2026-10-03 Sat 09:00-10:00>
+
+** TODO Prep a few lunches
+SCHEDULED: <2026-10-04 Sun 16:00-17:00>
+
+** DONE Walk Milo before standup
+CLOSED: [2026-09-28 Mon 08:00]
+SCHEDULED: <2026-09-28 Mon 07:30-08:00>
+
+** DONE Easy run
+CLOSED: [2026-09-29 Tue 08:00]
+SCHEDULED: <2026-09-29 Tue 07:15-08:00>
+
+** DONE Walk Milo by the river
+CLOSED: [2026-09-30 Wed 08:00]
+SCHEDULED: <2026-09-30 Wed 07:15-08:00>

@@ -1,12 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none"><title>Ion Blue</title><defs>
-<linearGradient id="bg01" x1="20" y1="0" x2="224" y2="256" gradientUnits="userSpaceOnUse"><stop stop-color="#1649ec"/><stop offset="1" stop-color="#080e38"/></linearGradient>
-<radialGradient id="light01" cx="0" cy="0" r="1" gradientTransform="translate(53 20) rotate(55) scale(245 200)" gradientUnits="userSpaceOnUse"><stop stop-color="#72e6ff" stop-opacity=".36"/><stop offset="1" stop-color="#72e6ff" stop-opacity="0"/></radialGradient>
-<linearGradient id="ink01" x1="85" y1="54" x2="187" y2="200" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="#f0fbff"/></linearGradient>
-<filter id="glow01" x="-50%" y="-70%" width="200%" height="240%"><feGaussianBlur stdDeviation="5"/></filter>
-</defs><rect width="256" height="256" rx="62" fill="url(#bg01)"/><rect width="256" height="256" rx="62" fill="url(#light01)"/>
-<rect x="1" y="1" width="254" height="254" rx="61" stroke="#72e6ff" stroke-opacity=".24" stroke-width="2"/>
-<g stroke="#26dfff" opacity=".45" filter="url(#glow01)"><path d="M61 159c-32 32 7 43 63 17s99-62 69-68" stroke-width="10"/></g>
-<rect x="72" y="54" width="112" height="148" rx="19" stroke="url(#ink01)" stroke-width="9"/>
-<path d="M96 92h62M96 120h45M96 148h30" stroke="url(#ink01)" stroke-width="8" stroke-linecap="round"/>
-<path d="M61 159c-32 32 7 43 63 17s99-62 69-68" stroke="#26dfff" stroke-width="7" stroke-linecap="round"/>
-<circle cx="187" cy="140" r="13" fill="#26dfff" opacity=".65" filter="url(#glow01)"/><circle cx="187" cy="140" r="10" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none"><title>OrbitalNote Quantum Confident</title><defs>
+<linearGradient id="bg09" x1="20" y1="0" x2="224" y2="256" gradientUnits="userSpaceOnUse"><stop stop-color="#284983"/><stop offset="1" stop-color="#091123"/></linearGradient>
+<radialGradient id="light09" cx="0" cy="0" r="1" gradientTransform="translate(53 20) rotate(55) scale(245 200)" gradientUnits="userSpaceOnUse"><stop stop-color="#b2a0ff" stop-opacity=".36"/><stop offset="1" stop-color="#b2a0ff" stop-opacity="0"/></radialGradient>
+<linearGradient id="ink09" x1="85" y1="54" x2="187" y2="200" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="#e1deff"/></linearGradient>
+<filter id="glow09" x="-50%" y="-70%" width="200%" height="240%"><feGaussianBlur stdDeviation="5"/></filter>
+</defs><g id="background">
+<rect width="256" height="256" rx="62" fill="url(#bg09)"/><rect width="256" height="256" rx="62" fill="url(#light09)"/>
+</g><!-- background-end -->
+<rect x="1" y="1" width="254" height="254" rx="61" stroke="#b2a0ff" stroke-opacity=".24" stroke-width="2"/>
+<g id="foreground">
+<g stroke="#8a8fff" opacity="0.22" filter="url(#glow09)"><path d="M61 159c-32 32 7 43 63 17s99-62 69-68" stroke-width="10"/></g>
+<rect x="72" y="54" width="112" height="148" rx="21" stroke="url(#ink09)" stroke-width="11"/><path d="M96 92h62M96 120h45M96 148h30" stroke="url(#ink09)" stroke-width="9" stroke-linecap="round"/>
+<path d="M61 159c-32 32 7 43 63 17s99-62 69-68" stroke="#8a8fff" stroke-width="8" stroke-linecap="round"/>
+<circle cx="187" cy="140" r="13" fill="#8a8fff" opacity=".65" filter="url(#glow09)"/><circle cx="187" cy="140" r="10" fill="#fff"/>
+</g><!-- foreground-end -->
+</svg>

@@ -53,6 +53,9 @@ func TestRepeaterCompletionAndHistory(t *testing.T) {
 	if h.Properties["ID"] != "keep" || strings.Contains(out, "CLOSED:") {
 		t.Fatal(out)
 	}
+	if stamp := h.History[0]; stamp.Date != "2026-09-29" || stamp.Time != "09:00" || stamp.EndTime != "10:00" || stamp.Repeater != "" {
+		t.Fatalf("completed occurrence moved from its original schedule: %+v", stamp)
+	}
 	now := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
 	for _, tc := range []struct{ date, repeat, want string }{
 		{"2026-01-31", "+1m", "2026-02-28"}, {"2026-09-01", "++1w", "2026-10-06"}, {"2026-09-01", ".+1w", "2026-10-06"},

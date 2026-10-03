@@ -11,6 +11,10 @@ import (
 
 var repeatRE = regexp.MustCompile(`^(\+\+|\.\+|\+)([1-9][0-9]*)([hdwmy])$`)
 
+// Keep the actual completion timestamp in the standard state log, and record
+// the occurrence separately before advancing the planning timestamps.
+const occurrenceMarker = " ; occurrence "
+
 func nextRepeat(date, clock, repeater string, now time.Time) (time.Time, error) {
 	m := repeatRE.FindStringSubmatch(repeater)
 	if m == nil {
@@ -68,9 +72,13 @@ func nextRepeat(date, clock, repeater string, now time.Time) (time.Time, error) 
 }
 
 func completeRepeater(source string, h Heading, doneState string) (string, bool, error) {
+	return completeRepeaterAt(source, h, doneState, time.Now())
+}
+
+func completeRepeaterAt(source string, h Heading, doneState string, now time.Time) (string, bool, error) {
 	out := source
 	repeated := false
-	now := time.Now()
+	var occurrences []string
 	for i := len(h.Dates) - 1; i >= 0; i-- {
 		stamp := h.Dates[i]
 		if stamp.Repeater == "" || (stamp.Kind != "scheduled" && stamp.Kind != "deadline") {
@@ -98,13 +106,16 @@ func completeRepeater(source string, h Heading, doneState string) (string, bool,
 		}
 		replacement += ">"
 		out = out[:stamp.Start] + replacement + out[stamp.End:]
+		original := strings.Replace(stamp.Raw, " "+stamp.Repeater, "", 1)
+		original = "[" + original[1:len(original)-1] + "]"
+		occurrences = append([]string{strings.ToUpper(stamp.Kind) + ": " + original}, occurrences...)
 		repeated = true
 	}
 	if !repeated {
 		return source, false, nil
 	}
 	at, end, eol := ownBody(out, h.Line)
-	entry := fmt.Sprintf("- State %q from %q [%s]%s", strings.TrimSpace(doneState), h.State, now.Format("2006-01-02 Mon 15:04"), eol)
+	entry := fmt.Sprintf("- State %q from %q [%s]%s%s%s", strings.TrimSpace(doneState), h.State, now.Format("2006-01-02 Mon 15:04"), occurrenceMarker, strings.Join(occurrences, " "), eol)
 	drawer := regexp.MustCompile(`(?m)^:LOGBOOK:[ \t]*\r?\n`).FindStringIndex(out[at:end])
 	if drawer != nil {
 		p := at + drawer[1]

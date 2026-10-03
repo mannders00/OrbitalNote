@@ -6,9 +6,8 @@ export function formatTime(time, format = '12') {
   const [hour, minute] = time.split(':').map(Number);
   return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
 }
-export function calendarActions(entry, index) {
-  if (entry.done || entry.stamp.kind === 'completed') return '';
-  return `<span class="calendar-actions"><button class="icon-button" data-clock="${index}" aria-pressed="${!!entry.clock}" title="${entry.clock ? 'Clock out' : 'Clock in'}" aria-label="${entry.clock ? 'Clock out of' : 'Clock in to'} ${esc(entry.title)}">${icon(entry.clock ? 'clock-stop' : 'clock')}</button>${entry.state ? `<button class="icon-button" data-complete="${index}" title="Complete task" aria-label="Mark ${esc(entry.title)} as done">${icon('check')}</button>` : ''}</span>`;
+export function calendarClock(entry) {
+  return entry.clock ? `<span class="calendar-clock" role="img" aria-label="Clock running" title="Clock running">${icon('clock')}</span>` : '';
 }
 export function updateNowLine(root, format = '12', now = new Date()) {
   for (const day of root.querySelectorAll('.time-day')) {
@@ -39,8 +38,8 @@ export function eventLanes(entries) {
 export function timeGrid(start, days, entries, colorStyle, indexOf = entry => entries.indexOf(entry), format = '12') {
   const dates = Array.from({ length: days }, (_, i) => { const day = new Date(start); day.setDate(start.getDate() + i); return day; });
   const onDay = date => entries.filter(e => e.stamp.date && e.stamp.date <= date && (e.stamp.endDate || e.stamp.date) >= date);
-  const task = (entry, cls, style = '') => `<button class="${cls} ${entry.done ? 'completed' : ''} ${entry.clock ? 'is-clocked' : ''}" ${colorStyle(entry)} draggable="false" data-entry="${indexOf(entry)}" data-open="${esc(entry.path)}" data-line="${entry.line}" ${style} title="${esc(entry.title)}">${esc(formatTime(entry.stamp.time, format))}${entry.stamp.endTime ? '–' + esc(formatTime(entry.stamp.endTime, format)) : ''} ${esc(entry.title)}</button>`;
-  let html = `<div class="time-calendar" style="--days:${days}"><div class="calendar-pinned-header"><div class="time-day-headers"><span></span>${dates.map(day => `<button class="time-day-header ${dateKey(day) === dateKey(new Date()) ? 'is-today' : ''}" data-capture="${dateKey(day)}">${esc(day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }))}</button>`).join('')}</div><div class="all-day-row"><span>All day</span>${dates.map(day => `<div data-key="${dateKey(day)}" data-drop-date="${dateKey(day)}">${onDay(dateKey(day)).filter(e => !e.stamp.time || e.stamp.endDate).map(e => `<div class="calendar-item">${task(e, 'calendar-event')}${calendarActions(e,indexOf(e))}</div>`).join('')}</div>`).join('')}</div></div><div class="time-grid"><div class="time-labels">${Array.from({ length: 24 }, (_, h) => `<span style="top:${h * 60}px">${formatTime(clock(h * 60),format)}</span>`).join('')}</div>`;
+  const task = (entry, cls, style = '') => `<button class="${cls} ${entry.done ? 'completed' : ''} ${entry.clock ? 'is-clocked' : ''}" ${colorStyle(entry)} draggable="false" data-entry="${indexOf(entry)}" data-open="${esc(entry.path)}" data-line="${entry.line}" ${style} title="${esc(entry.title)}">${calendarClock(entry)}${esc(formatTime(entry.stamp.time, format))}${entry.stamp.endTime ? '–' + esc(formatTime(entry.stamp.endTime, format)) : ''} ${esc(entry.title)}</button>`;
+  let html = `<div class="time-calendar" style="--days:${days}"><div class="calendar-pinned-header"><div class="time-day-headers"><span></span>${dates.map(day => `<button class="time-day-header ${dateKey(day) === dateKey(new Date()) ? 'is-today' : ''}" data-capture="${dateKey(day)}">${esc(day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }))}</button>`).join('')}</div><div class="all-day-row"><span>All day</span>${dates.map(day => `<div data-key="${dateKey(day)}" data-drop-date="${dateKey(day)}">${onDay(dateKey(day)).filter(e => !e.stamp.time || e.stamp.endDate).map(e => `<div class="calendar-item">${task(e, 'calendar-event')}</div>`).join('')}</div>`).join('')}</div></div><div class="time-grid"><div class="time-labels">${Array.from({ length: 24 }, (_, h) => `<span style="top:${h * 60}px">${formatTime(clock(h * 60),format)}</span>`).join('')}</div>`;
   for (const day of dates) {
     const date = dateKey(day), scheduled = onDay(date).filter(e => e.stamp.time && !e.stamp.endDate);
     html += `<div class="time-day ${date === dateKey(new Date()) ? 'is-today' : ''}" data-key="${date}" data-drop-date="${date}" data-time-date="${date}">${Array.from({ length: 48 }, (_, i) => `<button class="time-slot" style="top:${i * 30}px" data-capture="${date}" data-time="${clock(i * 30)}" aria-label="New task ${date} at ${formatTime(clock(i * 30),format)}"></button>`).join('')}`;
@@ -48,7 +47,7 @@ export function timeGrid(start, days, entries, colorStyle, indexOf = entry => en
       const { entry, start, end, lane, columns } = event;
       // Geometry is separate from tag color's style attribute.
       const editable = entry.stamp.kind !== 'completed';
-      html += `<div class="time-block" data-key="${esc(entry.path+':'+entry.line+':'+entry.stamp.kind)}" style="top:${start}px;height:${end - start}px;left:${lane / columns * 100}%;width:${100 / columns}%">${task(entry, 'timed-event')}${calendarActions(entry,indexOf(entry))}${editable ? `<span class="event-resize start" data-resize="start" data-entry="${indexOf(entry)}" title="Drag to change start time"></span><span class="event-resize end" data-resize="end" data-entry="${indexOf(entry)}" title="Drag to change end time"></span>` : ''}</div>`;
+      html += `<div class="time-block" data-key="${esc(entry.path+':'+entry.line+':'+entry.stamp.kind)}" style="top:${start}px;height:${end - start}px;left:${lane / columns * 100}%;width:${100 / columns}%">${task(entry, 'timed-event')}${editable ? `<span class="event-resize start" data-resize="start" data-entry="${indexOf(entry)}" title="Drag to change start time"></span><span class="event-resize end" data-resize="end" data-entry="${indexOf(entry)}" title="Drag to change end time"></span>` : ''}</div>`;
     }
     html += '<div class="calendar-now-line" hidden role="img"></div></div>';
   }
@@ -63,11 +62,10 @@ export function bindCalendarGestures(root, { entry, create, change }) {
   root.addEventListener('click', e => {
     if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopImmediatePropagation(); return; }
     const cell = e.target.closest('.all-day-row [data-drop-date]');
-    if (cell && !e.target.closest('[data-entry], .calendar-actions')) { e.stopPropagation(); create(cell.dataset.dropDate, '', ''); }
+    if (cell && !e.target.closest('[data-entry]')) { e.stopPropagation(); create(cell.dataset.dropDate, '', ''); }
   }, true);
   root.addEventListener('pointerdown', e => {
     if (e.button !== 0 || !e.target.closest('.time-calendar')) return;
-    if (e.target.closest('.calendar-actions')) return;
     suppressClick = false;
     const target = e.target.closest('[data-entry]'), item = target ? entry(Number(target.dataset.entry)) : null;
     const column = e.target.closest('.time-day'), allDay = e.target.closest('.all-day-row [data-drop-date]');

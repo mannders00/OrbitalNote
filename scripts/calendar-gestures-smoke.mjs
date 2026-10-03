@@ -19,6 +19,11 @@ try {
   let a=await center(page.locator('.timed-event').filter({hasText:'Gesture timed'}));
   await drag(a,{x:a.x,y:a.y+60}); await waitStamp('10:00-11:00');
   const block=page.locator('.time-block').filter({hasText:'Gesture timed'});
+  const geometry = await block.evaluate(el=>{
+    const block=el.getBoundingClientRect(),event=el.querySelector('.timed-event').getBoundingClientRect(),day=el.closest('.time-day').getBoundingClientRect();
+    return {top:event.top-block.top,bottom:event.bottom-block.bottom,left:event.left-block.left,right:event.right-block.right,minute:block.top-day.top,dayHeight:day.height};
+  });
+  assert.deepEqual(geometry,{top:0,bottom:0,left:0,right:0,minute:600,dayHeight:1440});
   const scrollBeforeResize=await page.locator('#calendar').evaluate(el=>el.scrollTop);
   a=await center(block.locator('[data-resize="end"]')); await drag(a,{x:a.x,y:a.y+30}); await waitStamp('10:00-11:30');
   await page.waitForFunction(()=>[...document.querySelectorAll('.time-block')].some(el=>el.textContent.includes('Gesture timed') && el.style.height==='90px'));

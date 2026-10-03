@@ -88,14 +88,14 @@ export class TabLayout {
   select(id) {
     const group = this.owner(id); if (!group) return;
     group.active = id; this.focused = group.id;
-    this.render(); this.callbacks.activate(id); this.changed();
+    this.render(); this.callbacks.activate(id, true); this.changed();
   }
-  focus(id) {
+  focus(id, restoreFocus = false) {
     this.focused = id;
     this.placeControls();
     this.root.querySelectorAll('[data-group]').forEach(el => el.classList.toggle('focused', el.dataset.group === id));
     const active = this.focusedGroup().active;
-    if (active) this.callbacks.activate(active);
+    if (active) this.callbacks.activate(active, restoreFocus);
     this.changed();
   }
   remove(id) {
@@ -104,7 +104,7 @@ export class TabLayout {
     group.tabs.splice(index, 1);
     if (group.active === id) group.active = group.tabs[Math.min(index, group.tabs.length - 1)] || null;
     this.tabs.get(id)?.element.remove(); this.tabs.delete(id);
-    this.compact(); this.render(); this.focus(this.focusedGroup().id);
+    this.compact(); this.render(); this.focus(this.focusedGroup().id, true);
   }
   rename(from, to, tab) {
     const group = this.owner(from); if (!group) return;
@@ -141,7 +141,7 @@ export class TabLayout {
     const index = destination.tabs.indexOf(before);
     destination.tabs.splice(index < 0 ? destination.tabs.length : index, 0, id);
     destination.active = id; this.focused = destination.id;
-    this.compact(); this.render(); this.callbacks.activate(id); this.changed();
+    this.compact(); this.render(); this.callbacks.activate(id, true); this.changed();
   }
   dropTarget(e) {
     const owner = e.target.closest('[data-group], [data-owner-group]');
@@ -296,15 +296,15 @@ export class TabLayout {
         for (const id of node.tabs) { const surface = this.surfaces.get(id); if (surface) { const moved = place(surface, x, y + stripHeight, width, height - stripHeight); if (moved && !surface.hidden) surface.querySelector('[data-ui="source"]')?.refresh?.(); } }
         return;
       }
-      const horizontal = node.axis === 'horizontal', size = Math.max(0, (horizontal ? width : height) - 5), first = size * node.ratio;
+      const horizontal = node.axis === 'horizontal', size = Math.max(0, (horizontal ? width : height) - 1), first = size * node.ratio;
       const divider = this.dividers.get(node);
       if (divider) {
         divider.region = { x, y, width, height };
         divider.setAttribute('aria-valuenow', Math.round(node.ratio * 100));
-        place(divider, horizontal ? x + first : x, horizontal ? y : y + first, horizontal ? 5 : width, horizontal ? height : 5);
+        place(divider, horizontal ? x + first - 2 : x, horizontal ? y : y + first - 2, horizontal ? 5 : width, horizontal ? height : 5);
       }
       visit(node.children[0], x, y, horizontal ? first : width, horizontal ? height : first);
-      visit(node.children[1], horizontal ? x + first + 5 : x, horizontal ? y : y + first + 5, horizontal ? size - first : width, horizontal ? height : size - first);
+      visit(node.children[1], horizontal ? x + first + 1 : x, horizontal ? y : y + first + 1, horizontal ? size - first : width, horizontal ? height : size - first);
     };
     visit(this.tree, 0, 0, this.root.clientWidth, this.root.clientHeight);
     this.updateTabBaselines();

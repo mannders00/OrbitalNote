@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.0-preview.15 — 2026-10-03
+
+- Adopt Quantum Confident (outline study 04) across app, Android/iOS,
+  website/account, repository banner, and social artwork. Reduce Android adaptive
+  foreground size by 20% to give the note and orbit more room inside launcher masks.
+- Keep completed repeater occurrences on their original scheduled/deadline dates
+  and time ranges, recording those separately from the actual completion time.
+  Older logs without occurrence dates remain in the note rather than appearing
+  on misleading calendar dates.
+- Default undated task dialogs to today while retaining existing task dates and
+  the explicit No date option.
+- Keep nested Outline fold selections attached to their headings when edits shift
+  line numbers or add headings elsewhere in the document.
+- Restore keyboard focus and the retained selection when activating document tabs;
+  reading view and built-in views also receive a keyboard-navigation target.
+- Match editor line-number gutters to the app theme.
+- Remove extra space around split dividers while retaining their drag hit area.
+- Remove calendar clock/completion action buttons, retaining running-clock display.
+- Align timed event edges with their time blocks and the hour grid.
+- Use the website's actual four-pane workspace screenshot at the top of the
+  public README, replacing the promotional banner.
+
 ## 0.1.0-preview.14 — 2026-10-01
 
 - Update Outline, Agenda, and Calendar incrementally, preserving stable elements

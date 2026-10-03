@@ -123,10 +123,17 @@ func Parse(source string) Document {
 			if drawer == "LOGBOOK" && current >= 0 && strings.HasPrefix(trim, "- State ") {
 				m := regexp.MustCompile(`^- State "([^"]+)"`).FindStringSubmatch(trim)
 				if len(m) > 1 && done[m[1]] {
-					for _, stamp := range orgdate.Parse(text) {
-						stamp.Kind = "completed"
-						d.Headings[current].History = append(d.Headings[current].History, stamp)
-						break
+					// A completion date is not the occurrence's scheduled date. Older
+					// logs without a snapshot remain in source, not on a guessed day.
+					if _, occurrence, ok := strings.Cut(text, occurrenceMarker); ok {
+						for _, stamp := range orgdate.Parse(occurrence) {
+							if stamp.Kind != "scheduled" && stamp.Kind != "deadline" {
+								continue
+							}
+							stamp.Kind = "completed"
+							stamp.Repeater = ""
+							d.Headings[current].History = append(d.Headings[current].History, stamp)
+						}
 					}
 				}
 			}
