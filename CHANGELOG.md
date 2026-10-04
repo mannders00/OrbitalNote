@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.1.0-preview.19 — 2026-10-04
+
+- Remove the blue tint from Workbench's light-mode backgrounds and text,
+  using neutral whites and grays while retaining blue accents.
+
 ## 0.1.0-preview.18 — 2026-10-03
 
 - Add Calendar-style previous day / Today / next day navigation to Agenda.

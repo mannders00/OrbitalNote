@@ -1,9 +1,14 @@
-# OrbitalNote 0.1.0-preview.18
+# OrbitalNote 0.1.0-preview.19
 
-Day-by-day Agenda navigation and correctly placed completion metadata.
+Neutral whites and grays for Workbench's light appearance.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.17
+## What's new since preview.18
+
+- Remove the blue tint from Workbench's light-mode backgrounds, sidebars, and text.
+- Retain blue for links and accent controls.
+
+## Also included from preview.18
 
 - Add Calendar-style **previous day / Today / next day** navigation to Agenda.
 - Display the selected day in the Agenda heading and use it for new tasks.

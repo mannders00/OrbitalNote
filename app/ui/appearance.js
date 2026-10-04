@@ -18,7 +18,7 @@ export const themes = [
 
 // Every family retains its typography and layout in either appearance.
 const companionPalettes = {
-  dark: ['#f7f8fa', '#eceef2', '#292e38', '#2864b4'],
+  dark: ['#f8f8f8', '#eeeeee', '#303030', '#2864b4'],
   light: ['#202225', '#292c30', '#e2e4e7', '#8eb8ed'],
   midnight: ['#f3f6fc', '#e7edf7', '#26364f', '#3563ac'],
   nord: ['#eceff4', '#e0e5ed', '#2e3440', '#356f83'],
