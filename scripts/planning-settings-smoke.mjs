@@ -1,0 +1,78 @@
+import { chromium } from 'playwright';
+import { strict as assert } from 'node:assert';
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
+try {
+  const page = await browser.newPage({ viewport: { width: 1450, height: 1000 } });
+  const trace = (page, name) => { if (process.env.DEBUG_SETTINGS) page.on('request', request => { const data = request.postDataJSON(); if (data?.method === 'Save' && data.path === 'OrbitalNote-settings.org') console.log(name, data.source); }); };
+  trace(page, 'first device');
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const base = process.env.BASE_URL || 'http://127.0.0.1:9297';
+  const api = async (method, q = {}) => { const r = await page.request.post(base + '/api', { data: { method, ...q } }); assert.ok(r.ok(), await r.text()); return r.json(); };
+  const status = await api('Status'), path = 'feature-settings-picker.org';
+  const sharedContains = async text => {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if ((await api('Read', { id: status.id, path: 'OrbitalNote-settings.org' })).source.includes(text)) return;
+      await page.waitForTimeout(50);
+    }
+    assert.fail('Shared settings did not persist: ' + text);
+  };
+  const save = async (path, source) => { const state = await api('Status'); const old = state.files.some(f => f.path === path) ? await api('Read', { id: state.id, path }) : null; return api('Save', { id: state.id, path, source, revision: old?.revision || '' }); };
+  await save('OrbitalNote-settings.org', '#+TITLE: Shared settings\n#+begin_src json\n{"version":1,"groups":{}}\n#+end_src\n');
+  await save(path, '#+FILETAGS: :sharedtest:\n* Projects\nParent prose stays here.\n** Existing\nChild body.\n* Other\nOther body.\n');
+  await page.goto(base); await page.locator(`#tree [data-open="${path}"]`).click();
+  await page.locator('#preview-toggle').click();
+  const nested = page.locator('#preview .preview-section .preview-section').first();
+  assert.equal(await nested.evaluate(el => getComputedStyle(el).paddingLeft), '20px');
+  assert.equal(await nested.evaluate(el => getComputedStyle(el).borderLeftWidth), '0px');
+  await page.locator('#ribbon [data-view="settings"]').click();
+  await page.locator('#preview-indent').uncheck(); await page.locator('#hide-footer').check();
+  await page.locator(`[data-tab-select="file:${path}"]`).click();
+  assert.equal(await nested.evaluate(el => getComputedStyle(el).paddingLeft), '0px');
+  assert.equal(await page.locator('#document .statusbar').isVisible(), false);
+  console.log('PASS default preview indentation without guides, flat preference, and hidden footer');
+  await page.locator('#ribbon [data-view="agenda"]').click(); await page.locator('#capture').click();
+  assert.equal(await page.locator('#modal [name="path"]').inputValue(), path);
+  await page.locator('#modal [name="path"]').fill('feature-settings');
+  await page.locator('#task-file-options [role="option"]').filter({ hasText: path }).click();
+  await page.waitForFunction(() => !document.querySelector('#modal [name="parentLine"]').disabled);
+  await page.locator('#modal [name="parentLine"]').selectOption('2');
+  await page.locator('#modal [name="title"]').fill('Projected picker task');
+  await page.locator('#modal [name="repeater"]').fill('+1w');
+  await page.locator('#modal-submit').click();
+  await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('Task saved'));
+  const saved = await api('Read', { id: status.id, path });
+  assert.match(saved.source, /Parent prose stays here\.\n\*\* TODO Projected picker task\nSCHEDULED:/);
+  assert.ok(saved.source.includes('** Existing\nChild body.\n* Other\nOther body.'));
+  await page.locator('[data-filter="upcoming"]').click();
+  assert.ok(await page.locator('#agenda-list .projected').filter({ hasText: 'Projected picker task' }).count() > 2);
+  assert.equal(await page.locator('#agenda-list .projected [data-complete]').count(), 0);
+  await page.locator('#ribbon [data-view="calendar"]').click();
+  assert.ok(await page.locator('#calendar-grid [aria-label="Projected occurrence"]').count() > 0);
+  assert.equal((await api('Read', { id: status.id, path })).source, saved.source);
+  console.log('PASS searchable open-first file picker, child insertion, and source-preserving future repeats');
+  await page.locator('#ribbon [data-view="settings"]').click();
+  await page.locator('[data-sync-setting="editor"]').check();
+  await page.locator('[data-sync-setting="calendar"]').check();
+  await page.locator('#ribbon [data-view="tags"]').click();
+  await page.getByRole('button', { name: 'Blue for sharedtest', exact: true }).click();
+  await sharedContains('sharedtest');
+  // A second independent device profile consumes the same synchronized settings file.
+  const other = await browser.newPage({ viewport: { width: 1450, height: 1000 } });
+  trace(other, 'second device');
+  other.on('pageerror', e => errors.push(e.message)); await other.goto(base);
+  await other.locator('#ribbon [data-view="settings"]').click();
+  await other.locator('[data-sync-setting="editor"]').check();
+  await other.locator('[data-sync-setting="calendar"]').check();
+  await other.waitForFunction(() => document.querySelector('#hide-footer').checked && !document.querySelector('#preview-indent').checked);
+  const colors = await page.evaluate(key => localStorage.getItem('org-tag-colors-' + key), status.key);
+  await other.waitForFunction(({ key, colors }) => localStorage.getItem('org-tag-colors-' + key) === colors, { key: status.key, colors });
+  await other.locator('[data-sync-setting="editor"]').uncheck();
+  await page.locator('#ribbon [data-view="settings"]').click(); await page.locator('#hide-footer').uncheck();
+  await sharedContains('"orbitalnote-hide-footer": "false"');
+  await other.locator('#calendar-time-format').selectOption('24');
+  await sharedContains('"orbitalnote-calendar-time-format": "24"');
+  assert.ok((await api('Read', { id: status.id, path: 'OrbitalNote-settings.org' })).source.includes('"orbitalnote-hide-footer": "false"'), 'saving a calendar category must preserve the other device’s editor category');
+  assert.equal(await other.locator('#hide-footer').isChecked(), true);
+  assert.deepEqual(errors, []);
+  console.log('PASS selective shared settings across independent device profiles; disabled groups remain local');
+} finally { await browser.close(); }

@@ -85,9 +85,11 @@ export function attachVim(view, compartment, status) {
   function report() {
     const cm = getCM(view), state = cm?.state.vim;
     const mode = state?.mode || 'normal';
-    view.contentDOM.dataset.viMode = enabled ? mode : '';
-    status.hidden = !enabled;
-    if (enabled) status.textContent = `${mode.toUpperCase()}${state?.status ? ' · ' + state.status : ''}`;
+    const label = enabled ? mode : '';
+    if (view.contentDOM.dataset.viMode !== label) view.contentDOM.dataset.viMode = label;
+    if (status.hidden === enabled) status.hidden = !enabled;
+    const text = `${mode.toUpperCase()}${state?.status ? ' · ' + state.status : ''}`;
+    if (enabled && status.textContent !== text) status.textContent = text;
   }
   function configure() {
     view.dispatch({ effects: compartment.reconfigure(enabled ? vim({ status: false }) : []) });
@@ -96,8 +98,13 @@ export function attachVim(view, compartment, status) {
       cm.on('vim-command-done', () => {
         if (cm.state.vim?.insertMode || cm.state.vim?.visualMode) return;
         const pos = cm.indexFromPos(cm.getCursor());
-        const heading = foldedHeadings(cm).find(h => pos === h.from || pos === h.to);
-        if (heading) cm.setCursor(cm.posFromIndex(Math.max(heading.start, heading.from - 1)));
+        let target;
+        foldedRanges(view.state).between(pos, pos, (from, to) => {
+          if (pos !== from && pos !== to) return;
+          const line = view.state.doc.lineAt(from);
+          if (from === line.to && /^\*+\s/.test(line.text)) target = Math.max(line.from, from - 1);
+        });
+        if (target !== undefined) cm.setCursor(cm.posFromIndex(target));
       });
       for (const event of ['vim-mode-change', 'vim-command-done', 'vim-keypress']) cm.on(event, report);
       cm.on('dialog', () => {

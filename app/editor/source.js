@@ -1,4 +1,4 @@
-import { EditorState, EditorSelection, StateField, StateEffect, Compartment } from '@codemirror/state';
+import { EditorState, EditorSelection, StateField, StateEffect, Compartment, Transaction } from '@codemirror/state';
 import { EditorView, Decoration, WidgetType, keymap, drawSelection, lineNumbers, gutter, GutterMarker } from '@codemirror/view';
 import { history, defaultKeymap, undo, redo } from '@codemirror/commands';
 import { codeFolding, foldService, foldEffect, unfoldEffect, foldedRanges, unfoldAll } from '@codemirror/language';
@@ -30,7 +30,7 @@ const skipFoldedSelection = EditorState.transactionFilter.of(tr => {
   const folds = foldedRanges(tr.startState), previous = tr.startState.selection.main;
   const skip = (pos, old) => {
     let target = pos;
-    folds.between(0, tr.startState.doc.length, (from, to) => {
+    folds.between(pos, pos, (from, to) => {
       if (from < pos && pos <= to) target = pos >= old && to < tr.startState.doc.length ? Math.max(target, to + 1) : Math.min(target, from);
     });
     return target;
@@ -64,7 +64,12 @@ class HeadingFold extends WidgetType {
     button.setAttribute('aria-expanded', String(!this.collapsed));
     button.setAttribute('aria-label', `${this.collapsed ? 'Expand' : 'Collapse'} heading: ${this.heading.title}`);
     button.addEventListener('mousedown', e => e.preventDefault());
-    button.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); foldHeading(view, this.heading); });
+    button.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      const start = view.state.doc.lineAt(view.posAtDOM(button.parentElement)).from;
+      const heading = headingRanges(view.state.doc.toString()).find(h => h.start === start);
+      if (heading) foldHeading(view, heading);
+    });
     return headingControl(button);
   }
   ignoreEvent() { return true; }
@@ -79,7 +84,7 @@ class HeadingMenu extends WidgetType {
     button.setAttribute('aria-label', 'Heading actions'); button.setAttribute('aria-haspopup', 'menu');
     button.textContent = '⋮';
     button.addEventListener('mousedown', e => e.preventDefault());
-    button.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); view.contentDOM.dispatchEvent(new CustomEvent('heading-menu', { bubbles: true, detail: { line: this.line, button } })); });
+    button.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); view.contentDOM.dispatchEvent(new CustomEvent('heading-menu', { bubbles: true, detail: { line: view.state.doc.lineAt(view.posAtDOM(button.parentElement)).number, button } })); });
     return headingControl(button);
   }
   ignoreEvent() { return true; }
@@ -94,20 +99,25 @@ class MetadataFold extends WidgetType {
     button.setAttribute('aria-expanded', String(!this.collapsed));
     button.setAttribute('aria-label', `${this.collapsed ? 'Expand' : 'Collapse'} ${this.range.label.toLowerCase()}`);
     button.addEventListener('mousedown', event => event.preventDefault());
-    button.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); foldHeading(view, this.range); });
+    button.addEventListener('click', event => {
+      event.preventDefault(); event.stopPropagation();
+      const start = view.state.doc.lineAt(view.posAtDOM(button.parentElement)).from;
+      const range = metadataRanges(view.state.doc.toString()).find(range => range.start === start);
+      if (range) foldHeading(view, range);
+    });
     return headingControl(button);
   }
   ignoreEvent() { return true; }
 }
 
-function decorations(state) {
-  const ranges = [], source = state.doc.toString();
-  const headings = headingRanges(source), clocked = new Set();
+function decorations(state, onlyLine = 0) {
+  const ranges = [], source = onlyLine ? state.doc.line(onlyLine).text : state.doc.toString();
+  const headings = onlyLine ? [] : headingRanges(source), clocked = new Set();
   for (const [index, heading] of headings.entries()) {
     if (/^[ \t]*CLOCK:\s*\[[^\]\n]+\][ \t]*$/m.test(source.slice(heading.start, headings[index+1]?.start ?? source.length))) clocked.add(heading.start);
     if (heading.to > heading.from) ranges.push(Decoration.widget({ widget: new HeadingFold(heading, isFolded(state, heading.from)), side: -2 }).range(heading.start));
   }
-  for (const range of metadataRanges(source)) {
+  for (const range of onlyLine ? [] : metadataRanges(source)) {
     ranges.push(Decoration.widget({ widget: new MetadataFold(range, isFolded(state, range.from)), side: -2 }).range(range.start));
     ranges.push(Decoration.line({ class: 'org-metadata-fold-line' }).range(range.start));
   }
@@ -116,7 +126,7 @@ function decorations(state) {
   const words = text => text.trim().split(/\s+/).map(word => word.replace(/\(.*\)/, ''));
   const done = new Set(words(finished)), states = new Set([...words(pending), ...done]);
   let block = '', drawer = false;
-  for (let n = 1; n <= state.doc.lines; n++) {
+  for (let n = onlyLine || 1; n <= (onlyLine || state.doc.lines); n++) {
     const line = state.doc.line(n), text = line.text;
     const begin = /^\s*#\+begin_(\S+)/i.exec(text);
     if (!block && begin) block = begin[1].toLowerCase();
@@ -166,7 +176,33 @@ function decorations(state) {
   }
   return Decoration.set(ranges, true);
 }
-const orgStyle = StateField.define({ create: decorations, update: (value, transaction) => transaction.docChanged || foldedRanges(transaction.startState) !== foldedRanges(transaction.state) ? decorations(transaction.state) : value, provide: field => EditorView.decorations.from(field) });
+function updateDecorations(value, tr) {
+  if (!tr.docChanged) return foldedRanges(tr.startState) !== foldedRanges(tr.state) ? decorations(tr.state) : value;
+  // Ordinary single-line prose edits cannot change Org structure. Map existing
+  // decorations and re-tokenize that line, rather than scanning the entire file.
+  let line, local = true;
+  tr.changes.iterChanges((from, to, _fromB, _toB, insert) => {
+    const candidate = tr.startState.doc.lineAt(from);
+    if (line && line.number !== candidate.number || to > candidate.to || insert.lines !== 1) local = false;
+    line = candidate;
+  });
+  const structural = /^\s*(?:[*#:|]|[-+]\s+State\b|SCHEDULED:|DEADLINE:|CLOSED:|CLOCK:)/;
+  if (local && line && !structural.test(line.text)) {
+    const next = tr.state.doc.line(line.number);
+    if (!structural.test(next.text)) {
+      value.between(line.from, line.to, (_from, _to, decoration) => {
+        if (/org-(?:block|metadata)/.test(decoration.spec.class || '')) local = false;
+      });
+      if (local) {
+        const add = [];
+        decorations(tr.state, next.number).between(next.from, next.to, (from, to, decoration) => add.push(decoration.range(from, to)));
+        return value.map(tr.changes).update({ filterFrom: next.from, filterTo: next.to, filter: from => from < next.from || from > next.to, add, sort: true });
+      }
+    }
+  }
+  return decorations(tr.state);
+}
+const orgStyle = StateField.define({ create: state => decorations(state), update: updateDecorations, provide: field => EditorView.decorations.from(field) });
 const jumpEffect = StateEffect.define();
 const jumpHighlight = StateField.define({
   create: () => Decoration.none,
@@ -238,6 +274,10 @@ export function createEditor(host) {
   const view = new EditorView({ parent: host, state: EditorState.create({ extensions }) });
   const editor = view.contentDOM;
   editor.classList.add('ui-source');
+  editor.cursorPosition = () => {
+    const at = view.state.selection.main.from, line = view.state.doc.lineAt(at);
+    return { line: line.number, column: at - line.from + 1 };
+  };
   Object.defineProperties(editor, {
     value: { get: () => view.state.doc.toString(), set: value => { silent = true; viAdapter?.beforeReset(); view.setState(EditorState.create({ doc: value, extensions })); editor.setLineNumbers(numberMode); viAdapter?.restore(); editor.setMetadataFolds(metadataRanges(editor.value).map(range => range.start)); silent = false; } },
     selectionStart: { get: () => view.state.selection.main.from },
@@ -246,6 +286,16 @@ export function createEditor(host) {
     scrollTop: { get: () => view.scrollDOM.scrollTop, set: value => { view.scrollDOM.scrollTop = value; } },
     scrollLeft: { get: () => view.scrollDOM.scrollLeft, set: value => { view.scrollDOM.scrollLeft = value; } },
   });
+  editor.syncValue = value => {
+    const before = editor.value;
+    if (before === value) return;
+    let from = 0, to = before.length, end = value.length;
+    while (from < to && from < end && before[from] === value[from]) from++;
+    while (to > from && end > from && before[to - 1] === value[end - 1]) { to--; end--; }
+    silent = true;
+    try { view.dispatch({ changes: { from, to, insert: value.slice(from, end) }, annotations: Transaction.addToHistory.of(false) }); }
+    finally { silent = false; }
+  };
   editor.setSelectionRange = (from, to, direction) => {
     const clamp = n => Math.max(0, Math.min(view.state.doc.length, n));
     foldedRanges(view.state).between(0, view.state.doc.length, (start, end) => {

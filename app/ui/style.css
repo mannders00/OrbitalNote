@@ -148,6 +148,19 @@
 #modal-body .task-planning input { position: absolute; opacity: 0; width: 1px; }
 #modal-body .task-planning label:focus-within { outline: 2px solid var(--accent); }
 .task-date-picker { background: var(--bg); padding: 10px; border: 1px solid var(--border); border-radius: 7px; }
+.task-file-picker { position: relative; display: flex; gap: 4px; }
+.task-file-picker input { min-width: 0; flex: 1; }
+.task-file-options { position: absolute; z-index: 5; top: 100%; left: 0; right: 0; max-height: 220px; overflow: auto; padding: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 16px var(--shadow); }
+.task-file-options [role="option"] { display: flex; justify-content: space-between; gap: 12px; padding: 8px; cursor: pointer; font-size: 13px; }
+.task-file-options [role="option"] span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-file-options [role="option"] small { flex-shrink: 0; }
+.task-file-options [role="option"]:hover, .task-file-options [aria-selected="true"] { background: var(--hover); }
+.task-file-options small, .task-file-options p { color: var(--muted); font-size: 11px; }
+.settings-sync { padding: 20px 0; border-bottom: 1px solid var(--border); }
+.settings-sync h2 { font-size: 15px; margin: 0 0 8px; }
+.settings-sync p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.settings-sync label { display: flex; align-items: center; gap: 10px; margin: 10px 0; font-size: 13px; }
+.settings-sync input { width: auto; accent-color: var(--accent); }
 .date-picker-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; font-size: 13px; }
 .date-picker-header button { border: 0; padding: 3px; background: none; }
 .date-picker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; }
@@ -474,7 +487,8 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .prose h3 { font-size: 1.25em; }
 .prose h4 { font-size: 1.1em; }
 .prose h5, .prose h6 { font-size: 1.1em; }
-.ui-preview .preview-section .preview-section { margin-left: 2px; padding-left: 17px; border-left: 1px solid var(--border); }
+:root:not([data-preview-indent="false"]) .ui-preview .preview-section .preview-section { padding-left: 20px; }
+:root[data-hide-footer="true"] .ui-document .statusbar { display: none; }
 .prose p { margin: .65em 0 1em; }
 .prose a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
 .prose pre { background: color-mix(in srgb, var(--side) 65%, var(--bg)); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; overflow: auto; font-size: 13px; line-height: 1.7; margin: 1.25em 0; tab-size: 2; }
@@ -624,8 +638,10 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .mini-grid button.is-today { background: var(--accent); color: var(--bg); }
 .heading-actions-menu:focus { outline: none; }
 .agenda-actions { flex-shrink: 0; }
-#agenda.minimal > :is(.filterbar, #agenda-results-count), #agenda.minimal .page-heading > :first-child, #agenda.minimal #capture { display: none; }
-#agenda.minimal .page-heading { justify-content: flex-end; margin-bottom: 8px; }
+#agenda.minimal > :is(.filterbar, #agenda-results-count), #agenda.minimal .page-heading h1, #agenda.minimal #capture { display: none; }
+#agenda.minimal .page-heading { justify-content: space-between; align-items: center; margin-bottom: 8px; }
+#agenda.minimal #today-label { margin: 0; color: var(--text); font-size: 22px; font-weight: 600; line-height: 1.3; letter-spacing: -.3px; }
+#agenda.minimal .agenda-group[data-key="Today"] > h2 { display: none; }
 .monospace-mode :is(.cm-content, .ui-preview, .ui-preview h1, .ui-preview h2, .ui-preview h3, .ui-preview h4, .ui-preview h5, .ui-preview h6) { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .monospace-mode .cm-content, .monospace-mode .ui-preview { font-size: var(--document-size); }
 .monospace-mode .cm-content :is(.org-heading, .org-meta, .org-marker, .org-tags, .org-format-marker, .org-code, .org-block-code, .org-block-quote, .org-planning-line, .org-metadata-line, .org-table-line, .task-state), .monospace-mode .ui-preview :is(h1, h2, h3, h4, h5, h6, p, pre, code, table, blockquote, small, .todo, .tags, .timestamp) { font-size: 1em; }

@@ -1,48 +1,32 @@
-# OrbitalNote 0.1.0-preview.19
+# OrbitalNote 0.1.0-preview.20
 
-Neutral whites and grays for Workbench's light appearance.
+Faster editing, multiple views of a note, future repeats, and shared workspace settings.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.18
+## What's new since preview.19
 
-- Remove the blue tint from Workbench's light-mode backgrounds, sidebars, and text.
-- Retain blue for links and accent controls.
+### Faster input and multiple views
+- Remove whole-document scans and repeated DOM searches from Vim motions; coalesce cursor-status updates.
+- Incrementally highlight ordinary prose edits, defer hidden previews, and avoid rebuilding unchanged tab layouts and outlines.
+- Open the same file in multiple tabs or split panes, sharing edits and saves while retaining independent reading modes, cursors, folds, and scroll positions.
+- Include a reproducible performance benchmark and regression checks. On a 1,000-heading fixture with 4× Chrome CPU throttling, median unfolded Vim motion time fell from 11.0 to 1.8 ms. This is a synthetic measurement, not a guarantee for every device.
 
-## Also included from preview.18
+### Easier planning
+- Put **New task…** first in each document's + menu, inserting at the cursor after the task form is confirmed.
+- Add a searchable open/recent-first file picker and parent-heading selector to New task. Child tasks preserve the parent's prose and metadata.
+- Show projected repeating occurrences in Agenda and Calendar without adding duplicate headings or invented completion history. Completion-relative repeaters remain estimates.
+- Align a prominent full-date heading and the pencil control across the top of minimal Agenda.
 
-- Add Calendar-style **previous day / Today / next day** navigation to Agenda.
-- Display the selected day in the Agenda heading and use it for new tasks.
-- Place new completion and clock logbooks after planning/properties metadata,
-  before your paragraphs, preserving body text and line endings.
-- Repeating tasks continue to record completed occurrences and advance their dates;
-  the heading remains open for the next occurrence.
+### Reading and shared preferences
+- Indent nested reading sections without vertical guides by default; choose flat alignment in Settings.
+- Add an option to hide the editor footer.
+- Add opt-in settings-sync categories for calendar/tag colors and time format, theme/appearance, and editor-display preferences. Enable matching categories on each device.
+- Store shared settings in a versioned JSON block in `OrbitalNote-settings.org`, using existing encrypted note Sync without a server upgrade. Keybindings and custom CSS remain device-local.
+- Refresh README and website screenshot assets with the left app ribbon visible.
 
-## Also included from preview.17
+See [workspace settings and planning](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.20/docs/workspace-settings.md) and [editor performance](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.20/docs/editor-performance.md) for details.
 
-### Connected notes and richer examples
-- Add a clickable Local graph as the last section of the right sidebar, showing incoming, outgoing, and mutual note links.
-- Include the Connected sample vault with engineering notes, a journal, a decision record, and a rich Systems notebook.
-- Fix rendered internal links opening nonexistent .html exports instead of the original .org notes.
-- Showcase Default, Terminal, and Editorial with real screenshots and a guide to custom CSS themes.
-
-### Folding and Vim
-- Cut a folded heading's whole subtree with `dd` and paste after another folded subtree with `p`, retaining nested heading folds. `P`, named registers, and undo are supported.
-- Keep the normal cursor on visible heading text before the fold ellipsis.
-- Include folded subtrees in visual-line cut/copy and keep selection highlights within the editor column.
-- Keep metadata folds closed during navigation; include them in Fold all / Unfold all and current-line folding commands.
-- Remove the remaining metadata-label indentation and align Vim `:` and `/` prompt text.
-- Add a configurable Toggle editor / source command, default Cmd/Ctrl+E, which also switches Agenda reading mode.
-
-### Reading, Agenda, and Calendar
-- Distinguish nested headings and TODOs with indentation and hierarchy guides, including in monospace mode.
-- Show collapsed Properties as a compact disclosure beneath planning metadata, with a bordered card only when expanded.
-- Align Outline arrows and explicitly hide collapsed descendants to prevent stale blank space.
-- Keep reading/editing icons neutral. Focus New task on entering normal Agenda/Calendar; hide and disable it in minimal Agenda.
-- Apply the same 12/24-hour preference to Agenda and Calendar.
-- Create calendar blocks from the highlighted half-hour cells, fixing lower-half pointer rounding. Use a red current-time line and dot.
-- Restyle Terminal with Base16 Default-inspired neutral surfaces and muted accents, including a matching light palette.
-
-Open the [Connected sample vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.17/examples/Connected) and start with Dispatch.org to explore the graph, or Systems-notebook.org for the theme showcase. The Engineer and Showcase examples are also included.
+Open the [Connected sample vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.20/examples/Connected) and start with Dispatch.org to explore the graph, or Systems-notebook.org for the theme showcase. The Engineer and Showcase examples are also included.
 See the [changelog](CHANGELOG.md) and [interaction notes](docs/interaction-update.md) for details.
 
 Default shortcuts remain Cmd/Ctrl+, for Settings, Cmd/Ctrl+P for Run command,
@@ -71,7 +55,7 @@ show SmartScreen's unrecognized-app prompt. Download only from this repository.
 Mermaid and math render in reading view; their source is edited in the editor.
 KaTeX supports math, not full LaTeX documents or packages. Code blocks are not
 executed. Image paste/import and resize controls remain future work.
-Saved views and appearance preferences are device-local.
+Saved views remain device-local. Selected appearance and display preferences can now be shared through workspace settings.
 
 Repeater history shows recorded completions, not invented past occurrences.
 Calendar drag/resize currently edits single-day events; multi-day ranges require

@@ -7,6 +7,7 @@ export function formatTime(time, format = '12') {
   return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
 }
 export function calendarClock(entry) {
+  if (entry.projected) return '<span class="calendar-clock" role="img" aria-label="Projected occurrence" title="Projected occurrence; completion may change future dates">↻</span>';
   return entry.clock ? `<span class="calendar-clock" role="img" aria-label="Clock running" title="Clock running">${icon('clock')}</span>` : '';
 }
 export function updateNowLine(root, format = '12', now = new Date()) {
@@ -46,8 +47,8 @@ export function timeGrid(start, days, entries, colorStyle, indexOf = entry => en
     for (const event of eventLanes(scheduled)) {
       const { entry, start, end, lane, columns } = event;
       // Geometry is separate from tag color's style attribute.
-      const editable = entry.stamp.kind !== 'completed';
-      html += `<div class="time-block" data-key="${esc(entry.path+':'+entry.line+':'+entry.stamp.kind)}" style="top:${start}px;height:${end - start}px;left:${lane / columns * 100}%;width:${100 / columns}%">${task(entry, 'timed-event')}${editable ? `<span class="event-resize start" data-resize="start" data-entry="${indexOf(entry)}" title="Drag to change start time"></span><span class="event-resize end" data-resize="end" data-entry="${indexOf(entry)}" title="Drag to change end time"></span>` : ''}</div>`;
+      const editable = !entry.projected && entry.stamp.kind !== 'completed';
+      html += `<div class="time-block" data-key="${esc(entry.path+':'+entry.line+':'+entry.stamp.kind+':'+entry.stamp.date+':'+entry.stamp.time)}" style="top:${start}px;height:${end - start}px;left:${lane / columns * 100}%;width:${100 / columns}%">${task(entry, 'timed-event')}${editable ? `<span class="event-resize start" data-resize="start" data-entry="${indexOf(entry)}" title="Drag to change start time"></span><span class="event-resize end" data-resize="end" data-entry="${indexOf(entry)}" title="Drag to change end time"></span>` : ''}</div>`;
     }
     html += '<div class="calendar-now-line" hidden role="img"></div></div>';
   }
@@ -73,7 +74,7 @@ export function bindCalendarGestures(root, { entry, create, change }) {
     const target = e.target.closest('[data-entry]'), item = target ? entry(Number(target.dataset.entry)) : null;
     const column = e.target.closest('.time-day'), allDay = e.target.closest('.all-day-row [data-drop-date]');
     if (!column && !allDay) return;
-    if (item && (item.stamp.kind === 'completed' || item.stamp.endDate)) return;
+    if (item && (item.projected || item.stamp.kind === 'completed' || item.stamp.endDate)) return;
     if (!item && !column) return;
     const start = column ? item ? snap(column, e.clientY) : slotStart(column, e.clientY) : 0;
     gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, item, column, start, resize: target?.dataset.resize, offset: item?.stamp.time && column ? start - minutes(item.stamp.time) : 0 };

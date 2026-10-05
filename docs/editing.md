@@ -2,6 +2,14 @@
 
 ## Reading and source views
 
+Use the document's **File actions → Open in new tab**, **Split right**, or
+**Split down** to open another view of the same note. Each view has its own
+source/preview mode, cursor, folds, and scroll position. Edits share a single
+buffer and save to the same file. Closing one view keeps the others open.
+
+The document's **+ → New task…** opens the task form and inserts a TODO heading
+at the cursor when you confirm. Canceling leaves the document unchanged.
+
 The book/pencil toggle carries heading folds and the current reading location
 between rendered preview and source. Nested folds remain collapsed when a
 parent is reopened. Switching back without scrolling preserves the editor's

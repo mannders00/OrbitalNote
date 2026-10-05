@@ -184,6 +184,13 @@ func TestTwoDeviceSyncIntegration(t *testing.T) {
 	if got := read(wb, "Private.org"); got != original {
 		t.Fatalf("source changed in transit: %q", got)
 	}
+	settings := "#+TITLE: OrbitalNote shared settings\n\n#+begin_src json\n{\"version\":1,\"groups\":{\"calendar\":{\"colors\":{\"work\":\"#abcdef\"}}}}\n#+end_src\n"
+	put(wa, "OrbitalNote-settings.org", settings)
+	tick(a)
+	tick(b)
+	if got := read(wb, "OrbitalNote-settings.org"); got != settings {
+		t.Fatal("workspace settings did not survive encrypted sync unchanged")
+	}
 	// Offline concurrent edits: preserve the remote version in a conflict file.
 	put(wa, "Private.org", "* Mac offline edit\n")
 	put(wb, "Private.org", "* Android offline edit\n")

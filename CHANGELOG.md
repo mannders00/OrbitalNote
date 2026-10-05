@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 0.1.0-preview.20 — 2026-10-05
+
+- Indent nested reading sections by default without vertical guides, with a
+  flat-hierarchy setting and an option to hide the editor footer.
+- Display projected repeating occurrences in Calendar and Agenda without
+  creating duplicate source tasks or completion history.
+- Add a searchable, open/recent-first file picker and parent-heading selector
+  to New task; insert child tasks after the parent's own text and metadata.
+- Add opt-in sharing of calendar colors/time format, theme/appearance, and
+  editor-display preferences through a versioned workspace settings note.
+- Refresh website and README app screenshots with the left app ribbon visible.
+
+- Remove whole-document heading scans and repeated DOM searches from Vim motions;
+  coalesce cursor-status updates and use indexed source positions.
+- Re-tokenize only the edited prose line for ordinary single-line changes;
+  keep full rebuilding for structural edits and block/drawer contexts.
+- Defer hidden reading-view rendering, reuse unchanged outlines, and avoid
+  rebuilding tab layout on every character.
+
+- Open the same file in multiple tabs or split views with a shared buffer and
+  independent reading modes, selections, folds, and scroll positions.
+- Add New task as the first document insertion-menu action, inserting a task at
+  the cursor with the existing task form.
+- Align the extended date and pencil control across the top of minimal Agenda.
+
 ## 0.1.0-preview.19 — 2026-10-04
 
 - Remove the blue tint from Workbench's light-mode backgrounds and text,

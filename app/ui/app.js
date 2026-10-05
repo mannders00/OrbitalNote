@@ -13,6 +13,8 @@ import { icon, mountIcons } from './icons.js';
 import { TabLayout } from './tab-layout.js';
 import { createEditor } from './vendor/editor.js';
 import { taskDialog } from './task-dialog.js';
+import { projectOccurrences } from './recurrence.js';
+import { setupWorkspaceSettings, SETTINGS_FILE } from './workspace-settings.js';
 import { timeGrid, bindCalendarGestures, formatTime, calendarClock, updateNowLine } from './calendar.js';
 import { patchHTML } from './dom.js';
 import { reconcileOutline } from './outline.js';
@@ -28,20 +30,75 @@ let documentSerial = 0;
 const pageNames = { agenda: 'Agenda', calendar: 'Calendar', search: 'Search', tags: 'Tags', settings: 'Settings', welcome: 'Workspace' };
 const pages = new Map(Object.keys(pageNames).map(id => [id, document.getElementById(id)]));
 setupSyncSettings(pages.get('settings'));
-const $ = id => activeSurface?.querySelector(`[data-ui="${id}"]`) || document.getElementById(id) || pages.get(id) || [...pages.values()].map(page => page.querySelector(`#${id}`)).find(Boolean);
+const $ = id => activeSurface?.uiElements?.get(id) || document.getElementById(id) || pages.get(id) || [...pages.values()].map(page => page.querySelector(`#${id}`)).find(Boolean);
 const documentTemplate = $('document');
 documentTemplate.remove();
 let restoringLayout = true;
 const layout = new TabLayout($('tab-layout'), {
   activate: activateTab,
-  close: id => run(() => id.startsWith('file:') ? closeTab(id.slice(5)) : closeViewTab(id))(),
-  changed: saved => { if (!restoringLayout && workspace.key) localStorage.setItem('org-layout-' + workspace.key, JSON.stringify({ ...saved, modes: Object.fromEntries([...tabs].map(([path, t]) => [path, t.mode])) })); },
+  close: id => run(() => id.startsWith('copy:') ? closeDuplicate(id) : id.startsWith('file:') ? closeTab(id.slice(5)) : closeViewTab(id))(),
+  changed: saved => { if (!restoringLayout && workspace.key) localStorage.setItem('org-layout-' + workspace.key, JSON.stringify({ ...saved, modes: Object.fromEntries([...tabs].map(([path, t]) => [path, t.mode])), copies: [...duplicateViews].map(([id, t]) => ({ id, path: t.path, mode: t.mode })) })); },
 });
 let workspace = { id: 0, version: 0, files: [] };
 const tabs = new Map();
+const duplicateViews = new Map();
+let activeDocumentID = '';
+const documentForSurface = surface => duplicateViews.get(surface.dataset.viewId) || tabs.get(surface.dataset.path);
+const documentViews = path => [tabs.get(path), ...[...duplicateViews.values()].filter(t => t.surface.dataset.path === path)].filter(Boolean);
+const liveDocument = (path, t) => tabs.get(path) === t || duplicateViews.get(t?.viewID) === t && t.surface.dataset.path === path;
+function syncDocumentViews(path, origin) {
+  for (const t of documentViews(path)) {
+    if (!t.surface || t.surface === origin) continue;
+    t.surface.querySelector('[data-ui="source"]').syncValue(t.buffer);
+    updateStatus(t);
+  }
+}
+function renderDocumentViews(path) {
+  syncDocumentViews(path);
+  for (const t of documentViews(path)) if (t.surface) { setPreview(t, t.html); hydrateImages(t); renderContext(t, t.surface); updateStatus(t); }
+}
+function duplicateDocument(path = active, edge, restored) {
+  const original = current()?.surface.dataset.path === path ? current() : tabs.get(path);
+  if (!original) return;
+  const id = restored?.id || 'copy:' + crypto.randomUUID();
+  const t = { viewID: id, mode: restored?.mode || original.mode, position: original.surface.querySelector('[data-ui="source"]').selectionStart, scroll: original.surface.querySelector('[data-ui="source"]').scrollTop };
+  const filePath = path;
+  Object.defineProperty(t, 'path', { get: () => t.surface?.dataset.path || filePath });
+  for (const key of ['source', 'raw', 'buffer', 'saved', 'eol', 'revision', 'html', 'headings', 'links', 'outlineSource', 'properties', 'metadata', 'conflict', 'saving', 'saveError']) {
+    Object.defineProperty(t, key, { get: () => tabs.get(t.path)?.[key], set: value => { const doc = tabs.get(t.path); if (doc) doc[key] = value; } });
+  }
+  duplicateViews.set(id, t); createDocumentSurface(path, t); renderDocument(t);
+  const group = layout.focusedGroup().id;
+  layout.open(id, { title: path.split('/').pop().replace(/\.org$/i, ''), icon: 'file', dirty: dirty(t), element: t.surface }, !restored);
+  if (edge) layout.move(id, group, edge);
+  return t;
+}
+function closeDuplicate(id) {
+  const t = duplicateViews.get(id); if (!t) return;
+  disposeDocument(t); duplicateViews.delete(id); layout.remove(id);
+}
 const pendingSaves = new Map();
 let active = '', view = 'agenda', mode = 'edit', entries = [], tags = [], agendaFilter = 'today';
 let agendaDate = '';
+let baseEntries = [], occurrenceRange = '';
+const entryIndices = new WeakMap();
+function updateOccurrences() {
+  const end = new Date(); end.setDate(end.getDate() + 90);
+  const calendarEnd = new Date(calendarDate.getFullYear() + 1, 0, 7, 12);
+  const calendarStart = [today(), dateKey(new Date(calendarDate.getFullYear(), 0, 1, 12))].sort().at(-1);
+  const ranges = [[today(), dateKey(end)], [calendarStart, dateKey(calendarEnd)]];
+  if (agendaDate && agendaDate >= today()) ranges.push([agendaDate, agendaDate]);
+  const range = JSON.stringify(ranges);
+  if (range === occurrenceRange) return false;
+  occurrenceRange = range;
+  const projected = new Map();
+  for (const [from, through] of ranges) for (const entry of projectOccurrences(baseEntries, from, through)) if (entry.projected) {
+    projected.set(JSON.stringify([entry.path, entry.line, entry.stamp.kind, entry.stamp.date, entry.stamp.time]), entry);
+  }
+  entries = [...baseEntries, ...projected.values()].sort((a,b) => (a.stamp.date || '').localeCompare(b.stamp.date || '') || (a.stamp.time || '').localeCompare(b.stamp.time || ''));
+  entries.forEach((entry, index) => entryIndices.set(entry, index));
+  return true;
+}
 let calendarMode = 'month', calendarDate = new Date(), openSequence = 0;
 let refreshing = false, searchTimer, noticeTimer, searchSequence = 0, paletteItems = [], paletteSelection = 0, paletteKind = 'commands';
 const recent = [];
@@ -53,7 +110,7 @@ mountIcons();
 for (const input of document.querySelectorAll('input, textarea')) {
   input.spellcheck = false; input.setAttribute('autocorrect', 'off'); input.setAttribute('autocapitalize', 'off'); input.setAttribute('autocomplete', 'off');
 }
-const current = () => view === 'document' ? tabs.get(active) : undefined;
+const current = () => view === 'document' ? duplicateViews.get(activeDocumentID) || tabs.get(active) : undefined;
 const dirty = t => t && t.buffer !== t.saved;
 const dateKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const today = () => dateKey(new Date());
@@ -131,7 +188,7 @@ async function confirm(title, message, action) { return !!await dialog(title, `<
 function tabFrom(note, previous = {}) {
   const eol = note.source.includes('\r\n') && !note.source.replaceAll('\r\n', '').includes('\n') ? '\r\n' : '\n';
   const normalized = note.source.replace(/\r\n?/g, '\n');
-  return { ...note, raw: note.source, buffer: normalized, saved: normalized, eol, position: previous.position || 0, scroll: previous.scroll || 0, mode: previous.mode || 'edit', surface: previous.surface, vi: previous.vi, documentView: previous.documentView, conflict: false, saving: false };
+  return { ...previous, ...note, raw: note.source, buffer: normalized, saved: normalized, eol, position: previous.position || 0, scroll: previous.scroll || 0, mode: previous.mode || 'edit', surface: previous.surface, vi: previous.vi, documentView: previous.documentView, conflict: false, saving: false };
 }
 function rememberPosition() { const t = current(); if (t && view === 'document') { t.position = source.selectionStart; t.scroll = source.scrollTop; } }
 function renderTabs() {
@@ -139,13 +196,20 @@ function renderTabs() {
     if (!t.surface) createDocumentSurface(path, t);
     const descriptor = { title: path.split('/').pop().replace(/\.org$/i, ''), icon: 'file', dirty: dirty(t), element: t.surface };
     const old = t.surface.dataset.path;
-    if (old !== path) layout.rename('file:' + old, 'file:' + path, descriptor);
+    if (old !== path) {
+      layout.rename('file:' + old, 'file:' + path, descriptor);
+      for (const copy of duplicateViews.values()) if (copy.path === old) copy.surface.dataset.path = path;
+      if (activeDocumentID === 'file:' + old) activeDocumentID = 'file:' + path;
+    }
     t.surface.dataset.path = path;
+    t.surface.dataset.viewId = 'file:' + path;
     if (layout.tabs.has('file:' + path)) layout.tabs.set('file:' + path, descriptor);
     else layout.open('file:' + path, descriptor, false);
   }
+  for (const [id, t] of duplicateViews) layout.tabs.set(id, { title: t.surface.dataset.path.split('/').pop().replace(/\.org$/i, ''), icon: 'file', dirty: dirty(t), element: t.surface });
   for (const id of [...layout.tabs.keys()]) if (id.startsWith('file:') && !tabs.has(id.slice(5))) layout.remove(id);
   layout.render(); layout.changed();
+  for (const t of [...tabs.values(), ...duplicateViews.values()]) updateStatus(t);
 }
 function createDocumentSurface(path, t) {
   const surface = documentTemplate.cloneNode(true);
@@ -153,24 +217,27 @@ function createDocumentSurface(path, t) {
     el.dataset.ui = el.id; el.classList.add('ui-' + el.id); el.removeAttribute('id');
   }
   surface.dataset.path = path;
+  surface.uiElements = new Map([...surface.querySelectorAll('[data-ui]')].map(el => [el.dataset.ui, el]));
+  surface.dataset.viewId = t.viewID || 'file:' + path;
   surface.dataset.previewPrefix = `note-${++documentSerial}-`;
   const find = id => surface.querySelector(`[data-ui="${id}"]`);
   const editor = createEditor(surface.querySelector('.source-pane'));
+  surface.uiElements.set('source', editor); surface.uiElements.set('document', surface);
   t.documentView = createDocumentView(surface, editor);
   editor.setLineNumbers($('line-numbers').value);
   t.surface = surface; t.vi = attachVi(editor, find('vi-state'));
   t.vi.setEnabled($('vi-mode').checked);
-  const focused = fn => run(e => { activateTab('file:' + surface.dataset.path); return fn(e); });
+  const focused = fn => run(e => { activateTab(surface.dataset.viewId); return fn(e); });
   const bind = (id, event, fn) => find(id).addEventListener(event, focused(fn));
   bind('preview-toggle', 'click', () => setMode(mode === 'edit' ? 'preview' : 'edit'));
   bind('save', 'click', save); bind('save-copy', 'click', saveCopy); bind('file-actions', 'click', fileActions);
-  bind('insert-content', 'click', e => showActionMenu(e.currentTarget, 'Insert and format', insertionActions.map(([id, label]) => [label, () => insertContent(id)])));
+  bind('insert-content', 'click', e => showActionMenu(e.currentTarget, 'Insert and format', [['New task…', newTaskAtCursor], ...insertionActions.map(([id, label]) => [label, () => insertContent(id)])]));
   bind('reload-file', 'click', async () => {
     const path = active, t = current(), id = workspace.id;
     if (!await confirm('Reload from disk?', 'Your unsaved buffer will be discarded. Save a copy first to keep both versions.', 'Reload')) return;
     const note = await call('Read', { id, path });
-    if (workspace.id !== id || tabs.get(path) !== t) return;
-    tabs.set(path, tabFrom(note, t)); if (active === path && view === 'document') showDocument(); renderTabs();
+    if (workspace.id !== id || !liveDocument(path, t)) return;
+    tabs.set(path, tabFrom(note, tabs.get(path))); renderDocumentViews(path); if (active === path && view === 'document') showDocument(); renderTabs();
   });
   bind('context-close', 'click', () => { toggleSidebar('right'); $('context-toggle').focus(); });
   bind('outline-toggle-all', 'click', () => {
@@ -190,13 +257,19 @@ function createDocumentSurface(path, t) {
     const t = tabs.get(surface.dataset.path); if (!t) return;
     const change = event.detail;
     const after = change?.after ?? editor.value;
+    const wasDirty = dirty(t);
     t.raw = change?.before === t.buffer ? updateRawChanges(t.raw, change.changes, t.eol) : updateRaw(t.raw, t.buffer, after, t.eol); t.buffer = after;
-    updateStatus(t); renderTabs();
+    syncDocumentViews(surface.dataset.path, surface);
+    updateStatus(documentForSurface(surface));
+    if (wasDirty !== dirty(t)) renderTabs();
     clearTimeout(t.previewTimer); t.previewTimer = setTimeout(() => updatePreview(surface.dataset.path).catch(fail), 250);
     scheduleSave(t);
   });
   editor.addEventListener('scroll', () => syncEditorScroll(surface));
-  for (const event of ['click', 'keyup', 'editor-selection']) editor.addEventListener(event, () => updateStatus(tabs.get(surface.dataset.path)));
+  let statusFrame = 0;
+  editor.addEventListener('editor-selection', () => {
+    if (!statusFrame) statusFrame = requestAnimationFrame(() => { statusFrame = 0; if (surface.isConnected) updateStatus(documentForSurface(surface)); });
+  });
   editor.addEventListener('task-toggle', run(async e => {
     const path = surface.dataset.path, t = tabs.get(path), buffer = t.buffer;
     const changed = await call('Edit', { source: buffer, line: e.detail.line, operation: 'complete' });
@@ -242,11 +315,11 @@ function activateTab(id, restoreFocus = false) {
       target?.focus({ preventScroll: true });
     }
   };
-  if (view === 'document' && id === 'file:' + active && activeSurface === tabs.get(active)?.surface) { focusContent(); return; }
+  if (view === 'document' && id === activeDocumentID && activeSurface === current()?.surface) { focusContent(); return; }
   rememberPosition();
-  if (id.startsWith('file:')) {
-    active = id.slice(5); view = 'document';
-    const t = tabs.get(active); if (!t) return;
+  if (id.startsWith('file:') || duplicateViews.has(id)) {
+    const t = duplicateViews.get(id) || tabs.get(id.slice(5)); if (!t) return;
+    activeDocumentID = id; active = t.surface.dataset.path; view = 'document';
     setActiveSurface(t.surface); source = $('source'); vi = t.vi; mode = t.mode;
     showDocument();
     renderClocks();
@@ -276,6 +349,7 @@ function renderTree() {
   const openFolders = new Set([...$('tree').querySelectorAll('details[open]')].map(e => e.dataset.path));
   const nodes = new Map([['', { folders: [], files: [] }]]);
   for (const f of workspace.files) {
+    if (f.path === SETTINGS_FILE) continue;
     const parts = f.path.split('/'); parts.pop(); const parent = parts.join('/');
     if (!nodes.has(parent)) nodes.set(parent, { folders: [], files: [] });
     if (f.directory) { nodes.set(f.path, nodes.get(f.path) || { folders: [], files: [] }); nodes.get(parent).folders.push(f.path); }
@@ -291,7 +365,7 @@ function renderTree() {
   if (workspace.id) $('tree').insertAdjacentHTML('afterbegin', '<div class="tree-root" data-drop-folder="" title="Drop here to move to the workspace root">Workspace</div>');
 }
 function setView(next) {
-  if (next === 'document') { renderTabs(); layout.select('file:' + active); }
+  if (next === 'document') { renderTabs(); layout.select(layout.tabs.has(activeDocumentID) ? activeDocumentID : 'file:' + active); }
   else layout.open('view:' + next, { title: pageNames[next], icon: next === 'welcome' ? 'folder' : next, element: pages.get(next) });
   if (next === 'search') $('search-input').focus();
 }
@@ -302,17 +376,18 @@ async function openWorkspace() {
   if (native) next = await chooseWorkspace();
   else { const path = await askText('Open workspace', 'Absolute path to an existing folder', '', 'Open folder'); if (!path) return; next = await call('Open', { path }); }
   if (!next?.id || next.id === workspace.id) return;
-  restoringLayout = true; for (const t of tabs.values()) disposeDocument(t); tabs.clear(); layout.reset(); active = ''; activeSurface = null; view = 'agenda'; openSequence++; workspace = next; await refreshData(); await restoreLayout();
+  restoringLayout = true; for (const t of [...tabs.values(), ...duplicateViews.values()]) disposeDocument(t); duplicateViews.clear(); tabs.clear(); layout.reset(); active = ''; activeSurface = null; view = 'agenda'; openSequence++; workspace = next; await refreshData(); await restoreLayout();
   loadRecent();
 }
 async function refreshData() {
   const id = workspace.id;
   if (!id) return;
-  const [data, tagData] = await Promise.all([call('Calendar', { id }), call('Tags', { id })]); if (id !== workspace.id) return; entries = data; tags = tagData;
+  const [data, tagData] = await Promise.all([call('Calendar', { id }), call('Tags', { id })]); if (id !== workspace.id) return; baseEntries = data; occurrenceRange = ''; updateOccurrences(); tags = tagData;
   $('workspace-name').textContent = workspace.name;
   $('agenda-count').textContent = entries.filter(e => !e.done && e.stamp.date === today()).length || '';
   $('today-label').textContent = dateLabel(today());
   renderTree(); renderAgenda(); renderCalendar(); renderTags();
+  await workspaceSettings.refresh();
 }
 async function refresh() {
   if (movingFile) return;
@@ -331,7 +406,7 @@ async function refresh() {
         if (tabs.get(p) !== t || t.saving) continue;
         if (note.revision !== t.revision) {
           if (dirty(t)) t.conflict = true;
-          else { if (active === p && view === 'document') rememberPosition(); const updated = tabFrom(note, t); tabs.set(p, updated); renderDocument(updated); if (active === p && view === 'document') showDocument(); }
+          else { if (active === p && view === 'document') rememberPosition(); const updated = tabFrom(note, t); tabs.set(p, updated); renderDocumentViews(p); if (active === p && view === 'document') showDocument(); }
         }
       } catch { if (tabs.get(p) === t) t.conflict = true; }
     }
@@ -377,18 +452,22 @@ function renderDocument(t) {
 function renderContext(doc, surface = activeSurface) {
   if (!surface) return;
   const outline = surface.querySelector('[data-ui="outline"]');
-  const closed = new Set([...outline.querySelectorAll('details:not([open])')].map(d => d.dataset.key));
-  outline.headingState = reconcileOutline(outline.headingState, (doc.outlineSource ?? doc.source).replace(/\r\n?/g, '\n'), doc.headings);
-  const fragment = document.createElement('div');
-  const stack = [{ level: 0, element: fragment }];
-  for (const h of outline.headingState.headings) {
-    while (stack.length > 1 && stack.at(-1).level >= h.level) stack.pop();
-    const details = document.createElement('details'); details.dataset.heading = String(h.line); details.dataset.key = h.key; details.open = !closed.has(h.key);
-    details.innerHTML = `<summary><button data-jump="${h.line}">${esc(h.title)}</button></summary>`;
-    stack.at(-1).element.append(details); stack.push({ level: h.level, element: details });
+  const signature = JSON.stringify(doc.headings.map(h => [h.line, h.level, h.title]));
+  if (outline.renderedSignature !== signature) {
+    outline.renderedSignature = signature;
+    const closed = new Set([...outline.querySelectorAll('details:not([open])')].map(d => d.dataset.key));
+    outline.headingState = reconcileOutline(outline.headingState, (doc.outlineSource ?? doc.source).replace(/\r\n?/g, '\n'), doc.headings);
+    const fragment = document.createElement('div');
+    const stack = [{ level: 0, element: fragment }];
+    for (const h of outline.headingState.headings) {
+      while (stack.length > 1 && stack.at(-1).level >= h.level) stack.pop();
+      const details = document.createElement('details'); details.dataset.heading = String(h.line); details.dataset.key = h.key; details.open = !closed.has(h.key);
+      details.innerHTML = `<summary><button data-jump="${h.line}">${esc(h.title)}</button></summary>`;
+      stack.at(-1).element.append(details); stack.push({ level: h.level, element: details });
+    }
+    patchHTML(outline, doc.headings.length ? fragment.innerHTML : '<p class="empty">No headings</p>');
+    for (const details of outline.querySelectorAll('details')) details.open = !closed.has(details.dataset.key);
   }
-  patchHTML(outline, doc.headings.length ? fragment.innerHTML : '<p class="empty">No headings</p>');
-  for (const details of outline.querySelectorAll('details')) details.open = !closed.has(details.dataset.key);
   renderLocalGraph(doc, surface);
   setHTML(surface.querySelector('[data-ui="properties"]'), Object.entries(doc.metadata || {}).map(([k,v]) => `<button data-file-metadata title="Edit file metadata"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + Object.entries(doc.properties || {}).map(([k, v]) => `<button data-file-property="${esc(k)}" title="Edit ${esc(k)}"><strong>${esc(k)}</strong> ${esc(v)}</button>`).join('') + '<button data-file-metadata>Edit file metadata…</button>');
 }
@@ -409,8 +488,14 @@ async function renderLocalGraph(doc, surface) {
 }
 function setHTML(element, html) { patchHTML(element, html); }
 function setPreview(t, html) {
+  // A hidden reading view has no work to do while typing in source. Build it
+  // on entry, while still updating any other visible reading views of the file.
+  if (t.mode !== 'preview') return;
   const preview = t.surface.querySelector('[data-ui="preview"]'), prefix = t.surface.dataset.previewPrefix;
-  if (preview.renderedHTML === html) { t.documentView.prepare((t.outlineSource ?? t.source).replace(/\r\n?/g, '\n'), t.headings); return; }
+  const preparedSource = (t.outlineSource ?? t.source).replace(/\r\n?/g, '\n');
+  if (preview.renderedHTML === html && preview.preparedSource === preparedSource) return;
+  if (preview.renderedHTML === html) { preview.preparedSource = preparedSource; t.documentView.prepare(preparedSource, t.headings); return; }
+  preview.preparedSource = preparedSource;
   const scroll = preview.scrollTop;
   preview.renderedHTML = html;
   preview.innerHTML = html;
@@ -503,7 +588,7 @@ function setPreview(t, html) {
       heading.parentElement.classList.add('preview-section');
       heading.classList.toggle('org-clocked', !!task.clock);
       const selectHeading = () => {
-        layout.select('file:' + t.surface.dataset.path);
+         layout.select(t.surface.dataset.viewId);
         const offset = t.buffer.split('\n').slice(0, task.line - 1).reduce((n, line) => n + line.length + 1, 0);
         source.setSelectionRange(offset, offset); t.previewHeading = heading.id;
       };
@@ -547,12 +632,13 @@ function setPreview(t, html) {
 }
 function updateStatus(t = current()) {
   if (!t?.surface) return;
-  const find = id => t.surface.querySelector(`[data-ui="${id}"]`), editor = find('source');
+  const find = id => t.surface.uiElements.get(id), editor = find('source');
   find('save-state').textContent = t.saving ? 'Saving…' : t.conflict ? 'External change · buffer preserved' : t.saveError ? 'Auto-save failed · edits retained' : dirty(t) ? 'Waiting to save…' : 'Saved to disk';
   find('save').disabled = !dirty(t) || t.saving || t.conflict;
   find('conflict').hidden = !t.conflict;
-  const before = editor.value.slice(0, editor.selectionStart).split('\n');
-  find('cursor').textContent = `Ln ${before.length}, Col ${before.at(-1).length + 1}`;
+  const { line, column } = editor.cursorPosition();
+  const label = `Ln ${line}, Col ${column}`;
+  if (find('cursor').textContent !== label) find('cursor').textContent = label;
 }
 function syncEditorScroll(surface) { /* The rich editor owns wrapping, highlighting and scrolling. */ }
 function syncScroll() { if (activeSurface) syncEditorScroll(activeSurface); }
@@ -582,7 +668,7 @@ async function updatePreview(path = active) {
   const doc = await call('Preview', { source: buffer });
   if (seq !== t.previewSequence || t.buffer !== buffer || tabs.get(path) !== t) return;
   t.html = doc.html; t.headings = doc.headings; t.links = doc.links; t.outlineSource = buffer; t.properties = doc.properties; t.metadata = doc.metadata;
-  setPreview(t, doc.html); hydrateImages(t); renderContext(doc, t.surface); if (doc.warning) notify(doc.warning);
+  renderDocumentViews(path); if (doc.warning) notify(doc.warning);
 }
 function relativePath(target, path = active) {
   const parts = path.split('/'); parts.pop();
@@ -623,13 +709,28 @@ async function saveNote(path) {
     const note = await call('Save', { id, path, source: raw, revision: t.revision });
     if (workspace.id !== id || tabs.get(path) !== t) return;
     t.revision = note.revision; t.saved = buffer; t.conflict = false;
-    if (t.buffer === buffer) { t.html = note.html; t.headings = note.headings; t.links = note.links; t.outlineSource = buffer; t.properties = note.properties; t.metadata = note.metadata; setPreview(t, t.html); renderContext(t, t.surface); if (t.mode === 'preview') hydrateImages(t); }
+    if (t.buffer === buffer) { t.html = note.html; t.headings = note.headings; t.links = note.links; t.outlineSource = buffer; t.properties = note.properties; t.metadata = note.metadata; renderDocumentViews(path); }
     notify(''); await refreshData();
   } catch (err) { t.saveError = true; if (String(err).includes('changed on disk')) t.conflict = true; throw err; }
   finally { t.saving = false; renderTabs(); updateStatus(t); if (!t.saveError && !t.conflict && tabs.get(path) === t && dirty(t)) scheduleSave(t); }
 }
 async function closeTab(path) {
   const t = tabs.get(path); if (t?.saving) return;
+  const replacement = [...duplicateViews].find(([, item]) => item.path === path);
+  if (replacement) {
+    const [id, other] = replacement;
+    clearTimeout(t.previewTimer); clearTimeout(t.saveTimer);
+    t.resizeObserver?.disconnect(); t.documentView?.dispose(); t.vi?.dispose(); t.surface.querySelector('[data-ui="source"]').dispose();
+    for (const key of ['surface', 'vi', 'documentView', 'resizeObserver', 'mode', 'position', 'scroll', 'previewHeading']) t[key] = other[key];
+    layout.remove('file:' + path);
+    duplicateViews.delete(id);
+    t.surface.dataset.viewId = 'file:' + path;
+    layout.rename(id, 'file:' + path, { title: path.split('/').pop().replace(/\.org$/i, ''), icon: 'file', dirty: dirty(t), element: t.surface });
+    t.surface.querySelector('[data-ui="preview"]').renderedHTML = null;
+    renderTabs(); layout.select('file:' + path);
+    if (dirty(t)) scheduleSave(t);
+    return;
+  }
   if (dirty(t) && !await confirm('Close unsaved note?', `Discard your unsaved edits to ${path}?`, 'Discard edits')) return;
   disposeDocument(t); tabs.delete(path); layout.remove('file:' + path);
   if (!layout.tabs.size) { active = ''; view = 'agenda'; activeSurface = null; setView('agenda'); }
@@ -648,7 +749,8 @@ async function saveCopy() {
 function fileActions(event) { showFileMenu(active, event?.currentTarget || $('file-actions')); }
 function showFileMenu(path, anchor) {
   const fold = async action => { if (active !== path || view !== 'document') await openNote(path); headingFoldCommand(action); };
-  showActionMenu(anchor, 'File actions', [['File metadata…', async () => { if (active !== path || view !== 'document') await openNote(path); await fileMetadata(); }], ['Fold all headings', () => fold('fold-all')], ['Unfold all headings', () => fold('unfold-all')], ['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
+  const duplicate = async edge => { if (!tabs.has(path)) await openNote(path); duplicateDocument(path, edge); };
+  showActionMenu(anchor, 'File actions', [['Open in new tab', () => duplicate()], ['Split right', () => duplicate('right')], ['Split down', () => duplicate('bottom')], ['File metadata…', async () => { if (active !== path || view !== 'document') await openNote(path); await fileMetadata(); }], ['Fold all headings', () => fold('fold-all')], ['Unfold all headings', () => fold('unfold-all')], ['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
 }
 async function fileAction(path, action) {
   const t = tabs.get(path), id = workspace.id;
@@ -668,7 +770,7 @@ async function fileAction(path, action) {
     if (!await confirm('Delete note?', `${path} will be permanently removed from disk.`, 'Delete note')) return;
     if (id !== workspace.id || dirty(t) || t?.saving) return;
     await call('Remove', { id, path, revision: note.revision });
-    if (t) { disposeDocument(t); tabs.delete(path); layout.remove('file:' + path); }
+    if (t) { for (const [key, copy] of duplicateViews) if (copy.path === path) closeDuplicate(key); disposeDocument(t); tabs.delete(path); layout.remove('file:' + path); }
     if (!layout.tabs.size) { active = ''; activeSurface = null; setView('agenda'); }
   }
   workspace = await call('Status'); await refreshData(); renderTree();
@@ -682,7 +784,7 @@ async function folderAction(path, action) {
     const to = await askText('Rename or move folder', 'Destination path inside this workspace', path, 'Move folder'); if (!to || to === path) return;
     await call('Rename', { id: workspace.id, path, to });
     for (const [p,t] of [...tabs]) if (p.startsWith(path + '/')) { const next = to + p.slice(path.length); tabs.delete(p); t.path = next; tabs.set(next,t); if (active === p) active = next; }
-    if (view === 'document') showDocument(); renderTabs();
+    renderTabs(); if (view === 'document') showDocument();
   } else if (await confirm('Delete empty folder?', `Remove ${path}? Folders containing files will not be deleted.`, 'Delete folder')) {
     await call('Remove', { id: workspace.id, path, revision: '' });
   }
@@ -715,11 +817,11 @@ function entryColorStyle(e) {
   return tag ? `style="--tag-color:${tagColor(tag)}" data-color-tag="${esc(tag)}"` : '';
 }
 function entryHTML(e) {
-  const index = entries.indexOf(e);
-  const clock = e.done ? '' : `<button class="icon-button task-clock" data-clock="${index}" aria-pressed="${!!e.clock}" aria-label="${e.clock ? 'Clock out of' : 'Clock in to'} ${esc(e.title)}" title="${e.clock ? 'Clock out' : 'Clock in'}">${icon(e.clock ? 'clock-stop' : 'clock')}</button>`;
+  const index = entryIndices.get(e);
+  const clock = e.done || e.projected ? '' : `<button class="icon-button task-clock" data-clock="${index}" aria-pressed="${!!e.clock}" aria-label="${e.clock ? 'Clock out of' : 'Clock in to'} ${esc(e.title)}" title="${e.clock ? 'Clock out' : 'Clock in'}">${icon(e.clock ? 'clock-stop' : 'clock')}</button>`;
   const actions = `<div class="agenda-row-actions">${clock}<button class="icon-button agenda-edit" data-edit-task="${index}" aria-label="Edit task: ${esc(e.title)}" title="Edit task">${icon('pencil')}</button></div>`;
   const time = e.stamp.time ? formatTime(e.stamp.time, $('calendar-time-format').value) : e.stamp.date ? 'All day' : 'Unscheduled';
-  return `<div class="agenda-row ${e.done ? 'completed' : ''}">${e.state ? e.stamp.kind === 'completed' ? `<span class="task-state org-done">${esc(e.state)}</span>` : `<button class="agenda-complete task-state ${e.done ? 'org-done' : 'org-todo'}" data-complete="${index}" aria-label="${e.done ? 'Reopen' : 'Mark'} ${esc(e.title)}${e.done ? '' : ' as done'}">${esc(e.state)}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(time)}<br><small>${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button>${actions}</div>`;
+  return `<div class="agenda-row ${e.done ? 'completed' : ''} ${e.projected ? 'projected' : ''}">${e.state ? e.stamp.kind === 'completed' || e.projected ? `<span class="task-state ${e.done ? 'org-done' : 'org-todo'}">${esc(e.state)}</span>` : `<button class="agenda-complete task-state ${e.done ? 'org-done' : 'org-todo'}" data-complete="${index}" aria-label="${e.done ? 'Reopen' : 'Mark'} ${esc(e.title)}${e.done ? '' : ' as done'}">${esc(e.state)}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(time)}<br><small>${e.projected ? 'Projected · ' : ''}${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button>${actions}</div>`;
 }
 async function editAgendaTask(item) {
   if (!item) return;
@@ -747,7 +849,7 @@ async function clockEntry(item) {
   try { await clockEntryTransaction(item); } finally { clockBusy = false; }
 }
 async function clockEntryTransaction(item) {
-  if (!item || item.stamp.kind === 'completed') return;
+  if (!item || item.projected || item.stamp.kind === 'completed') return;
   const id = workspace.id;
   const targets = item.clock ? [item] : [...runningClocks(), item];
   for (const entry of targets) if (dirty(tabs.get(entry.path)) || tabs.get(entry.path)?.saving) { notify('Wait for edits to save before changing clocks.'); return; }
@@ -771,10 +873,10 @@ function renderClocks() {
   const clocks = runningClocks();
   const text = clocks.map(e => `${e.title} · since ${e.clock.slice(-6, -1)}`).join(' · ');
   $('calendar-clock').textContent = text; $('calendar-clock').hidden = !clocks.length;
-  for (const t of tabs.values()) { const slot = t.surface?.querySelector('[data-ui="note-clock"]'); if (slot) { slot.textContent = text; slot.hidden = !clocks.length; } }
+  for (const t of [...tabs.values(), ...duplicateViews.values()]) { const slot = t.surface?.querySelector('[data-ui="note-clock"]'); if (slot) { slot.textContent = text; slot.hidden = !clocks.length; } }
 }
 async function completeAgendaEntry(item) {
-  if (!item || item.stamp.kind === 'completed') return;
+  if (!item || item.projected || item.stamp.kind === 'completed') return;
   if (dirty(tabs.get(item.path)) || tabs.get(item.path)?.saving) { notify('Save your edits before completing this task.'); return; }
   const id = workspace.id;
   const note = await call('Read', { id, path: item.path });
@@ -784,13 +886,16 @@ async function completeAgendaEntry(item) {
   await refresh(); notify(item.done ? 'Task reopened.' : 'Task completed.');
 }
 function renderAgenda() {
+  if (updateOccurrences()) renderCalendar();
   agendaQuery.update(entries, workspace.key);
   const selectedDay = agendaDate || today();
   $('today-label').textContent = dateLabel(agendaFilter === 'today' ? selectedDay : today());
   document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('active', b.dataset.filter === agendaFilter && (agendaFilter !== 'today' || selectedDay === today())));
   const now = today(); const groups = new Map();
+  const horizon = civil(now); horizon.setDate(horizon.getDate() + 90);
   for (const e of entries.filter(agendaMatches)) {
     const d = e.stamp.date;
+    if (e.projected && agendaFilter !== 'today' && d > dateKey(horizon)) continue;
     if (agendaFilter === 'today' && d !== selectedDay && !(selectedDay === now && !e.done && d && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind))) continue;
     if (agendaFilter === 'upcoming' && (!d || d < now)) continue;
     if (agendaFilter === 'overdue' && !(!e.done && d && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind))) continue;
@@ -817,7 +922,7 @@ function calendarMatches(e) {
 function dayEntries(key) { return entries.filter(e => calendarMatches(e) && e.stamp.date && e.stamp.date <= key && (e.stamp.endDate || e.stamp.date) >= key); }
 function monthEntry(e) {
   const format = $('calendar-time-format').value;
-  return `<div class="calendar-item" data-key="${esc(e.path+':'+e.line+':'+e.stamp.kind)}"><button class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''} ${e.clock ? 'is-clocked' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entries.indexOf(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}">${calendarClock(e)}<span class="calendar-event-title">${esc(e.title)}</span>${e.stamp.time ? `<span class="calendar-event-time">${esc(formatTime(e.stamp.time,format))}${e.stamp.endTime ? '–'+esc(formatTime(e.stamp.endTime,format)) : ''}</span>` : ''}</button></div>`;
+  return `<div class="calendar-item" data-key="${esc(e.path+':'+e.line+':'+e.stamp.kind+':'+e.stamp.date+':'+e.stamp.time)}"><button class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''} ${e.clock ? 'is-clocked' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entryIndices.get(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}">${calendarClock(e)}<span class="calendar-event-title">${esc(e.title)}</span>${e.stamp.time ? `<span class="calendar-event-time">${esc(formatTime(e.stamp.time,format))}${e.stamp.endTime ? '–'+esc(formatTime(e.stamp.endTime,format)) : ''}</span>` : ''}</button></div>`;
 }
 function monthGrid(year, month) {
   const first = new Date(year, month, 1, 12), start = new Date(first); start.setDate(1 - (first.getDay() + 6) % 7);
@@ -830,6 +935,7 @@ function monthGrid(year, month) {
   return html + '</div>';
 }
 function renderCalendar() {
+  if (updateOccurrences()) renderAgenda();
   document.querySelectorAll('[data-calendar]').forEach(b => b.classList.toggle('active', b.dataset.calendar === calendarMode));
   const y = calendarDate.getFullYear(), m = calendarDate.getMonth();
   $('calendar-title').textContent = calendarMode === 'year' ? String(y) : calendarMode === 'day' ? dateLabel(dateKey(calendarDate)) : calendarDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -845,7 +951,7 @@ function renderCalendar() {
     patchHTML($('calendar-grid'), html + '</div>'); return;
   }
   const start = new Date(calendarDate); if (calendarMode === 'week') start.setDate(start.getDate() - (start.getDay() + 6) % 7);
-  patchHTML($('calendar-grid'), timeGrid(start, calendarMode === 'week' ? 7 : 1, entries.filter(calendarMatches), entryColorStyle, e => entries.indexOf(e), $('calendar-time-format').value));
+  patchHTML($('calendar-grid'), timeGrid(start, calendarMode === 'week' ? 7 : 1, entries.filter(calendarMatches), entryColorStyle, e => entryIndices.get(e), $('calendar-time-format').value));
   updateNowLine($('calendar-grid'), $('calendar-time-format').value);
 }
 function shiftCalendar(delta) {
@@ -855,25 +961,55 @@ function shiftCalendar(delta) {
   renderCalendar();
 }
 async function capture(date = today(), time = '', endTime = '') {
-  const files = workspace.files.filter(f => !f.directory);
-  const data = await taskDialog(dialog, { date, time, endTime, path: files.some(f => f.path === 'inbox.org') ? 'inbox.org' : files[0]?.path || 'inbox.org' });
+  const id = workspace.id;
+  const rank = path => tabs.has(path) ? [...tabs.keys()].indexOf(path) : recent.includes(path) ? tabs.size + recent.indexOf(path) : 10000;
+  const files = workspace.files.filter(f => !f.directory && f.path !== SETTINGS_FILE).map(f => ({ ...f, label: tabs.has(f.path) ? 'Open' : recent.includes(f.path) ? 'Recent' : '' })).sort((a,b) => rank(a.path) - rank(b.path) || a.path.localeCompare(b.path));
+  const data = await taskDialog(dialog, { date, time, endTime, files, readNote: path => call('Read', { id, path }), path: files[0]?.path || 'inbox.org' });
   if (!data) return;
+  if (workspace.id !== id) return;
   const path = data.get('path').trim();
-  if (dirty(tabs.get(path))) { notify('Save your open edits to this file before capturing a task into it.'); return; }
+  if (path === SETTINGS_FILE) { notify('Choose a note rather than the shared settings file.'); return; }
+  if (dirty(tabs.get(path)) || tabs.get(path)?.saving) { notify('Save your open edits to this file before capturing a task into it.'); return; }
   let note = { source: '', revision: '' };
   if (workspace.files.some(f => f.path === path)) note = await call('Read', { id: workspace.id, path });
   const eol = note.source.includes('\r\n') ? '\r\n' : '\n';
-  const addition = `${note.source && !note.source.endsWith('\n') ? eol : ''}${eol}* ${data.get('title').trim()}${eol}`;
-  const source = note.source + addition, line = source.split('\n').length - 1;
+  let at = note.source.length, level = 1;
+  if (data.get('parentLine')) {
+    if (note.revision !== data.get('parentRevision')) { notify('The parent file changed. Reopen New task to choose its current heading.'); return; }
+    const index = note.headings.findIndex(h => h.line === Number(data.get('parentLine')));
+    if (index < 0) { notify('The selected parent heading no longer exists.'); return; }
+    level = note.headings[index].level + 1;
+    const next = note.headings[index + 1];
+    if (next) at = note.source.split('\n').slice(0, next.line - 1).reduce((n, text) => n + text.length + 1, 0);
+  }
+  const prefix = note.source.slice(0, at), separator = prefix && !prefix.endsWith('\n') ? eol : '';
+  const addition = `${separator}${'*'.repeat(level)} ${data.get('title').trim()}${eol}`;
+  const source = prefix + addition + note.source.slice(at), line = (prefix + separator).split('\n').length;
   const updatedSource = await call('Edit', { source, line, operation: 'task', value: JSON.stringify(taskValues(data)) });
   const saved = await call('Save', { id: workspace.id, path, source: updatedSource, revision: note.revision });
   const tab = tabs.get(path);
-  if (tab) { if (dirty(tab) || tab.saving) tab.conflict = true; else { const updated = tabFrom(saved, tab); tabs.set(path, updated); renderDocument(updated); } }
+  if (tab) { if (dirty(tab) || tab.saving) tab.conflict = true; else { const updated = tabFrom(saved, tab); tabs.set(path, updated); renderDocumentViews(path); } }
+  const previous = recent.indexOf(path); if (previous >= 0) recent.splice(previous, 1); recent.unshift(path);
+  localStorage.setItem('org-recent-' + workspace.key, JSON.stringify(recent.slice(0, 30)));
   renderTabs();
   workspace = await call('Status'); await refreshData();
   notify(`Task saved to ${path}.`);
 }
 function taskValues(data) { return { title: data.get('title').trim(), date: data.get('date'), time: data.get('time'), endTime: data.get('endTime'), kind: data.get('kind'), repeater: data.get('repeater').trim() }; }
+async function newTaskAtCursor() {
+  const t = current(); if (!t) return;
+  const editor = source, path = active, before = t.buffer, at = editor.selectionStart;
+  const data = await taskDialog(dialog, { path, inDocument: true });
+  if (!data) return;
+  if (current() !== t || t.buffer !== before) { notify('The note changed. Please try again.'); return; }
+  const prefix = at && before[at - 1] !== '\n' ? '\n' : '';
+  const inserted = before.slice(0, at) + prefix + '* New task\n' + before.slice(at);
+  const line = (before.slice(0, at) + prefix).split('\n').length;
+  const changed = await call('Edit', { source: inserted, line, operation: 'task', value: JSON.stringify(taskValues(data)) });
+  if (current() !== t || t.buffer !== before) return;
+  setMode('edit'); applySource(editor, before, changed);
+  editor.jumpTo(at + prefix.length); editor.focus();
+}
 function applySource(editor, before, after) {
   let start = 0, end = before.length, changedEnd = after.length;
   while (start < end && start < changedEnd && before[start] === after[start]) start++;
@@ -892,9 +1028,9 @@ async function editTaskAtCursor(kindOverride) {
   const stamp = heading.dates.find(st => st.kind === 'scheduled' || st.kind === 'deadline');
   const data = await taskDialog(dialog, { editing: true, title, path, date: stamp?.date || '', time: stamp?.time || '', endTime: stamp?.endTime || '', repeater: stamp?.repeater || '', kind: kindOverride || stamp?.kind || 'scheduled' });
   if (!data) return;
-  if (tabs.get(path) !== t || t.buffer !== buffer) { notify('This heading changed while the task dialog was open. Please try again.'); return; }
+  if (!liveDocument(path, t) || t.buffer !== buffer) { notify('This heading changed while the task dialog was open. Please try again.'); return; }
   const changed = await call('Edit', { source: buffer, line: heading.line, operation: 'task', value: JSON.stringify({ ...taskValues(data), previousKind: stamp?.kind }) });
-  if (tabs.get(path) !== t || t.buffer !== buffer) return;
+  if (!liveDocument(path, t) || t.buffer !== buffer) return;
   applySource(editor, buffer, changed);
 }
 async function search() {
@@ -921,7 +1057,7 @@ async function editorCommand(name) {
     const t = current(), buffer = t.buffer, path = active;
     const line = source.value.slice(0, source.selectionStart).split('\n').length;
     const changed = await call('Edit', { source: buffer, line, operation: name, value: extra });
-    if (active !== path || tabs.get(path) !== t || t.buffer !== buffer) { notify('The buffer changed while the command ran. Please try again.'); return; }
+    if (active !== path || !liveDocument(path, t) || t.buffer !== buffer) { notify('The buffer changed while the command ran. Please try again.'); return; }
     let start = 0, end = buffer.length, changedEnd = changed.length;
     while (start < end && start < changedEnd && buffer[start] === changed[start]) start++;
     while (end > start && changedEnd > start && buffer[end - 1] === changed[changedEnd - 1]) { end--; changedEnd--; }
@@ -937,10 +1073,10 @@ async function fileMetadata() {
   const form = dialog('File metadata', `<p>Common Org file settings. Leave a field blank to remove it.</p>${fields.map(([key,label,hint]) => `<label>${label}<input name="${key}" value="${esc(key === 'FILETAGS' ? (doc.metadata?.[key] || '').replaceAll(':', ' ').trim() : doc.metadata?.[key] || '')}"><small>${hint}</small></label>`).join('')}<details><summary>Custom properties</summary><p>Advanced values stored in the file’s top-level property drawer.</p><label>Property name<input name="customName" list="file-property-names" pattern="[A-Za-z0-9_@#%+\\-]+" placeholder="CUSTOM_ID"></label><datalist id="file-property-names">${Object.keys(doc.properties || {}).map(k => `<option value="${esc(k)}"></option>`).join('')}</datalist><label>Value<input name="customValue"></label><label><input type="checkbox" name="customRemove"> Remove this custom property</label></details>`, 'Save metadata');
   $('modal-body').querySelector('[name="customName"]').addEventListener('input', e => { $('modal-body').querySelector('[name="customValue"]').value = doc.properties?.[e.target.value.toUpperCase()] || ''; });
   const data = await form;
-  if (!data || active !== path || tabs.get(path) !== t || t.buffer !== buffer) return;
+  if (!data || active !== path || !liveDocument(path, t) || t.buffer !== buffer) return;
   let changed = await call('Edit', { source: buffer, operation: 'file-metadata', value: JSON.stringify(Object.fromEntries(fields.map(([key]) => [key, data.get(key)]))) });
   if (data.get('customName').trim()) changed = await call('Edit', { source: changed, operation: 'file-property', value: JSON.stringify({name:data.get('customName').trim(), value:data.get('customValue'), remove:data.has('customRemove')}) });
-  if (active !== path || tabs.get(path) !== t || t.buffer !== buffer) return;
+  if (active !== path || !liveDocument(path, t) || t.buffer !== buffer) return;
   applySource(editor, buffer, changed);
 }
 async function fileProperty(name) {
@@ -948,9 +1084,9 @@ async function fileProperty(name) {
   if (!t || view !== 'document') return;
   const buffer = t.buffer, doc = await call('Preview', { source: buffer });
   const data = await dialog(name ? 'Edit file property' : 'Add file property', `<p>Stored in the property drawer at the top of this Org file.</p><label>Property name<input name="name" required pattern="[A-Za-z0-9_@#%+\\-]+" value="${esc(name)}" ${name ? 'readonly' : ''} placeholder="CATEGORY"></label><label>Value<input name="value" value="${esc(doc.properties?.[name] || '')}"></label>${name ? '<label><input type="checkbox" name="remove"> Remove this property</label>' : ''}`, 'Save property');
-  if (!data || active !== path || tabs.get(path) !== t || t.buffer !== buffer) return;
+  if (!data || active !== path || !liveDocument(path, t) || t.buffer !== buffer) return;
   const changed = await call('Edit', { source: buffer, operation: 'file-property', value: JSON.stringify({ name: data.get('name'), value: data.get('value'), remove: data.has('remove') }) });
-  if (active !== path || tabs.get(path) !== t || t.buffer !== buffer) return;
+  if (active !== path || !liveDocument(path, t) || t.buffer !== buffer) return;
   applySource(editor, buffer, changed);
 }
 async function headingAction(operation) {
@@ -978,9 +1114,9 @@ async function headingAction(operation) {
     const data = await dialog('Heading priority', `<label>Priority<select name="priority">${[['','None'],['A','A · High'],['B','B · Normal'],['C','C · Low'], ...(!['','A','B','C'].includes(existing) ? [[existing,existing]] : [])].map(([v,label]) => `<option value="${v}" ${v === existing ? 'selected' : ''}>${label}</option>`).join('')}</select></label>`, 'Save priority');
     if (!data) return; value = data.get('priority');
   }
-  if (tabs.get(path) !== t || t.buffer !== buffer) { notify('The heading changed. Please try again.'); return; }
+  if (!liveDocument(path, t) || t.buffer !== buffer) { notify('The heading changed. Please try again.'); return; }
   const changed = await call('Edit', { source: buffer, line: heading.line, operation: operation === 'complete' && !heading.state ? 'todo' : operation, value });
-  if (tabs.get(path) !== t || t.buffer !== buffer) return;
+  if (!liveDocument(path, t) || t.buffer !== buffer) return;
   applySource(editor, buffer, changed);
 }
 const insertionActions = [['heading', 'Heading'], ['bold', 'Bold'], ['italic', 'Italic'], ['underline', 'Underline'], ['code', 'Inline code'], ['strike', 'Strikethrough'], ['link', 'Link…'], ['timestamp', 'Timestamp…'], ['image', 'Embed image…'], ['mermaid', 'Mermaid diagram'], ['math', 'Inline math'], ['latex', 'Math block'], ['table', 'Table'], ['source-block', 'Code block'], ['quote', 'Quote block'], ['checklist', 'Checklist']];
@@ -1005,7 +1141,7 @@ async function insertContent(kind) {
     if (!block) return;
     text = `#+begin_${block[0]}\n${selected || block[1]}\n#+end_${block[0].split(' ')[0]}\n`;
   }
-  if (tabs.get(active) !== t || t.buffer !== before) { notify('The note changed. Please try again.'); return; }
+  if (!liveDocument(active, t) || t.buffer !== before) { notify('The note changed. Please try again.'); return; }
   const block = ['mermaid','latex','source-block','quote','table','checklist','image'].includes(kind);
   if (block && from > 0 && before[from - 1] !== '\n') text = '\n' + text;
   replaceSelection(editor, text, from, to);
@@ -1124,7 +1260,7 @@ document.addEventListener('click', run(async e => {
     let colors; try { colors = JSON.parse(localStorage.getItem(key) || '{}'); } catch {}
     colors = Object.assign(Object.create(null), colors);
     colors[b.dataset.colorName] = b.dataset.color;
-    localStorage.setItem(key, JSON.stringify(colors)); renderTags(); renderAgenda(); renderCalendar(); return;
+    localStorage.setItem(key, JSON.stringify(colors)); workspaceSettings.colorsChanged(); renderTags(); renderAgenda(); renderCalendar(); return;
   }
   if (b.dataset.complete !== undefined) return completeAgendaEntry(entries[Number(b.dataset.complete)]);
   if (b.dataset.editTask !== undefined) return editAgendaTask(entries[Number(b.dataset.editTask)]);
@@ -1173,8 +1309,14 @@ $('agenda-query-builder').addEventListener('saved-views-changed', e => {
   renderCalendar();
 });
 $('line-numbers').value = localStorage.getItem('orbitalnote-line-numbers') || 'off';
-listen('line-numbers', 'change', () => { localStorage.setItem('orbitalnote-line-numbers', $('line-numbers').value); for (const t of tabs.values()) t.surface?.querySelector('[data-ui="source"]')?.setLineNumbers($('line-numbers').value); });
+listen('line-numbers', 'change', () => { localStorage.setItem('orbitalnote-line-numbers', $('line-numbers').value); for (const t of [...tabs.values(), ...duplicateViews.values()]) t.surface?.querySelector('[data-ui="source"]')?.setLineNumbers($('line-numbers').value); });
 $('monospace-mode').checked = localStorage.getItem('orbitalnote-monospace') === 'true';
+for (const [id, fallback] of [['preview-indent', true], ['hide-footer', false]]) {
+  const input = $(id), key = 'orbitalnote-' + id;
+  input.checked = localStorage.getItem(key) === null ? fallback : localStorage.getItem(key) === 'true';
+  const apply = () => document.documentElement.setAttribute('data-' + id, String(input.checked));
+  apply(); listen(id, 'change', () => { localStorage.setItem(key, String(input.checked)); apply(); });
+}
 $('calendar-time-format').value = localStorage.getItem('orbitalnote-calendar-time-format') || '12';
 listen('calendar-time-format', 'change', () => { localStorage.setItem('orbitalnote-calendar-time-format', $('calendar-time-format').value); renderCalendar(); renderAgenda(); });
 setInterval(() => updateNowLine($('calendar-grid'), $('calendar-time-format').value), 30000);
@@ -1197,9 +1339,10 @@ const systemTheme = matchMedia('(prefers-color-scheme: dark)');
 setupAppearance($('theme'), dark => setNativeTheme(dark).catch(fail));
 resizeSidebar($('sidebar'), 'left');
 $('vi-mode').checked = localStorage.getItem('org-vi-mode') === 'true';
-listen('vi-mode', 'change', () => { localStorage.setItem('org-vi-mode', String($('vi-mode').checked)); for (const t of tabs.values()) t.vi?.setEnabled($('vi-mode').checked); });
+listen('vi-mode', 'change', () => { localStorage.setItem('org-vi-mode', String($('vi-mode').checked)); for (const t of [...tabs.values(), ...duplicateViews.values()]) t.vi?.setEnabled($('vi-mode').checked); });
+const dialogs = document.getElementsByTagName('dialog');
 document.addEventListener('keydown', run(async e => {
-  if (shortcuts.capture(e) || e.isComposing || document.querySelector('dialog[open]')) return;
+  if (shortcuts.capture(e) || e.isComposing || [...dialogs].some(dialog => dialog.open)) return;
   const action = shortcuts.match(e);
   const editing = source && current()?.mode === 'edit' && !e.target.closest('button') && (e.target === source || source.contains(e.target));
   if (action && (action.scope !== 'editor' || editing)) {
@@ -1212,7 +1355,7 @@ window.addEventListener('beforeunload', e => { if ([...tabs.values()].some(dirty
 async function closeActiveTab() {
   if ($('modal').open || $('palette').open) return;
   const id = layout.focusedGroup().active;
-  if (id) await (id.startsWith('file:') ? closeTab(id.slice(5)) : closeViewTab(id));
+  if (id) await (id.startsWith('copy:') ? closeDuplicate(id) : id.startsWith('file:') ? closeTab(id.slice(5)) : closeViewTab(id));
 }
 await onCloseTab(run(closeActiveTab));
 await onClose(run(async () => {
@@ -1257,7 +1400,7 @@ $('tree').addEventListener('drop', run(async e => {
     for (let i = 0; i < recent.length; i++) if (recent[i] === from || recent[i].startsWith(from + '/')) recent[i] = to + recent[i].slice(from.length);
     localStorage.setItem('org-recent-' + workspace.key, JSON.stringify(recent.slice(0, 30)));
     workspace = await call('Status'); await refreshData();
-    if (view === 'document') showDocument(); renderTabs();
+    renderTabs(); if (view === 'document') showDocument();
     notify(`Moved to ${to}`);
   } finally { movingFile = false; for (const t of tabs.values()) if (dirty(t) && !t.conflict && !t.saveError) scheduleSave(t); }
 }));
@@ -1267,6 +1410,7 @@ $('calendar-grid').addEventListener('dragstart', e => {
   draggedEntry = entries[Number(b.dataset.entry)]; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', draggedEntry.title);
 });
 async function moveCalendarEntry(item, value) {
+  if (item.projected) return;
   if (dirty(tabs.get(item.path)) || tabs.get(item.path)?.saving) { notify('Save your edits before moving this event.'); return; }
   await call('Reschedule', { id: workspace.id, path: item.path, revision: item.revision, start: item.stamp.start, end: item.stamp.end, value: typeof value === 'string' ? value : JSON.stringify(value) });
   await refresh();
@@ -1300,10 +1444,12 @@ async function restoreLayout() {
     }
     renderTabs();
     for (const t of tabs.values()) renderDocument(t);
+    for (const copy of saved.copies || []) if (typeof copy.id === 'string' && copy.id.startsWith('copy:') && tabs.has(copy.path)) duplicateDocument(copy.path, undefined, copy);
     layout.restore(saved);
   }
   if (!layout.tabs.size) setView(workspace.id ? 'agenda' : 'welcome');
   restoringLayout = false; layout.changed();
 }
+const workspaceSettings = setupWorkspaceSettings($('workspace-settings-sync'), { workspace: () => workspace, call, colorsChanged: () => { renderTags(); renderAgenda(); renderCalendar(); } });
 try { workspace = await call('Status'); loadRecent(); await refreshData(); await restoreLayout(); renderTabs(); setInterval(() => refresh().catch(fail), 1000); }
 catch (err) { fail(err); setView('welcome'); }

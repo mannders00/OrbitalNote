@@ -26,6 +26,7 @@ const paths = {
   chevrons: '<path d="m9 8 3-3 3 3m-6 8 3 3 3-3"/>',
   left: '<path d="m14 6-6 6 6 6"/>',
   right: '<path d="m9 6 6 6-6 6"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   flag: '<path d="M5 21V3m0 1h14l-3 4 3 4H5"/>',

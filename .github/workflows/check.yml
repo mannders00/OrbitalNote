@@ -55,7 +55,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.14'
-      - run: bun test app/ui/editor.test.js app/ui/calendar.test.js app/ui/agenda-query.test.js app/ui/local-graph.test.js app/editor/headings.test.js app/editor/metadata.test.js
+      - run: bun test app/ui/editor.test.js app/ui/calendar.test.js app/ui/agenda-query.test.js app/ui/local-graph.test.js app/ui/recurrence.test.js app/ui/workspace-settings.test.js app/editor/headings.test.js app/editor/metadata.test.js
       - run: bun install --frozen-lockfile && bun test search.test.js && bun run build
         working-directory: app/editor
       - run: git diff --exit-code -- app/ui/vendor
