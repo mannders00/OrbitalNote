@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { headingRanges } from './headings.js';
+import { headingRanges, listRanges } from './headings.js';
 
 test('folds contain descendants but never the next sibling heading', () => {
   const source = '* Parent\nBody\n** Child\nChild body\n* Sibling\nLast body';
@@ -16,4 +16,18 @@ test('empty headings have no fold range; CRLF offsets preserve source', () => {
   const [empty, body] = headingRanges('* Empty\r\n* Body\r\nuntouched\r\n');
   expect(empty.from).toBe(empty.to);
   expect(body.from).toBe(16);
+});
+test('list folds include nested checklists and continuation text without swallowing siblings', () => {
+  const source = '* H\n- [ ] Parent\n  prose\n\n  1. Child\n     - Grandchild\n- Sibling\n* Next\n';
+  const items = listRanges(source);
+  expect(items.map(i => i.title)).toEqual(['[ ] Parent', 'Child', 'Grandchild', 'Sibling']);
+  expect(source.slice(items[0].from, items[0].to)).toBe('\n  prose\n\n  1. Child\n     - Grandchild');
+  expect(source.slice(items[1].from, items[1].to)).toBe('\n     - Grandchild');
+  expect(items[3].from).toBe(items[3].to);
+});
+test('list examples in blocks and drawers are opaque and CRLF offsets are retained', () => {
+  const source = '#+begin_src org\r\n- fake\r\n#+end_src\r\n:LOGBOOK:\r\n- fake\r\n:END:\r\n- Real\r\n  - Child\r\n';
+  const items = listRanges(source);
+  expect(items.map(i => i.title)).toEqual(['Real', 'Child']);
+  expect(source.slice(items[0].from, items[0].to)).toBe('\r\n  - Child');
 });

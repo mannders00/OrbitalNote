@@ -1,9 +1,29 @@
-# OrbitalNote 0.1.0-preview.20
+# OrbitalNote 0.1.0-preview.21
 
-Faster editing, multiple views of a note, future repeats, and shared workspace settings.
+Focused heading views, list folding, and smoother split-pane planning.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.19
+## What's new since preview.20
+
+### Editing and navigation
+- Fold nested bullet lists and checklists in source and reading views, retaining fold state across mode switches.
+- Put **Fold all** and **Unfold all** first in file actions, covering headings, lists, and metadata.
+- Fix Vim `O` inserting a new line above a heading when the preceding section is folded.
+- Use **Ctrl+W, then h/j/k/l** to focus the split to the left/below/above/right. Vim insert mode retains its word-deletion behavior.
+- Choose **Heading actions → Focus on heading** to open an isolated source-editor tab. Edits and saves use the original file, surrounding text is protected, and **Show whole file** exits focus. Focused tabs restore when their heading can still be identified.
+
+### Window, mobile, and planning
+- Merge macOS tabs with the draggable native title area by default; disable **Merge tabs with title bar** in Settings for a separate title area.
+- Prevent mobile pinch gestures from magnifying the application UI, including disabling Android WebView zoom controls.
+- When a split exists, clicking an Agenda/Calendar task opens a new tab in another pane and keeps the planner visible, including for previously unopened files.
+- Respect the 12/24-hour setting in editor and Calendar running-clock labels; make calendar event text nonselectable.
+- Remember the last task file and selected parent heading per workspace/device, and offer **Top level (beginning of file)** alongside end-of-file insertion.
+
+Validation includes Go tests/vet, JavaScript unit tests, heading-workflow browser checks, Vim regressions, multiple-view checks, and source/preview folding checks. Native macOS dragging and physical-device pinch behavior still need hands-on verification.
+
+See the [editing guide](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.21/docs/editing.md) for the new workflows.
+
+## Also included from preview.20
 
 ### Faster input and multiple views
 - Remove whole-document scans and repeated DOM searches from Vim motions; coalesce cursor-status updates.

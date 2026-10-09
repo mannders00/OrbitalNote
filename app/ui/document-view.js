@@ -16,8 +16,10 @@ export function createDocumentView(surface, editor) {
   });
   observer.observe(preview);
   const visible = el => el.getClientRects().length && !el.closest('[hidden], details:not([open])');
-  const foldSignature = () => editor.getHeadingFolds().join(',') + '/' + editor.getMetadataFolds().join(',');
+  const foldSignature = () => editor.getHeadingFolds().join(',') + '/' + editor.getMetadataFolds().join(',') + '/' + editor.listRanges().filter(h => h.folded).map(h => h.start).join(',');
   function syncFolds() {
+    const lists = new Map(editor.listRanges().map(h => [h.start, h]));
+    for (const button of preview.querySelectorAll('.preview-list-fold')) button.updateFold(!!lists.get(Number(button.dataset.listStart))?.folded);
     const folds = new Set(editor.getHeadingFolds());
     for (const heading of preview.querySelectorAll('[data-source-heading]')) heading.querySelector('.preview-heading-fold')?.updateFold(folds.has(Number(heading.dataset.sourceHeading)), false);
     const metadata = editor.metadataRanges();
@@ -73,6 +75,22 @@ export function createDocumentView(surface, editor) {
       else if (el.matches('p,pre,table')) { while (end + 1 < lines.length && lines[end + 1].trim() && !/^\s*(?:\*+ |#\+|:[\w]+:)/.test(lines[end + 1])) end++; }
       anchors.push({ el, from: offsets[line], to: offsets[end] + lines[end].length });
       cursor = end + 1;
+    }
+    const listItems = editor.listRanges(); let listIndex = 0;
+    for (const li of preview.querySelectorAll('li')) {
+      const firstParagraph = li.querySelector(':scope > p');
+      const bodies = [...li.children].filter(el => el.matches('ul, ol') || el.matches('p') && el !== firstParagraph);
+      const title = plain([...li.childNodes].filter(node => node.nodeType === 3 || node.nodeType === 1 && !node.matches('ul, ol, button')).map(node => node.textContent).join('')).replace(/^\[[ Xx-]\]\s*/, '');
+      const index = listItems.findIndex((item, i) => i >= listIndex && title.startsWith(plain(item.title).replace(/^\[[ Xx-]\]\s*/, '')));
+      if (index < 0) continue;
+      listIndex = index + 1;
+      const item = listItems[index]; if (!bodies.length || item.to <= item.from) continue;
+      let button = li.querySelector(':scope > .preview-list-fold');
+      if (!button) { button = document.createElement('button'); button.type = 'button'; button.className = 'preview-list-fold'; li.prepend(button); }
+      button.dataset.listStart = String(item.start);
+      button.updateFold = collapsed => { for (const body of bodies) body.hidden = collapsed; button.textContent = collapsed ? '▸' : '▾'; button.setAttribute('aria-expanded', String(!collapsed)); button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} list item`); };
+      button.onclick = event => { event.preventDefault(); event.stopPropagation(); editor.foldList(Number(button.dataset.listStart), button.getAttribute('aria-expanded') === 'true'); syncFolds(); };
+      li.classList.add('foldable-list-item');
     }
     syncFolds();
     observer.disconnect(); observer.observe(preview);

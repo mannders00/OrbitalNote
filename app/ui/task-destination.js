@@ -2,7 +2,7 @@ import { escapeHTML as esc } from './editor.js';
 import { icon } from './icons.js';
 
 // The caller supplies a snapshot ordered by open/recent use, not a live file list.
-export function mountTaskDestination(root, files, readNote) {
+export function mountTaskDestination(root, files, readNote, memoryKey) {
   const input = root.querySelector('[name="path"]');
   if (!input || input.type === 'hidden') return () => {};
   const wrapper = document.createElement('div'); wrapper.className = 'task-file-picker';
@@ -15,6 +15,8 @@ export function mountTaskDestination(root, files, readNote) {
   const parent = document.createElement('select'); parent.name = 'parentLine'; parentLabel.append(parent); wrapper.closest('label').after(parentLabel);
   const revision = document.createElement('input'); revision.type = 'hidden'; revision.name = 'parentRevision'; parentLabel.append(revision);
   let matches = [], selected = -1, sequence = 0, disposed = false;
+  let memory = {};
+  try { memory = JSON.parse(localStorage.getItem(memoryKey) || '{}'); } catch {}
   const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); };
   const highlight = () => {
     [...list.children].forEach((el, i) => el.setAttribute('aria-selected', String(i === selected)));
@@ -28,7 +30,8 @@ export function mountTaskDestination(root, files, readNote) {
   };
   async function load() {
     const seq = ++sequence, path = input.value.trim();
-    parent.disabled = true; parent.innerHTML = '<option value="">Top level (end of file)</option>'; revision.value = '';
+    parent.onchange = null;
+    parent.disabled = true; parent.innerHTML = '<option value="">Top level (end of file)</option><option value="start">Top level (beginning of file)</option>'; revision.value = '';
     input.setCustomValidity('');
     if (!files.some(f => f.path === path)) { parent.disabled = false; return; }
     input.setCustomValidity('Wait for the heading list to load.');
@@ -37,6 +40,16 @@ export function mountTaskDestination(root, files, readNote) {
       if (disposed || seq !== sequence) return;
       parent.innerHTML += note.headings.map(h => `<option value="${h.line}">${esc('　'.repeat(Math.min(h.level - 1, 8)) + h.title)}</option>`).join('');
       revision.value = note.revision; input.setCustomValidity(''); parent.disabled = false;
+      const saved = memory.parents?.[path];
+      const matches = saved?.title ? note.headings.filter(h => h.title === saved.title && h.level === saved.level) : [];
+      const heading = matches.length === 1 ? matches[0] : matches.find(h => h.line === saved?.line);
+      parent.value = heading ? String(heading.line) : saved === 'start' ? 'start' : '';
+      parent.onchange = () => {
+        const h = note.headings.find(h => String(h.line) === parent.value);
+        memory.parents ||= {}; memory.parents[path] = h ? { title: h.title, level: h.level, line: h.line } : parent.value;
+        memory.path = path;
+        if (memoryKey) localStorage.setItem(memoryKey, JSON.stringify(memory));
+      };
     } catch {
       if (!disposed && seq === sequence) input.setCustomValidity('Unable to load this file. Choose it again to retry.');
     }
@@ -52,6 +65,12 @@ export function mountTaskDestination(root, files, readNote) {
     else if (e.key === 'Escape' && !list.hidden) { e.preventDefault(); e.stopPropagation(); close(); }
   });
   const outside = e => { if (!wrapper.contains(e.target)) close(); };
+  const remember = () => {
+    parent.onchange?.(); memory.path = input.value.trim();
+    if (!parent.onchange) { memory.parents ||= {}; memory.parents[memory.path] = parent.value; }
+    if (memoryKey) localStorage.setItem(memoryKey, JSON.stringify(memory));
+  };
+  const form = root.closest('form'); form?.addEventListener('submit', remember);
   root.addEventListener('pointerdown', outside); load();
-  return () => { disposed = true; sequence++; root.removeEventListener('pointerdown', outside); };
+  return () => { disposed = true; sequence++; root.removeEventListener('pointerdown', outside); form?.removeEventListener('submit', remember); };
 }

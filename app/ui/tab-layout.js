@@ -80,6 +80,19 @@ export class TabLayout {
   groups(node = this.tree) { return node.children ? node.children.flatMap(child => this.groups(child)) : [node]; }
   owner(id) { return this.groups().find(group => group.tabs.includes(id)); }
   focusedGroup() { return this.groups().find(group => group.id === this.focused) || this.groups()[0]; }
+  focusDirection(direction) {
+    const current = this.root.querySelector(`[data-group="${this.focused}"]`)?.getBoundingClientRect();
+    if (!current) return;
+    const horizontal = direction === 'h' || direction === 'l', forward = direction === 'l' || direction === 'j';
+    const center = r => horizontal ? (r.left + r.right) / 2 : (r.top + r.bottom) / 2;
+    const cross = r => horizontal ? (r.top + r.bottom) / 2 : (r.left + r.right) / 2;
+    const candidates = this.groups().filter(g => g.id !== this.focused).map(g => {
+      const rect = this.root.querySelector(`[data-group="${g.id}"]`).getBoundingClientRect();
+      const distance = (center(rect) - center(current)) * (forward ? 1 : -1);
+      return { id: g.id, distance, score: distance + 2 * Math.abs(cross(rect) - cross(current)) };
+    }).filter(g => g.distance > 1).sort((a, b) => a.score - b.score);
+    if (candidates.length) this.focus(candidates[0].id, true);
+  }
   open(id, tab, activate = true) {
     this.tabs.set(id, tab);
     if (!this.owner(id)) { const group = this.focusedGroup(); group.tabs.push(id); group.active ||= id; }
@@ -269,6 +282,7 @@ export class TabLayout {
     }
     for (const strip of this.root.querySelectorAll('.tab-strip')) {
       const active = strip.querySelector('.tab.active'), bounds = strip.getBoundingClientRect();
+      strip.style.setProperty('--traffic-inset', document.documentElement.dataset.mergedTitlebar === 'true' && bounds.top < 5 ? `${Math.max(5, 82 - bounds.left)}px` : '5px');
       let start = 0, end = 0;
       if (active && bounds.width) {
         const tab = active.getBoundingClientRect(), viewport = strip.querySelector('.tab-items').getBoundingClientRect();

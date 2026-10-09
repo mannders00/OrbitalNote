@@ -67,9 +67,9 @@ try {
   console.log('PASS trailing space and end-of-file cursor centering in both modes');
 
   for (const currentMode of ['preview', 'edit']) {
-    await note.locator('.ui-file-actions').click(); await page.getByRole('button', { name: 'Fold all headings', exact: true }).click();
+    await note.locator('.ui-file-actions').click(); await page.getByRole('button', { name: 'Fold all', exact: true }).click();
     assert.equal((await folds()).length, 28);
-    await note.locator('.ui-file-actions').click(); await page.getByRole('button', { name: 'Unfold all headings', exact: true }).click();
+    await note.locator('.ui-file-actions').click(); await page.getByRole('button', { name: 'Unfold all', exact: true }).click();
     assert.deepEqual(await folds(), []);
     if (currentMode === 'preview') await toggle();
   }
@@ -114,7 +114,7 @@ try {
     el.setHeadingFolds = (...args) => { el.foldBatchCalls++; return original(...args); };
   });
   for (const mode of ['preview', 'edit']) {
-    for (const [label, count] of [['Fold all headings', 800], ['Unfold all headings', 0]]) {
+    for (const [label, count] of [['Fold all', 800], ['Unfold all', 0]]) {
       await note.locator('.ui-file-actions').click();
       const elapsed = await page.getByRole('button', { name: label, exact: true }).evaluate(button => { const start = performance.now(); button.click(); return performance.now() - start; });
       assert.ok(elapsed < 3000, `${mode} ${label} took ${elapsed}ms`);

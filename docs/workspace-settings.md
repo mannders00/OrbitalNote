@@ -63,3 +63,8 @@ changes. Choose **Top level** to append, or select a parent to create the task o
 heading level deeper. A child is inserted after its parent's own prose/metadata
 and before existing children, keeping that prose attached to the parent. If the
 parent file changes while the form is open, reopen the form to refresh the selection.
+
+The picker remembers the last file and each file's selected parent on this device,
+per workspace. It re-identifies a remembered parent by title and level when its
+line moves. If the heading cannot be identified, it falls back to top level.
+Choose **Top level (beginning of file)** to prepend a task instead of appending.

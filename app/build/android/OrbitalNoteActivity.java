@@ -23,6 +23,9 @@ public class OrbitalNoteActivity extends MainActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         WebView webView = findViewById(R.id.webview);
+        webView.getSettings().setSupportZoom(false);
+        webView.getSettings().setBuiltInZoomControls(false);
+        webView.getSettings().setDisplayZoomControls(false);
         webView.addJavascriptInterface(new AndroidBridge(), "OrbitalNoteAndroid");
         boolean systemDark = (getResources().getConfiguration().uiMode
             & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;

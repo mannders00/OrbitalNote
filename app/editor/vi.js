@@ -1,13 +1,13 @@
 import { vim, Vim, getCM } from '@replit/codemirror-vim';
 import { foldedRanges, foldEffect } from '@codemirror/language';
-import { headingRanges } from './headings.js';
+import { headingRanges, listRanges } from './headings.js';
 
 let recordingOwner;
 const foldedCuts = new Map();
 function foldedHeadings(cm) {
   const starts = new Set();
   foldedRanges(cm.cm6.state).between(0, cm.cm6.state.doc.length, from => starts.add(from));
-  return headingRanges(cm.getValue()).filter(h => starts.has(h.from));
+  return [...headingRanges(cm.getValue()), ...listRanges(cm.getValue())].filter(h => starts.has(h.from));
 }
 
 function subtreeRanges(cm, args, ranges) {
@@ -51,11 +51,21 @@ Vim.defineAction('orbitalPaste', function(cm, args, state) {
     const doc = cm.cm6.state.doc, start = doc.line(cm.getCursor().line + 1).from;
     const starts = new Set();
     for (let i = 0; i < (args.repeat || 1); i++) for (const offset of savedFolds) starts.add(start + i * text.length + offset);
-    const ranges = headingRanges(cm.getValue()).filter(h => starts.has(h.start) && h.to > h.from);
+    const ranges = [...headingRanges(cm.getValue()), ...listRanges(cm.getValue())].filter(h => starts.has(h.start) && h.to > h.from);
     if (ranges.length) cm.cm6.dispatch({ effects: ranges.map(h => foldEffect.of(h)) });
   }
 });
 for (const [key, after] of [['p', true], ['P', false]]) Vim.mapCommand(key, 'action', 'orbitalPaste', { after }, { isEdit: true });
+
+Vim.defineAction('orbitalOpenAbove', function(cm, args, state) {
+  // Insert at the current source line, without first navigating into the folded
+  // line above (atomic-fold cursor correction would redirect that navigation).
+  const line = cm.getCursor().line, indent = cm.getLine(line).match(/^[ \t]*/)[0];
+  cm.replaceRange(indent + '\n', { line, ch: 0 });
+  cm.setCursor({ line, ch: indent.length });
+  this.enterInsertMode(cm, { repeat: args.repeat }, state);
+});
+Vim.mapCommand('O', 'action', 'orbitalOpenAbove', {}, { context: 'normal', isEdit: true, interlaceInsertRepeat: true });
 
 // Relative gutters count source lines. The upstream motion consults findPosV
 // to skip folded rows, which makes a count overshoot the gutter's destination.

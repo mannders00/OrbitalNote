@@ -37,8 +37,21 @@ let restoringLayout = true;
 const layout = new TabLayout($('tab-layout'), {
   activate: activateTab,
   close: id => run(() => id.startsWith('copy:') ? closeDuplicate(id) : id.startsWith('file:') ? closeTab(id.slice(5)) : closeViewTab(id))(),
-  changed: saved => { if (!restoringLayout && workspace.key) localStorage.setItem('org-layout-' + workspace.key, JSON.stringify({ ...saved, modes: Object.fromEntries([...tabs].map(([path, t]) => [path, t.mode])), copies: [...duplicateViews].map(([id, t]) => ({ id, path: t.path, mode: t.mode })) })); },
+  changed: saved => { if (!restoringLayout && workspace.key) localStorage.setItem('org-layout-' + workspace.key, JSON.stringify({ ...saved, modes: Object.fromEntries([...tabs].map(([path, t]) => [path, t.mode])), copies: [...duplicateViews].map(([id, t]) => ({ id, path: t.path, mode: t.mode, focusHeading: t.surface.querySelector('[data-ui="source"]').getFocusedHeading() })) })); },
 });
+let splitPrefix = false, splitPrefixTimer;
+document.addEventListener('keydown', e => {
+  if (splitPrefix) {
+    splitPrefix = false; clearTimeout(splitPrefixTimer);
+    if (['h', 'j', 'k', 'l'].includes(e.key.toLowerCase()) && !e.metaKey && !e.altKey) {
+      e.preventDefault(); e.stopImmediatePropagation(); layout.focusDirection(e.key.toLowerCase()); return;
+    }
+  }
+  if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'w' && !e.target.closest('dialog, input, textarea') && e.target.dataset.viMode !== 'insert') {
+    e.preventDefault(); e.stopImmediatePropagation(); splitPrefix = true;
+    splitPrefixTimer = setTimeout(() => { splitPrefix = false; }, 1500);
+  }
+}, true);
 let workspace = { id: 0, version: 0, files: [] };
 const tabs = new Map();
 const duplicateViews = new Map();
@@ -68,6 +81,10 @@ function duplicateDocument(path = active, edge, restored) {
     Object.defineProperty(t, key, { get: () => tabs.get(t.path)?.[key], set: value => { const doc = tabs.get(t.path); if (doc) doc[key] = value; } });
   }
   duplicateViews.set(id, t); createDocumentSurface(path, t); renderDocument(t);
+  if (restored?.focusHeading) {
+    const heading = t.surface.querySelector('[data-ui="source"]').findHeading(restored.focusHeading);
+    if (heading) isolateHeading(t, heading);
+  }
   const group = layout.focusedGroup().id;
   layout.open(id, { title: path.split('/').pop().replace(/\.org$/i, ''), icon: 'file', dirty: dirty(t), element: t.surface }, !restored);
   if (edge) layout.move(id, group, edge);
@@ -76,6 +93,21 @@ function duplicateDocument(path = active, edge, restored) {
 function closeDuplicate(id) {
   const t = duplicateViews.get(id); if (!t) return;
   disposeDocument(t); duplicateViews.delete(id); layout.remove(id);
+}
+function focusHeading() {
+  const heading = source?.focusHeadingRange(); if (!heading) return;
+  const t = duplicateDocument(active); if (!t) return;
+  isolateHeading(t, heading);
+  setMode('edit'); renderTabs(); source.focus();
+}
+function isolateHeading(t, heading) {
+  const editor = t.surface.querySelector('[data-ui="source"]');
+  t.focusTitle = heading.title; t.mode = 'edit';
+  editor.setFocusRange({ from: heading.start, to: heading.to });
+  const exit = document.createElement('button'); exit.type = 'button'; exit.className = 'focus-exit'; exit.textContent = 'Show whole file';
+  exit.addEventListener('click', () => { editor.setFocusRange(null); delete t.focusTitle; exit.remove(); updateMode(t); renderTabs(); });
+  t.surface.querySelector('[data-ui="document-name"]').after(exit);
+  updateMode(t);
 }
 const pendingSaves = new Map();
 let active = '', view = 'agenda', mode = 'edit', entries = [], tags = [], agendaFilter = 'today';
@@ -103,6 +135,21 @@ let calendarMode = 'month', calendarDate = new Date(), openSequence = 0;
 let refreshing = false, searchTimer, noticeTimer, searchSequence = 0, paletteItems = [], paletteSelection = 0, paletteKind = 'commands';
 const recent = [];
 const narrowLayout = matchMedia('(max-width: 800px)');
+// Keep pinch gestures from magnifying the application chrome in mobile WebKit.
+document.addEventListener('gesturestart', e => { if (navigator.maxTouchPoints > 0) e.preventDefault(); }, { passive: false });
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+const macWindow = native && /Mac/.test(navigator.platform) && !navigator.maxTouchPoints;
+document.documentElement.dataset.macWindow = String(macWindow);
+if (macWindow) { const dragBar = document.createElement('div'); dragBar.className = 'native-drag-bar'; dragBar.setAttribute('aria-hidden', 'true'); document.body.prepend(dragBar); }
+const mergedTitlebar = document.getElementById('merged-titlebar');
+mergedTitlebar.checked = localStorage.getItem('orbitalnote-merged-titlebar') !== 'false';
+document.getElementById('titlebar-setting').hidden = !macWindow;
+function applyTitlebar() {
+  document.documentElement.dataset.mergedTitlebar = String(macWindow && mergedTitlebar.checked);
+  layout.position();
+}
+mergedTitlebar.addEventListener('change', () => { localStorage.setItem('orbitalnote-merged-titlebar', String(mergedTitlebar.checked)); applyTitlebar(); });
+applyTitlebar();
 let leftOpen = localStorage.getItem('org-left-sidebar') !== 'closed';
 let rightOpen = localStorage.getItem('org-right-sidebar') !== 'closed';
 let mobileLeftOpen = false, mobileRightOpen = false;
@@ -206,7 +253,7 @@ function renderTabs() {
     if (layout.tabs.has('file:' + path)) layout.tabs.set('file:' + path, descriptor);
     else layout.open('file:' + path, descriptor, false);
   }
-  for (const [id, t] of duplicateViews) layout.tabs.set(id, { title: t.surface.dataset.path.split('/').pop().replace(/\.org$/i, ''), icon: 'file', dirty: dirty(t), element: t.surface });
+  for (const [id, t] of duplicateViews) layout.tabs.set(id, { title: t.focusTitle ? 'Focus: ' + t.focusTitle : t.surface.dataset.path.split('/').pop().replace(/\.org$/i, ''), icon: 'file', dirty: dirty(t), element: t.surface });
   for (const id of [...layout.tabs.keys()]) if (id.startsWith('file:') && !tabs.has(id.slice(5))) layout.remove(id);
   layout.render(); layout.changed();
   for (const t of [...tabs.values(), ...duplicateViews.values()]) updateStatus(t);
@@ -438,7 +485,7 @@ function showDocument() {
 function renderDocument(t) {
   if (!t.surface) return;
   const editor = t.surface.querySelector('[data-ui="source"]');
-  if (editor.value !== t.buffer) { editor.value = t.buffer; editor.setSelectionRange(t.position, t.position); editor.scrollTop = t.scroll; t.vi.reset(); }
+  if (editor.value !== t.buffer) { if (t.focusTitle) editor.syncValue(t.buffer); else { editor.value = t.buffer; editor.setSelectionRange(t.position, t.position); editor.scrollTop = t.scroll; t.vi.reset(); } }
   setPreview(t, t.html);
   updateMode(t);
    const compact = narrowLayout.matches || t.surface.getBoundingClientRect().width < 760;
@@ -644,7 +691,7 @@ function syncEditorScroll(surface) { /* The rich editor owns wrapping, highlight
 function syncScroll() { if (activeSurface) syncEditorScroll(activeSurface); }
 function setMode(next) {
   const t = current(); if (!t) return;
-  next = next === 'preview' ? 'preview' : 'edit';
+  next = next === 'preview' && !t.focusTitle ? 'preview' : 'edit';
   const anchor = next !== t.mode ? t.documentView.capture(t.mode) : null;
   mode = t.mode = next === 'preview' ? 'preview' : 'edit'; updateMode(t);
   if (mode === 'edit') source.refresh();
@@ -658,6 +705,7 @@ function setMode(next) {
 function updateMode(t) {
   t.surface.querySelector('[data-ui="panes"]').dataset.mode = t.mode;
   const toggle = t.surface.querySelector('[data-ui="preview-toggle"]'), label = t.mode === 'edit' ? 'Read preview' : 'Edit source';
+  toggle.disabled = !!t.focusTitle;
   if (toggle.dataset.renderedMode === t.mode) return;
   toggle.dataset.renderedMode = t.mode;
   toggle.innerHTML = icon(t.mode === 'edit' ? 'book' : 'pencil'); toggle.title = label; toggle.setAttribute('aria-label', label); toggle.setAttribute('aria-pressed', String(t.mode === 'preview'));
@@ -750,7 +798,7 @@ function fileActions(event) { showFileMenu(active, event?.currentTarget || $('fi
 function showFileMenu(path, anchor) {
   const fold = async action => { if (active !== path || view !== 'document') await openNote(path); headingFoldCommand(action); };
   const duplicate = async edge => { if (!tabs.has(path)) await openNote(path); duplicateDocument(path, edge); };
-  showActionMenu(anchor, 'File actions', [['Open in new tab', () => duplicate()], ['Split right', () => duplicate('right')], ['Split down', () => duplicate('bottom')], ['File metadata…', async () => { if (active !== path || view !== 'document') await openNote(path); await fileMetadata(); }], ['Fold all headings', () => fold('fold-all')], ['Unfold all headings', () => fold('unfold-all')], ['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
+  showActionMenu(anchor, 'File actions', [['Fold all', () => fold('fold-all')], ['Unfold all', () => fold('unfold-all')], ['Open in new tab', () => duplicate()], ['Split right', () => duplicate('right')], ['Split down', () => duplicate('bottom')], ['File metadata…', async () => { if (active !== path || view !== 'document') await openNote(path); await fileMetadata(); }], ['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
 }
 async function fileAction(path, action) {
   const t = tabs.get(path), id = workspace.id;
@@ -871,7 +919,7 @@ async function clockHeading() {
 }
 function renderClocks() {
   const clocks = runningClocks();
-  const text = clocks.map(e => `${e.title} · since ${e.clock.slice(-6, -1)}`).join(' · ');
+  const text = clocks.map(e => `${e.title} · since ${formatTime(e.clock.slice(-6, -1), $('calendar-time-format').value)}`).join(' · ');
   $('calendar-clock').textContent = text; $('calendar-clock').hidden = !clocks.length;
   for (const t of [...tabs.values(), ...duplicateViews.values()]) { const slot = t.surface?.querySelector('[data-ui="note-clock"]'); if (slot) { slot.textContent = text; slot.hidden = !clocks.length; } }
 }
@@ -964,7 +1012,10 @@ async function capture(date = today(), time = '', endTime = '') {
   const id = workspace.id;
   const rank = path => tabs.has(path) ? [...tabs.keys()].indexOf(path) : recent.includes(path) ? tabs.size + recent.indexOf(path) : 10000;
   const files = workspace.files.filter(f => !f.directory && f.path !== SETTINGS_FILE).map(f => ({ ...f, label: tabs.has(f.path) ? 'Open' : recent.includes(f.path) ? 'Recent' : '' })).sort((a,b) => rank(a.path) - rank(b.path) || a.path.localeCompare(b.path));
-  const data = await taskDialog(dialog, { date, time, endTime, files, readNote: path => call('Read', { id, path }), path: files[0]?.path || 'inbox.org' });
+  const memoryKey = 'org-task-destination-' + workspace.key;
+  let remembered;
+  try { remembered = JSON.parse(localStorage.getItem(memoryKey) || '{}').path; } catch {}
+  const data = await taskDialog(dialog, { date, time, endTime, files, memoryKey, readNote: path => call('Read', { id, path }), path: files.some(f => f.path === remembered) ? remembered : files[0]?.path || 'inbox.org' });
   if (!data) return;
   if (workspace.id !== id) return;
   const path = data.get('path').trim();
@@ -974,7 +1025,8 @@ async function capture(date = today(), time = '', endTime = '') {
   if (workspace.files.some(f => f.path === path)) note = await call('Read', { id: workspace.id, path });
   const eol = note.source.includes('\r\n') ? '\r\n' : '\n';
   let at = note.source.length, level = 1;
-  if (data.get('parentLine')) {
+  if (data.get('parentLine') === 'start') at = 0;
+  else if (data.get('parentLine')) {
     if (note.revision !== data.get('parentRevision')) { notify('The parent file changed. Reopen New task to choose its current heading.'); return; }
     const index = note.headings.findIndex(h => h.line === Number(data.get('parentLine')));
     if (index < 0) { notify('The selected parent heading no longer exists.'); return; }
@@ -1149,6 +1201,7 @@ async function insertContent(kind) {
 function showHeadingMenu(anchor = source) {
   if (!current() || view !== 'document') return;
   const actions = [
+    ['Focus on heading', focusHeading],
     ['Edit task…', () => editTaskAtCursor()], ['Toggle task state', () => headingAction('complete')],
     ['Clock in / out', clockHeading],
     ['Edit tags…', () => headingAction('tags')], ['Edit properties…', () => headingAction('property')], ['Set priority…', () => headingAction('priority')],
@@ -1265,7 +1318,24 @@ document.addEventListener('click', run(async e => {
   if (b.dataset.complete !== undefined) return completeAgendaEntry(entries[Number(b.dataset.complete)]);
   if (b.dataset.editTask !== undefined) return editAgendaTask(entries[Number(b.dataset.editTask)]);
   if (b.dataset.clock !== undefined) return clockEntry(entries[Number(b.dataset.clock)]);
-  if (b.dataset.open) return openNote(b.dataset.open, Number(b.dataset.line) || undefined);
+  if (b.dataset.open) {
+    const line = Number(b.dataset.line) || undefined;
+    if (b.closest('#agenda, #calendar') && layout.groups().length > 1) {
+      const origin = layout.focusedGroup().id;
+      const destination = layout.groups().find(g => g.id !== origin && g.active && (g.active.startsWith('file:') || g.active.startsWith('copy:'))) || layout.groups().find(g => g.id !== origin);
+      const path = b.dataset.open, id = workspace.id;
+      if (!tabs.has(path)) {
+        const note = await call('Read', { id, path });
+        if (workspace.id !== id) return;
+        tabs.set(path, tabFrom(note));
+        // Register the canonical view in the destination, leaving the planner visible.
+        layout.focus(destination.id); renderTabs(); layout.select('file:' + path);
+      } else { layout.focus(destination.id); duplicateDocument(path); }
+      if (line) { setMode('edit'); source.jumpTo(source.value.split('\n').slice(0, line - 1).reduce((n, s) => n + s.length + 1, 0)); source.focus(); }
+      return;
+    }
+    return openNote(b.dataset.open, line);
+  }
   if (b.dataset.close) return closeTab(b.dataset.close);
   if (b.dataset.folder) { e.preventDefault(); return folderActions(b.dataset.folder, b); }
   if (b.dataset.fileActions) { e.preventDefault(); return showFileMenu(b.dataset.fileActions, b); }

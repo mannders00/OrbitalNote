@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
   <link rel="stylesheet" href="/vendor/katex.css">
@@ -101,6 +101,7 @@
       <div class="setting"><label for="monospace-mode"><strong>Monospace text</strong><p>Use a uniform monospace text size, including headings.</p></label><input id="monospace-mode" type="checkbox" role="switch"></div>
       <div class="setting"><label for="preview-indent"><strong>Indent nested sections</strong><p>Indent nested headings and their content in reading view, without vertical guides.</p></label><input id="preview-indent" type="checkbox" role="switch" checked></div>
       <div class="setting"><label for="hide-footer"><strong>Hide editor footer</strong><p>Hide the save status, cursor position, and Vim status bar.</p></label><input id="hide-footer" type="checkbox" role="switch"></div>
+      <div class="setting" id="titlebar-setting" hidden><label for="merged-titlebar"><strong>Merge tabs with title bar</strong><p>Use the tab bar to drag the macOS window. Disable for a separate title bar.</p></label><input id="merged-titlebar" type="checkbox" role="switch" checked></div>
       <div id="workspace-settings-sync" class="settings-sync"><h2>Shared workspace settings</h2><p>Choose what this device shares and applies through workspace Sync. Enable the same categories on your other devices.</p><label><input type="checkbox" data-sync-setting="calendar"> Calendar/tag colors and time format</label><label><input type="checkbox" data-sync-setting="appearance"> Theme and light/dark appearance</label><label><input type="checkbox" data-sync-setting="editor"> Reading indentation, footer, monospace, and line numbers</label><p data-settings-status role="status">Settings stay device-local until selected. Keybindings and custom CSS remain local.</p></div>
       <div class="setting"><label for="calendar-time-format"><strong>Agenda and Calendar time format</strong></label><select id="calendar-time-format"><option value="12">12 hour (AM/PM)</option><option value="24">24 hour</option></select></div>
       <div class="setting"><div><strong>Theme</strong><p id="theme-description"></p></div><select id="theme" aria-label="Theme"></select></div>

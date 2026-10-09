@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.1.0-preview.21 — 2026-10-09
+
+- Fold nested bullet lists and checklists in source and reading views.
+- Merge macOS tabs into the draggable native title area by default, with a
+  setting for a separate title bar.
+- Put Fold all and Unfold all first in file actions; fix Vim `O` inserting above
+  a folded subtree and add Ctrl+W followed by h/j/k/l for directional split focus.
+- Add heading-focused editor tabs sharing the original file's edits and saves,
+  with protected surrounding text and a Show whole file action.
+- Keep Agenda/Calendar visible when opening a task in an existing split, creating
+  a new tab in another pane even for a file that has not been opened yet.
+- Respect the 12/24-hour setting in running-clock labels, prevent selection of
+  calendar event text, and disable mobile pinch magnification of the UI.
+- Remember task destinations and parent headings per workspace; offer top-level
+  insertion at either the beginning or end of a file.
+
 ## 0.1.0-preview.20 — 2026-10-05
 
 - Indent nested reading sections by default without vertical guides, with a

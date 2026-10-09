@@ -7,6 +7,25 @@ Use the document's **File actions → Open in new tab**, **Split right**, or
 source/preview mode, cursor, folds, and scroll position. Edits share a single
 buffer and save to the same file. Closing one view keeps the others open.
 
+Press **Ctrl+W**, then **h/j/k/l**, to focus the split to the left/below/above/right.
+This works in source, reading, and planner views; Vim insert mode keeps Ctrl+W's
+word-deletion behavior. With a split already present, clicking an Agenda or
+Calendar task opens a new note tab in another pane and leaves the planner visible.
+
+Choose **Heading actions → Focus on heading** for a new source-editor tab showing
+only that heading and its subtree. Edits and undo use the same underlying file;
+surrounding source is protected in that view. **Show whole file** removes the
+restriction. Focused tabs restore with the layout when their heading can still be
+identified. The preview toggle is disabled while focused.
+
+Bullet lists and checklists with nested content have fold arrows in source and
+reading views. Their fold state follows edits and mode switches. File actions
+begin with **Fold all** and **Unfold all**, including headings, lists, and metadata.
+
+On macOS, tabs share the native title area by default. Drag empty tab-bar space
+to move the window; traffic-light controls remain native. Disable **Settings →
+Merge tabs with title bar** for a separate draggable title area.
+
 The document's **+ → New task…** opens the task form and inserts a TODO heading
 at the cursor when you confirm. Canceling leaves the document unchanged.
 

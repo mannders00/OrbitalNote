@@ -67,7 +67,7 @@ func main() {
 	go h.sync.run()
 	// Retain native traffic lights and dragging; the transparent Mac title bar
 	// uses the window background, updated by the frontend when appearance changes.
-	w := a.Window.NewWithOptions(application.WebviewWindowOptions{Title: "OrbitalNote", Width: 1320, Height: 860, MinWidth: 680, MinHeight: 480, URL: "/", BackgroundColour: application.NewRGB(30, 30, 30), Mac: application.MacWindow{TitleBar: application.MacTitleBar{AppearsTransparent: true, HideTitle: true, HideToolbarSeparator: true}}})
+	w := a.Window.NewWithOptions(application.WebviewWindowOptions{Title: "OrbitalNote", Width: 1320, Height: 860, MinWidth: 680, MinHeight: 480, URL: "/", BackgroundColour: application.NewRGB(30, 30, 30), Mac: application.MacWindow{TitleBar: application.MacTitleBar{AppearsTransparent: true, FullSizeContent: true, HideTitle: true, HideToolbarSeparator: true}}})
 	w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		if !h.allowQuit.Load() {
 			e.Cancel()
