@@ -21,9 +21,10 @@ export async function call(method, q = {}) {
   if (!response.ok) throw new Error(result.error || 'Could not complete operation');
   return result;
 }
-export async function chooseWorkspace() {
+export async function chooseWorkspace(reconnectOnly = false) {
   if (!native) return null;
-  return (await wails()).Call.ByName('main.Host.ChooseWorkspace');
+  try { return await (await wails()).Call.ByName(reconnectOnly ? 'main.Host.ReconnectWorkspace' : 'main.Host.ChooseWorkspace'); }
+  catch (error) { throw new Error((error.message || String(error)).replace(/^Binding call failed:\s*Bound method returned an error:\s*/i, '')); }
 }
 export async function onClose(handler) { if (native) (await wails()).Events.On('workspace:request-close', handler); }
 export async function onCloseTab(handler) { if (native) (await wails()).Events.On('workspace:close-tab', handler); }

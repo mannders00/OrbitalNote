@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.1.0-preview.22 — 2026-10-10
+
+- Link Android workspaces through the system folder picker, retain access across
+  restarts, edit original files, and reconcile external changes while foregrounded
+  and on resume. Keep the private notebook available alongside linked folders.
+- Integrate linked folders with optional encrypted Sync, pausing on provider
+  errors, and retain exportable recovery copies for interrupted provider writes.
+- Move shared settings to the hidden root file `.orbitalnote.org`, migrating
+  existing `OrbitalNote-settings.org` with revision-checked copy/removal.
+- Verify linked-folder operations on the Android emulator; physical-device and
+  third-party-provider acceptance checks remain pending.
+
 ## 0.1.0-preview.21 — 2026-10-09
 
 - Fold nested bullet lists and checklists in source and reading views.

@@ -32,10 +32,12 @@ chmod -R u+w "$out"
 cp app/build/android/app.gradle "$out/app/build.gradle"
 cp app/build/android/AndroidManifest.xml "$out/app/src/main/AndroidManifest.xml"
 cp app/build/android/OrbitalNoteActivity.java "$out/app/src/main/java/com/wails/app/OrbitalNoteActivity.java"
+cp app/build/android/WorkspaceDocuments.java "$out/app/src/main/java/com/wails/app/WorkspaceDocuments.java"
 # The pinned host labels every /wails/ response as JSON, including runtime.js.
 # Let JavaScript use the asset handler, which asks Go for the correct MIME type.
 activity="app/src/main/java/com/wails/app/MainActivity.java"
-sed 's/path.startsWith("\/wails\/")/path.startsWith("\/wails\/") \&\& !path.endsWith(".js")/' \
+sed -e 's/path.startsWith("\/wails\/")/path.startsWith("\/wails\/") \&\& !path.endsWith(".js")/' \
+  -e 's/bridge.initialize();/OrbitalNoteActivity.initializeDocuments(this); bridge.initialize();/' \
   "$wails/internal/commands/build_assets/android/$activity" > "$out/$activity"
 # AGP 8.7.3 requires Gradle 8.9; the upstream template currently specifies 9.x.
 sed 's/gradle-9.2.1-bin/gradle-8.9-bin/' \

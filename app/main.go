@@ -39,13 +39,32 @@ func (h *Host) ChooseWorkspace() (workspace.Snapshot, error) {
 	// Serialize folder changes with Sync configuration and reconciliation.
 	h.sync.mu.Lock()
 	defer h.sync.mu.Unlock()
-	state, err := h.service.Open(p)
+	state, err := openWorkspacePath(h.service, p)
 	if err == nil {
 		if prefErr := rememberWorkspace(p); prefErr != nil {
 			log.Printf("Could not remember workspace: %v", prefErr)
 		}
 	}
 	return state, err
+}
+
+// Regrant the current folder without replacing its identity or open buffers.
+// The frontend uses this path when unsaved edits prevent workspace switching.
+func (h *Host) ReconnectWorkspace() (workspace.Snapshot, error) {
+	p, err := chooseWorkspacePath()
+	if err != nil || p == "" {
+		return h.service.Status(), err
+	}
+	h.sync.mu.Lock()
+	defer h.sync.mu.Unlock()
+	state := h.service.Status()
+	if workspace.Revision([]byte(p)) != state.Key {
+		return state, errors.New("unsaved edits are retained; choose the currently linked folder to reconnect it, or save a copy before switching folders")
+	}
+	if err := h.service.Refresh(state.ID); err != nil {
+		return h.service.Status(), err
+	}
+	return h.service.Status(), nil
 }
 func main() {
 	s := workspace.NewService()
@@ -64,6 +83,7 @@ func main() {
 	}})
 	configureZoom(a)
 	configureSyncLifecycle(a)
+	configureFolderLifecycle(a, s)
 	go h.sync.run()
 	// Retain native traffic lights and dragging; the transparent Mac title bar
 	// uses the window background, updated by the frontend when appearance changes.

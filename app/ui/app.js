@@ -14,7 +14,7 @@ import { TabLayout } from './tab-layout.js';
 import { createEditor } from './vendor/editor.js';
 import { taskDialog } from './task-dialog.js';
 import { projectOccurrences } from './recurrence.js';
-import { setupWorkspaceSettings, SETTINGS_FILE } from './workspace-settings.js';
+import { setupWorkspaceSettings, isSettingsFile } from './workspace-settings.js';
 import { timeGrid, bindCalendarGestures, formatTime, calendarClock, updateNowLine } from './calendar.js';
 import { patchHTML } from './dom.js';
 import { reconcileOutline } from './outline.js';
@@ -396,7 +396,7 @@ function renderTree() {
   const openFolders = new Set([...$('tree').querySelectorAll('details[open]')].map(e => e.dataset.path));
   const nodes = new Map([['', { folders: [], files: [] }]]);
   for (const f of workspace.files) {
-    if (f.path === SETTINGS_FILE) continue;
+    if (isSettingsFile(f.path)) continue;
     const parts = f.path.split('/'); parts.pop(); const parent = parts.join('/');
     if (!nodes.has(parent)) nodes.set(parent, { folders: [], files: [] });
     if (f.directory) { nodes.set(f.path, nodes.get(f.path) || { folders: [], files: [] }); nodes.get(parent).folders.push(f.path); }
@@ -418,7 +418,10 @@ function setView(next) {
 }
 async function openWorkspace() {
   if (movingFile) return;
-  if ([...tabs.values()].some(t => dirty(t) || t.saving)) { notify('Wait for your edits to save, or close your edited tabs before switching workspaces.'); return; }
+  if ([...tabs.values()].some(t => dirty(t) || t.saving)) {
+    if (native && window.OrbitalNoteAndroid) { await chooseWorkspace(true); await refresh(); return; }
+    notify('Wait for your edits to save, or close your edited tabs before switching workspaces.'); return;
+  }
   let next;
   if (native) next = await chooseWorkspace();
   else { const path = await askText('Open workspace', 'Absolute path to an existing folder', '', 'Open folder'); if (!path) return; next = await call('Open', { path }); }
@@ -429,6 +432,7 @@ async function openWorkspace() {
 async function refreshData() {
   const id = workspace.id;
   if (!id) return;
+  if (workspace.warnings.length) notify(workspace.warnings.join('\n'), 'error');
   const [data, tagData] = await Promise.all([call('Calendar', { id }), call('Tags', { id })]); if (id !== workspace.id) return; baseEntries = data; occurrenceRange = ''; updateOccurrences(); tags = tagData;
   $('workspace-name').textContent = workspace.name;
   $('agenda-count').textContent = entries.filter(e => !e.done && e.stamp.date === today()).length || '';
@@ -1011,7 +1015,7 @@ function shiftCalendar(delta) {
 async function capture(date = today(), time = '', endTime = '') {
   const id = workspace.id;
   const rank = path => tabs.has(path) ? [...tabs.keys()].indexOf(path) : recent.includes(path) ? tabs.size + recent.indexOf(path) : 10000;
-  const files = workspace.files.filter(f => !f.directory && f.path !== SETTINGS_FILE).map(f => ({ ...f, label: tabs.has(f.path) ? 'Open' : recent.includes(f.path) ? 'Recent' : '' })).sort((a,b) => rank(a.path) - rank(b.path) || a.path.localeCompare(b.path));
+  const files = workspace.files.filter(f => !f.directory && !isSettingsFile(f.path)).map(f => ({ ...f, label: tabs.has(f.path) ? 'Open' : recent.includes(f.path) ? 'Recent' : '' })).sort((a,b) => rank(a.path) - rank(b.path) || a.path.localeCompare(b.path));
   const memoryKey = 'org-task-destination-' + workspace.key;
   let remembered;
   try { remembered = JSON.parse(localStorage.getItem(memoryKey) || '{}').path; } catch {}
@@ -1019,7 +1023,7 @@ async function capture(date = today(), time = '', endTime = '') {
   if (!data) return;
   if (workspace.id !== id) return;
   const path = data.get('path').trim();
-  if (path === SETTINGS_FILE) { notify('Choose a note rather than the shared settings file.'); return; }
+  if (isSettingsFile(path)) { notify('Choose a note rather than the shared settings file.'); return; }
   if (dirty(tabs.get(path)) || tabs.get(path)?.saving) { notify('Save your open edits to this file before capturing a task into it.'); return; }
   let note = { source: '', revision: '' };
   if (workspace.files.some(f => f.path === path)) note = await call('Read', { id: workspace.id, path });

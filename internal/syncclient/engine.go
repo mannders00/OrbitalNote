@@ -99,6 +99,13 @@ func (e *Engine) snapshot() (workspace.Snapshot, error) {
 	if s.Key != e.WorkspaceKey {
 		return s, errors.New("Sync is connected to a different local workspace")
 	}
+	if err := e.Workspace.Refresh(s.ID); err != nil {
+		return s, err
+	}
+	s = e.Workspace.Status()
+	if s.Key != e.WorkspaceKey {
+		return s, errors.New("workspace changed during Sync reconciliation")
+	}
 	if len(s.Warnings) > 0 {
 		return s, errors.New("workspace has unreadable files; sync paused to avoid propagating missing data")
 	}
@@ -217,6 +224,9 @@ func (e *Engine) Tick(ctx context.Context) error {
 				if !d.Deleted {
 					ext := path.Ext(d.Path)
 					copyPath := strings.TrimSuffix(d.Path, ext) + fmt.Sprintf(" (sync conflict %d)", h.Seq) + ext
+					if d.Path == workspace.SettingsFile {
+						copyPath = fmt.Sprintf("OrbitalNote-settings (sync conflict %d).org", h.Seq)
+					}
 					_, copyHash, err := e.read(s.ID, copyPath)
 					if err != nil {
 						return err

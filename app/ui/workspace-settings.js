@@ -1,5 +1,17 @@
 import { themes } from './appearance.js';
-export const SETTINGS_FILE = 'OrbitalNote-settings.org';
+export const SETTINGS_FILE = '.orbitalnote.org';
+export const LEGACY_SETTINGS_FILE = 'OrbitalNote-settings.org';
+export const isSettingsFile = path => path === SETTINGS_FILE || path === LEGACY_SETTINGS_FILE;
+
+export async function migrateSettings(w, call) {
+  if (w.files.some(f => f.path === SETTINGS_FILE) || !w.files.some(f => f.path === LEGACY_SETTINGS_FILE)) return false;
+  const legacy = await call('Read', { id: w.id, path: LEGACY_SETTINGS_FILE });
+  decodeSettings(legacy.source); // Never rename an unrelated note with this name.
+  await call('Save', { id: w.id, path: SETTINGS_FILE, source: legacy.source, revision: '' });
+  // Delete only the exact revision copied; concurrent edits keep both versions.
+  await call('Remove', { id: w.id, path: LEGACY_SETTINGS_FILE, revision: legacy.revision });
+  return true;
+}
 const controls = {
   appearance: { 'org-theme': ['theme', themes.map(t => t[0])], 'org-theme-mode': ['theme-mode', ['system', 'light', 'dark']] },
   editor: { 'orbitalnote-preview-indent': ['preview-indent', ['true', 'false']], 'orbitalnote-hide-footer': ['hide-footer', ['true', 'false']], 'orbitalnote-monospace': ['monospace-mode', ['true', 'false']], 'orbitalnote-line-numbers': ['line-numbers', ['off', 'absolute', 'relative']] },
@@ -89,6 +101,13 @@ export function setupWorkspaceSettings(root, { workspace, call, colorsChanged })
   async function refresh() {
     const w = workspace(); if (!w.id) return;
     if (identity !== w.key) { identity = w.key; revision = ''; version = -1; pending.clear(); clearTimeout(timer); }
+    if (!writing && w.files.some(f => f.path === LEGACY_SETTINGS_FILE) && !w.files.some(f => f.path === SETTINGS_FILE)) {
+      writing = true;
+      try { await migrateSettings(w, call); status.textContent = 'Shared settings moved to .orbitalnote.org.'; }
+      catch (error) { status.textContent = 'Settings migration retained the original file: ' + error.message; }
+      finally { writing = false; version = -1; }
+      return;
+    }
     const groups = enabled(w), generation = selectionGeneration;
     for (const box of root.querySelectorAll('[data-sync-setting]')) box.checked = groups.includes(box.dataset.syncSetting);
     if (!groups.length || writing || pending.size || version === w.version) return;

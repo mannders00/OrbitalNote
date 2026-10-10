@@ -94,6 +94,9 @@ func (k *Keys) Verify(check []byte) error {
 	return nil
 }
 func validPath(p string) bool {
+	if p == ".orbitalnote.org" {
+		return true
+	}
 	if !fs.ValidPath(p) || len(p) > 1024 || strings.ContainsAny(p, "\\:\x00\r\n") || !strings.EqualFold(path.Ext(p), ".org") {
 		return false
 	}

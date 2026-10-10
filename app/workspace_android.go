@@ -1,20 +1,64 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 
 	"github.com/mannders00/OrbitalNote/internal/workspace"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 func init() {
 	application.RegisterAndroidMain(main)
 }
 
+func configureFolderLifecycle(a *application.App, s *workspace.Service) {
+	a.Event.OnApplicationEvent(events.Android.ActivityResumed, func(*application.ApplicationEvent) {
+		go func() { _ = s.Refresh(s.Status().ID) }()
+	})
+}
+
 func chooseWorkspacePath() (string, error) {
-	return "", errors.New("this Android preview uses its private test notebook; linking a device folder is not implemented yet")
+	response, err := androidDocuments([]byte(`{"op":"choose"}`))
+	if err != nil {
+		return "", err
+	}
+	var result struct {
+		Tree  string `json:"tree"`
+		Error string `json:"error"`
+	}
+	if err = json.Unmarshal(response, &result); err != nil {
+		return "", err
+	}
+	if result.Error != "" {
+		return "", errors.New(result.Error)
+	}
+	return result.Tree, nil
+}
+
+func openWorkspacePath(s *workspace.Service, tree string) (workspace.Snapshot, error) {
+	if tree == "private" {
+		return s.Open(filepath.Join(application.Android.StoragePath(), "Test Notebook"))
+	}
+	request, _ := json.Marshal(map[string]string{"op": "info", "tree": tree})
+	response, err := androidDocuments(request)
+	if err != nil {
+		return workspace.Snapshot{}, err
+	}
+	var info struct {
+		Name  string `json:"name"`
+		Error string `json:"error"`
+	}
+	if err = json.Unmarshal(response, &info); err != nil {
+		return workspace.Snapshot{}, err
+	}
+	if info.Error != "" {
+		return workspace.Snapshot{}, errors.New(info.Error)
+	}
+	return workspace.OpenStore(s, tree, info.Name, &workspace.DocumentStore{Tree: tree, Call: androidDocuments, Active: syncForeground})
 }
 
 func openInitialWorkspace(s *workspace.Service) error {
@@ -23,6 +67,15 @@ func openInitialWorkspace(s *workspace.Service) error {
 		return errors.New("Android did not provide an app storage directory")
 	}
 	if err := os.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config")); err != nil {
+		return err
+	}
+	if tree := lastWorkspace(); tree != "" {
+		// Keep the selected identity even when access was revoked. Do not silently
+		// switch to another notebook and its Sync credentials.
+		if _, err := openWorkspacePath(s, tree); err == nil {
+			return nil
+		}
+		_, err := workspace.OpenUnavailableStore(s, tree, "Linked Android folder", &workspace.DocumentStore{Tree: tree, Call: androidDocuments, Active: syncForeground})
 		return err
 	}
 	folder := filepath.Join(root, "Test Notebook")

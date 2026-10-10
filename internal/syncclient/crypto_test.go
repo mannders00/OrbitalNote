@@ -50,4 +50,12 @@ func TestEncryptionRecoveryAndTampering(t *testing.T) {
 	if _, err = k.Encrypt(Document{Path: "../escape.org"}); err == nil {
 		t.Fatal("path traversal accepted")
 	}
+	if _, err = k.Encrypt(Document{Path: ".orbitalnote.org", Source: []byte("settings")}); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{".secret.org", "nested/.orbitalnote.org", ".orbitalnote.org/secret.org"} {
+		if _, err = k.Encrypt(Document{Path: p}); err == nil {
+			t.Fatalf("accepted hidden path %s", p)
+		}
+	}
 }

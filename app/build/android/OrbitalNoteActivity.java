@@ -19,6 +19,20 @@ import androidx.core.graphics.Insets;
 
 /** Keep the editor and its controls clear of Android's system bars and keyboard. */
 public class OrbitalNoteActivity extends MainActivity {
+    private static WorkspaceDocuments documents;
+    public static void initializeDocuments(MainActivity activity) {
+        documents = new WorkspaceDocuments(activity);
+    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (documents != null && documents.result(requestCode, resultCode, data)) return;
+        super.onActivityResult(requestCode, resultCode, data);
+    }
+    @Override
+    protected void onDestroy() {
+        if (documents != null) documents.cancelPicker();
+        super.onDestroy();
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

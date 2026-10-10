@@ -59,9 +59,17 @@ Native service calls, note creation, editor input, saving, rendered preview,
 and persistence across a force-stop/cold relaunch were verified using the app's
 private test notebook. See [Android testing](android-testing.md).
 
-This does not pass the linked-folder gate: no Android document-provider adapter,
-iOS device proof, or signed store release has been implemented. The local Android
-build uses the standard debug signing key. An iOS proof still needs macOS/Xcode.
+An Android document-provider adapter is now implemented through an app-owned JNI
+bridge and `workspace.Store`. The emulator verifies selection, original-file
+writes, revision conflicts, file operations, retained grants, cold restart, and
+external changes while stopped. Provider errors block encrypted Sync; interrupted
+writes retain exportable recovery copies. See the Android testing guide for
+provider atomicity limits and the repeatable smoke test.
+
+The full gate still requires physical-device linked-folder checks, revoked grants,
+external folder renames, interrupted writes and third-party providers. iOS linked
+folders and a signed store release remain outstanding. The local Android build
+uses the standard debug signing key.
 
 Keep Wails v3 provisionally. The gate remains **open**, not passed. Failure to
 establish a maintainable native integration is a reason to revisit the host

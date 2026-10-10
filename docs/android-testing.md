@@ -33,9 +33,26 @@ The app creates **Test Notebook** inside its private persistent storage, with a
 app or clearing its data deletes this notebook. It is intended for disposable
 testing, and is independent of your desktop workspace.
 
-The folder chooser reports that external Android folders are not supported yet.
-Persistent linked-folder access through Android's Storage Access Framework
-remains a separate implementation (see [mobile feasibility](mobile-feasibility.md)).
+Open workspace → **Link a device folder** uses Android's folder picker to grant
+persistent read/write access. Notes are edited in the selected folder, and the
+selection is restored after restarting the app. **Open private notebook** returns
+to Test Notebook. Neither workspace requires an account.
+
+Linked folders are scanned every five seconds while foregrounded and on resume.
+External edits are reconciled with open notes; stale saves are rejected. Missing
+permissions or incomplete provider listings pause Sync and show a reconnect error.
+Select the same folder again to restore access, including when unsaved edits are
+still open.
+
+Provider capabilities vary. Android offers no universal atomic replace or
+compare-and-swap operation. Before changing a file, OrbitalNote durably retains
+the original and intended contents privately, checks the revision again, and
+verifies saved bytes. Interrupted-save recovery copies can be exported through
+Open workspace → **Export interrupted-save recovery copies**. Compare those
+copies and restore the desired version in the original folder. Recovery copies
+are app-private until exported and are lost if app data is cleared or uninstalled.
+Simultaneous writes by another app during the final provider write still have a
+race window; avoid actively editing the same note in two apps at once.
 
 Test opening a note, editing with the soft keyboard, saving, preview, search,
 creating notes, agenda/calendar, rotation, background/resume, and relaunch.
@@ -50,6 +67,22 @@ with contrasting system icons.
 Verified on a physical Pixel 9a: native bridge, note creation, editor input,
 saving, rendered preview, persistence after force-stop/cold relaunch, keyboard
 resizing, safe screen insets, and light/dark system-area colors.
+
+The linked-folder implementation was verified on an ARM64 Pixel 9a emulator:
+real system picker, original-file writes preserving Unicode/mixed line endings,
+external-edit reconciliation, stale-save rejection, file/folder creation,
+rename/move/delete, hidden settings, persisted grants, and cold restart after
+external changes. Repeat these checks on a physical phone and with third-party
+document providers; those combinations are not yet verified.
+
+The repeatable test uses a disposable emulator workspace:
+
+```sh
+node scripts/android-folder-smoke.mjs
+```
+
+Install the debug APK and start it first. Set `ADB` and `PLAYWRIGHT_MODULE` if
+needed; the script uses Node, Playwright, and the debug WebView's CDP endpoint.
 
 ## Inspect or copy test notes
 
@@ -70,5 +103,8 @@ The updated app includes Settings → OrbitalNote Sync. Sign in to OrbitalNote,
 approve the displayed device code, and connect using the recovery
 key from your desktop. The app connects to `https://sync.orbitalnote.org/`
 automatically; no server address is needed.
-Sync uses the private notebook, works while the app is in the foreground, and
-reconciles on resume. For this first slice, only `.org` notes are transferred.
+Sync uses the currently selected private notebook or linked folder, works while
+the app is in the foreground, and reconciles on resume. Each workspace retains
+its own Sync binding. Only `.org` files are transferred, including the root
+`.orbitalnote.org` shared settings file. Provider failure and settings-conflict
+handling are covered by the local two-device encrypted Sync integration test.

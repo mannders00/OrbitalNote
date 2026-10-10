@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert';
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1450, height: 1000 } });
-  const trace = (page, name) => { if (process.env.DEBUG_SETTINGS) page.on('request', request => { const data = request.postDataJSON(); if (data?.method === 'Save' && data.path === 'OrbitalNote-settings.org') console.log(name, data.source); }); };
+  const trace = (page, name) => { if (process.env.DEBUG_SETTINGS) page.on('request', request => { const data = request.postDataJSON(); if (data?.method === 'Save' && data.path === '.orbitalnote.org') console.log(name, data.source); }); };
   trace(page, 'first device');
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   const base = process.env.BASE_URL || 'http://127.0.0.1:9297';
@@ -11,13 +11,13 @@ try {
   const status = await api('Status'), path = 'feature-settings-picker.org';
   const sharedContains = async text => {
     for (let attempt = 0; attempt < 100; attempt++) {
-      if ((await api('Read', { id: status.id, path: 'OrbitalNote-settings.org' })).source.includes(text)) return;
+      if ((await api('Read', { id: status.id, path: '.orbitalnote.org' })).source.includes(text)) return;
       await page.waitForTimeout(50);
     }
     assert.fail('Shared settings did not persist: ' + text);
   };
   const save = async (path, source) => { const state = await api('Status'); const old = state.files.some(f => f.path === path) ? await api('Read', { id: state.id, path }) : null; return api('Save', { id: state.id, path, source, revision: old?.revision || '' }); };
-  await save('OrbitalNote-settings.org', '#+TITLE: Shared settings\n#+begin_src json\n{"version":1,"groups":{}}\n#+end_src\n');
+  await save('.orbitalnote.org', '#+TITLE: Shared settings\n#+begin_src json\n{"version":1,"groups":{}}\n#+end_src\n');
   await save(path, '#+FILETAGS: :sharedtest:\n* Projects\nParent prose stays here.\n** Existing\nChild body.\n* Other\nOther body.\n');
   await page.goto(base); await page.locator(`#tree [data-open="${path}"]`).click();
   await page.locator('#preview-toggle').click();
@@ -71,7 +71,7 @@ try {
   await sharedContains('"orbitalnote-hide-footer": "false"');
   await other.locator('#calendar-time-format').selectOption('24');
   await sharedContains('"orbitalnote-calendar-time-format": "24"');
-  assert.ok((await api('Read', { id: status.id, path: 'OrbitalNote-settings.org' })).source.includes('"orbitalnote-hide-footer": "false"'), 'saving a calendar category must preserve the other device’s editor category');
+  assert.ok((await api('Read', { id: status.id, path: '.orbitalnote.org' })).source.includes('"orbitalnote-hide-footer": "false"'), 'saving a calendar category must preserve the other device’s editor category');
   assert.equal(await other.locator('#hide-footer').isChecked(), true);
   assert.deepEqual(errors, []);
   console.log('PASS selective shared settings across independent device profiles; disabled groups remain local');

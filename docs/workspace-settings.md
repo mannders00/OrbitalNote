@@ -13,10 +13,17 @@ Select the same categories on your other devices. The category selection itself
 is device-local. Unselected categories, keybindings, Vim mode, pane layouts,
 sidebar widths, credentials, and custom CSS remain local.
 
-Settings live in `OrbitalNote-settings.org` at the workspace root, inside a
+Settings live in `.orbitalnote.org` at the workspace root, inside a
 versioned JSON source block. This dedicated file uses the existing encrypted note
 Sync protocol, so it works without a server upgrade. It is omitted from the note
 tree and task file picker. Nothing in the source block is executed.
+
+Existing `OrbitalNote-settings.org` settings are copied byte-for-byte to the new
+name, then removed only if their revision still matches. If both names already
+exist, the new file takes precedence and the old file is retained for comparison.
+Update all Sync clients before sharing the new filename: older clients reject
+hidden document paths and may stop Sync when they encounter it. The server needs
+no upgrade because filenames remain inside encrypted documents.
 
 If the shared file already contains a selected category, enabling it applies the
 shared values. Otherwise the device publishes its current values. Later changes

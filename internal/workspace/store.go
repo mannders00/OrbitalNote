@@ -16,6 +16,7 @@ import (
 var ErrConflict = errors.New("file changed on disk; your edits have been retained")
 
 const MaxFileSize = 8 << 20
+const SettingsFile = ".orbitalnote.org"
 
 type File struct {
 	Path      string `json:"path"`
@@ -44,7 +45,18 @@ func OpenDisk(dir string) (*Disk, error) {
 func (d *Disk) Close() error   { return d.root.Close() }
 func Revision(b []byte) string { return fmt.Sprintf("%x", sha256.Sum256(b)) }
 func valid(p string) bool {
-	return fs.ValidPath(p) && p != "." && !strings.Contains(p, "\\") && !strings.Contains(p, "\x00") && !strings.HasPrefix(path.Base(p), ".")
+	if p == SettingsFile {
+		return true
+	}
+	if !fs.ValidPath(p) || p == "." || strings.ContainsAny(p, "\\\x00") {
+		return false
+	}
+	for _, part := range strings.Split(p, "/") {
+		if strings.HasPrefix(part, ".") {
+			return false
+		}
+	}
+	return true
 }
 func (d *Disk) check(p string) error {
 	if !valid(p) {
@@ -74,7 +86,7 @@ func (d *Disk) List() ([]File, error) {
 		if p == "." {
 			return nil
 		}
-		if strings.HasPrefix(e.Name(), ".") || e.Type()&os.ModeSymlink != 0 {
+		if (strings.HasPrefix(e.Name(), ".") && p != SettingsFile) || e.Type()&os.ModeSymlink != 0 {
 			if e.IsDir() {
 				return fs.SkipDir
 			}

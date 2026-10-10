@@ -1,9 +1,34 @@
-# OrbitalNote 0.1.0-preview.21
+# OrbitalNote 0.1.0-preview.22
 
-Focused heading views, list folding, and smoother split-pane planning.
+Persistent Android linked folders, in-place editing, and hidden shared settings.
 OrbitalNote is free and works locally without an account.
 
-## What's new since preview.20
+## What's new since preview.21
+
+- **Link an Android folder:** use Open workspace → Link a device folder to edit
+  its original files. Folder access and the selected workspace survive restarts.
+  Open private notebook remains available, and both work offline without an account.
+- Reconcile external changes while foregrounded and on resume. Reject stale saves
+  and pause optional encrypted Sync when a provider is unavailable or its listing
+  is incomplete. Sync uses the selected workspace's own binding.
+- Retain exportable recovery copies before provider writes. Android providers do
+  not offer universal atomic replacement; avoid simultaneous edits to the same
+  file in multiple apps. Interrupted-save copies can be exported from Open workspace.
+- Move shared settings to **`.orbitalnote.org`**, migrating the previous
+  `OrbitalNote-settings.org` with byte-preserving copy and revision-checked removal.
+  Update all Sync clients before sharing the new file: older builds reject hidden
+  filenames. No Sync server upgrade is required.
+
+Validated with project checks, encrypted two-device Sync tests, an Android APK
+build, and real Android emulator folder-picker/provider tests covering in-place
+saves, external edits, file operations, persisted access, and cold restart.
+Physical-device linked-folder and third-party-provider checks remain pending.
+Start phone testing with a copy of a small notebook.
+
+See [Android testing](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.22/docs/android-testing.md)
+and [shared settings](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.22/docs/workspace-settings.md).
+
+## Also included from preview.21
 
 ### Editing and navigation
 - Fold nested bullet lists and checklists in source and reading views, retaining fold state across mode switches.
@@ -58,7 +83,7 @@ and Cmd/Ctrl+O for filename search. Existing hosted Sync connections remain supp
 - **macOS Intel:** `darwin-amd64.zip`
 - **Windows x64:** `windows-amd64.zip` (requires Microsoft WebView2)
 - **Linux x64:** `linux-amd64.tar.gz` (Ubuntu 24.04-compatible; requires GTK4 and WebKitGTK 6.0)
-- **Android ARM64:** `android-arm64.apk` (Android 7+, signed preview; private notebook)
+- **Android ARM64:** `android-arm64.apk` (Android 7+, signed preview; linked folders and private notebook)
 - **iOS ARM64 Simulator:** available separately in the release workflow's artifacts (developers only; not installable on iPhone)
 
 Extract the archive before opening the app. Each download has a SHA-256 checksum

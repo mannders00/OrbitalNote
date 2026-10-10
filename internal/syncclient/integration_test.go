@@ -15,11 +15,24 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/mannders00/OrbitalNote/internal/workspace"
 )
+
+type unavailableProvider struct {
+	workspace.Store
+	unavailable atomic.Bool
+}
+
+func (s *unavailableProvider) List() ([]workspace.File, error) {
+	if s.unavailable.Load() {
+		return nil, errors.New("provider permission revoked")
+	}
+	return s.Store.List()
+}
 
 // This deliberately exercises the separately built server binary over HTTP,
 // including website signup, manual entitlement, and browser device approval.
@@ -130,6 +143,7 @@ func TestTwoDeviceSyncIntegration(t *testing.T) {
 	if err = apiA.Request(ctx, "POST", "/api/vault", v, &v); err != nil {
 		t.Fatal(err)
 	}
+	var provider *unavailableProvider
 	makeEngine := func(name string, api *API) (*Engine, *workspace.Service) {
 		folder := filepath.Join(root, name)
 		if err := os.Mkdir(folder, 0700); err != nil {
@@ -137,7 +151,17 @@ func TestTwoDeviceSyncIntegration(t *testing.T) {
 		}
 		ws := workspace.NewService()
 		t.Cleanup(ws.Close)
-		if _, err := ws.Open(folder); err != nil {
+		if name == "android" {
+			disk, err := workspace.OpenDisk(folder)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { ws.Close(); disk.Close() })
+			provider = &unavailableProvider{Store: disk}
+			if _, err := workspace.OpenStore(ws, "content://test/tree/android", "Android folder", provider); err != nil {
+				t.Fatal(err)
+			}
+		} else if _, err := ws.Open(folder); err != nil {
 			t.Fatal(err)
 		}
 		recovered, err := ParseRecovery(keys.Recovery())
@@ -185,11 +209,35 @@ func TestTwoDeviceSyncIntegration(t *testing.T) {
 		t.Fatalf("source changed in transit: %q", got)
 	}
 	settings := "#+TITLE: OrbitalNote shared settings\n\n#+begin_src json\n{\"version\":1,\"groups\":{\"calendar\":{\"colors\":{\"work\":\"#abcdef\"}}}}\n#+end_src\n"
-	put(wa, "OrbitalNote-settings.org", settings)
+	put(wa, ".orbitalnote.org", settings)
 	tick(a)
 	tick(b)
-	if got := read(wb, "OrbitalNote-settings.org"); got != settings {
+	if got := read(wb, ".orbitalnote.org"); got != settings {
 		t.Fatal("workspace settings did not survive encrypted sync unchanged")
+	}
+	provider.unavailable.Store(true)
+	if err := b.Tick(ctx); err == nil {
+		t.Fatal("Sync accepted an unavailable provider as an empty folder")
+	}
+	provider.unavailable.Store(false)
+	tick(b)
+	tick(a)
+	if read(wa, "Private.org") != original {
+		t.Fatal("provider failure propagated a deletion")
+	}
+	put(wa, ".orbitalnote.org", settings+"\nMac settings\n")
+	put(wb, ".orbitalnote.org", settings+"\nAndroid settings\n")
+	tick(a)
+	tick(b)
+	tick(a)
+	settingsConflict := false
+	for _, f := range wa.Status().Files {
+		if strings.HasPrefix(f.Path, "OrbitalNote-settings (sync conflict ") && read(wa, f.Path) == settings+"\nMac settings\n" {
+			settingsConflict = true
+		}
+	}
+	if !settingsConflict {
+		t.Fatal("hidden settings conflict was not preserved in a syncable recovery note")
 	}
 	// Offline concurrent edits: preserve the remote version in a conflict file.
 	put(wa, "Private.org", "* Mac offline edit\n")
