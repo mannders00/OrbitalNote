@@ -6,11 +6,33 @@ export function setupSyncSettings(settings) {
   if (!native) { controls.hidden = true; find('sync-status').textContent = 'Sync is available in the native app.'; return; }
   let busy = false, checking = false, awaitingApproval = false;
   const message = find('sync-action-message');
+  const hostedURL = 'https://sync.orbitalnote.org';
+  let savedServer = '';
+  function selectedServer() {
+    const value = savedServer || (find('sync-provider').value === 'hosted' ? hostedURL : find('sync-server').value.trim());
+    const url = new URL(value);
+    if ((url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error('Enter an HTTPS server origin, such as https://sync.example.com');
+    return url.origin;
+  }
+  function updateProvider() {
+    const custom = find('sync-provider').value === 'self-hosted';
+    find('sync-server-field').hidden = !custom;
+    find('sync-start').textContent = custom ? 'Sign in to your server' : 'Sign in to OrbitalNote';
+    find('sync-account').textContent = custom ? 'Create account / manage devices' : 'Create account / manage subscription';
+  }
+  find('sync-provider').addEventListener('change', updateProvider);
   async function refresh() {
     if (checking) return;
     checking = true;
     try {
       const status = await syncCall('Status');
+      savedServer = status.signedIn ? status.server : '';
+      if (savedServer) {
+        find('sync-provider').value = savedServer === hostedURL ? 'hosted' : 'self-hosted';
+        find('sync-server').value = savedServer === hostedURL ? '' : savedServer;
+      }
+      find('sync-provider').disabled = find('sync-server').disabled = busy || status.signedIn || awaitingApproval;
+      updateProvider();
       find('sync-status').textContent = status.message;
       find('sync-usage').textContent = status.connected ? `${(status.used / 1e6).toFixed(2)} MB / ${(status.quota / 1e9).toFixed(0)} GB (includes history)${status.lastSuccess ? ' · Last checked ' + new Date(status.lastSuccess).toLocaleTimeString() : ''}` : '';
       find('sync-workspace-setup').hidden = !status.signedIn || status.connected;
@@ -40,9 +62,9 @@ export function setupSyncSettings(settings) {
     find('sync-key').select();
   }
   find('sync-key-dialog').addEventListener('close', () => { find('sync-key').value = ''; });
-  action('sync-account', () => openExternal('https://sync.orbitalnote.org/'));
+  action('sync-account', () => openExternal(selectedServer() + '/'));
   action('sync-start', async () => {
-    const login = await syncCall('Start');
+    const login = await syncCall('StartServer', selectedServer());
     awaitingApproval = true;
     find('sync-code').textContent = `Device code: ${login.code}. Approve this code in your browser, then return here. Sign-in will finish automatically.`;
     await openExternal(login.url);
@@ -70,7 +92,7 @@ export function setupSyncSettings(settings) {
         const text = e.message || String(e);
         if (!text.includes('approve the device code on the website first')) {
           awaitingApproval = false; find('sync-code').textContent = '';
-          message.textContent = `${text}. Choose Sign in to OrbitalNote to try again.`;
+          message.textContent = `${text}. Choose Sign in to try again.`;
         }
       } finally { busy = false; }
     }

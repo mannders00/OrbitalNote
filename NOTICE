@@ -13,5 +13,6 @@ The OrbitalNote name and logo identify the original project. No trademark rights
 are granted by the software license. See TRADEMARKS.md. This does not restrict
 any rights granted by the GPL to use, study, modify or redistribute the software.
 
-The separately maintained website and future hosted OrbitalNote Sync service are
-not part of this client distribution and are not licensed under this notice.
+The separately maintained website and OrbitalNote Sync server are not part of
+this client distribution and are not licensed under this notice. The server is
+a separate product licensed under the Sustainable Use License 1.0.

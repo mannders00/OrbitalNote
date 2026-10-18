@@ -30,16 +30,16 @@ tested on real devices.
 
 ## Download and try it
 
-The app is free. These are direct downloads for **0.1.0-preview.22**, including
+The app is free. These are direct downloads for **0.1.0-preview.23**, including
 task clocks, repeating tasks, interactive checklists, and encrypted Sync.
 
 | Your device | Download | Getting started |
 |---|---|---|
-| Mac with Apple Silicon | [Download for Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.22/orbitalnote-0.1.0-preview.22-darwin-arm64.zip) | M1 or newer. Unzip and move the app to Applications. |
-| Intel Mac | [Download for Intel Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.22/orbitalnote-0.1.0-preview.22-darwin-amd64.zip) | Unzip and move the app to Applications. |
-| Windows | [Download for Windows](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.22/orbitalnote-0.1.0-preview.22-windows-amd64.zip) | x64. Extract the ZIP and open OrbitalNote.exe. Requires WebView2. |
-| Linux | [Download for Linux](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.22/orbitalnote-0.1.0-preview.22-linux-amd64.tar.gz) | x64, Ubuntu 24.04-compatible. Requires GTK4 and WebKitGTK 6.0. |
-| Android | [Download the APK](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.22/orbitalnote-0.1.0-preview.22-android-arm64.apk) | Android 7+, ARM64. Open the APK and allow installation from your browser. |
+| Mac with Apple Silicon | [Download for Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.23/orbitalnote-0.1.0-preview.23-darwin-arm64.zip) | M1 or newer. Unzip and move the app to Applications. |
+| Intel Mac | [Download for Intel Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.23/orbitalnote-0.1.0-preview.23-darwin-amd64.zip) | Unzip and move the app to Applications. |
+| Windows | [Download for Windows](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.23/orbitalnote-0.1.0-preview.23-windows-amd64.zip) | x64. Extract the ZIP and open OrbitalNote.exe. Requires WebView2. |
+| Linux | [Download for Linux](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.23/orbitalnote-0.1.0-preview.23-linux-amd64.tar.gz) | x64, Ubuntu 24.04-compatible. Requires GTK4 and WebKitGTK 6.0. |
+| Android | [Download the APK](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.23/orbitalnote-0.1.0-preview.23-android-arm64.apk) | Android 7+, ARM64. Open the APK and allow installation from your browser. |
 
 macOS builds aren't notarized yet; you may need to allow the app in System
 Settings → Privacy & Security after the first launch attempt. Windows builds
@@ -48,7 +48,7 @@ aren't Authenticode-signed yet and may show a SmartScreen prompt.
 **iPhone and iPad:** the app builds and opens in the iOS simulator. An installable
 iPhone preview is still to come. Android is available now.
 
-[Release notes and checksums](https://github.com/mannders00/OrbitalNote/releases/tag/v0.1.0-preview.22)
+[Release notes and checksums](https://github.com/mannders00/OrbitalNote/releases/tag/v0.1.0-preview.23)
 · [Find the newest downloads](https://orbitalnote.org/#download)
 
 ## What's here today
@@ -115,9 +115,10 @@ Download the app, [create your Sync account](https://sync.orbitalnote.org/signup
 then open **Settings → OrbitalNote Sync**. Connect your first workspace and save
 its recovery key. Use that key to connect your other device.
 
-The app connects to OrbitalNote automatically; there is no server URL to enter.
-Choose **Sign in to OrbitalNote**, approve the device code in your browser, and
-return to the app. Sign-in finishes automatically.
+Hosted Sync connects to OrbitalNote automatically. Choose **Sign in to
+OrbitalNote**, approve the device code in your browser, and return to the app.
+Sign-in finishes automatically. To use your own server, choose **Self-hosted
+server** in Sync settings and enter its URL. See [Self-hosted Sync](docs/self-hosted-sync.md).
 
 [**Get Sync preview**](https://sync.orbitalnote.org/signup)
 · [Try the simulated desktop/phone demo](https://orbitalnote.org/#sync)

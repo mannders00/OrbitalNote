@@ -113,6 +113,8 @@
         <p id="sync-status" role="status">Sync is not connected.</p><p id="sync-usage"></p>
         <div id="sync-controls">
           <p>Your notes, across desktop and mobile. Connect securely with your OrbitalNote account.</p>
+          <label for="sync-provider">Sync service</label><select id="sync-provider"><option value="hosted">OrbitalNote hosted Sync</option><option value="self-hosted">Self-hosted server</option></select>
+          <div id="sync-server-field" hidden><label for="sync-server">Server URL</label><input id="sync-server" type="url" placeholder="https://sync.example.com" autocomplete="url" spellcheck="false"><p>Use your server's HTTPS origin. Disconnect before changing services.</p></div>
           <div class="sync-actions"><button id="sync-start">Sign in to OrbitalNote</button><button id="sync-account">Create account / manage subscription</button><button id="sync-finish" hidden>Check sign-in</button></div>
           <p id="sync-code"></p>
           <div id="sync-workspace-setup" hidden>

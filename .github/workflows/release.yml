@@ -30,6 +30,16 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]] || exit 1
           test "$(git rev-parse "v$version^{commit}")" = "$(git rev-parse HEAD)"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+  sync-compatibility:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Verify client against the published self-hosted daemon
+        run: bash scripts/check-daemon-compatibility.sh
   build:
     needs: version
     strategy:
@@ -136,7 +146,7 @@ jobs:
             bin/*ios-simulator*.sha256
           if-no-files-found: error
   publish:
-    needs: [version, build, android]
+    needs: [version, build, android, sync-compatibility]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

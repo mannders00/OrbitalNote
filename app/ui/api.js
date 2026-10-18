@@ -32,7 +32,7 @@ export async function quit() { if (native) return (await wails()).Call.ByName('m
 export async function zoomNative(direction) { if (native) return (await wails()).Call.ByName('main.Host.Zoom', direction); }
 export async function syncCall(method, ...args) {
   if (!native) throw new Error('Sync settings are available in the native desktop and Android apps.');
-  if (!['Status', 'Start', 'Finish', 'Create', 'Connect', 'Recovery', 'Disconnect'].includes(method)) throw new Error('Unknown Sync action');
+  if (!['Status', 'Start', 'StartServer', 'Finish', 'Create', 'Connect', 'Recovery', 'Disconnect'].includes(method)) throw new Error('Unknown Sync action');
   return (await wails()).Call.ByName(`main.Host.Sync${method}`, ...args);
 }
 export async function setNativeTheme(dark) {

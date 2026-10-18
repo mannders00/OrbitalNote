@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.1.0-preview.23 — 2026-10-18
+
+- Add a self-hosted server URL selector to Sync settings, retaining hosted Sync
+  as the default and keeping credentials tied to their saved server origin.
+- Pair this client with the separately licensed OrbitalNote Sync daemon
+  0.1.0-preview.1: SQLite metadata, local encrypted storage, and no subscription
+  requirement for self-hosted accounts.
+- Verify native macOS sign-in, Keychain persistence, bidirectional sync, restart,
+  and disconnect; gate client release publication on tests against the published
+  daemon binary.
+
 ## 0.1.0-preview.22 — 2026-10-10
 
 - Link Android workspaces through the system folder picker, retain access across

@@ -8,3 +8,4 @@ __pycache__/
 /server/data/
 /server/orbitalnote-sync
 /server/.env
+/server/dist/

@@ -37,7 +37,7 @@ func (s *unavailableProvider) List() ([]workspace.File, error) {
 // This deliberately exercises the separately built server binary over HTTP,
 // including website signup, manual entitlement, and browser device approval.
 // scripts/check-sync.sh supplies the executable, without making the local app
-// depend on the proprietary server module.
+// depend on the separately licensed server module.
 func TestTwoDeviceSyncIntegration(t *testing.T) {
 	binary := os.Getenv("ORBITAL_SYNC_TEST_SERVER")
 	if binary == "" {
@@ -114,10 +114,12 @@ func TestTwoDeviceSyncIntegration(t *testing.T) {
 		}
 	}
 	postForm("/signup", url.Values{"csrf": {formToken("/signup")}, "email": {"sync@example.com"}, "password": {"a-long-test-password"}, "invite": {"integration-test-invitation"}})
-	grant := exec.Command(binary, "grant", "--email", "sync@example.com", "--days", "30")
-	grant.Env = env
-	if b, e := grant.CombinedOutput(); e != nil {
-		t.Fatalf("grant: %s %v", b, e)
+	if os.Getenv("ORBITAL_SYNC_TEST_DAEMON") != "1" {
+		grant := exec.Command(binary, "grant", "--email", "sync@example.com", "--days", "30")
+		grant.Env = env
+		if b, e := grant.CombinedOutput(); e != nil {
+			t.Fatalf("grant: %s %v", b, e)
+		}
 	}
 	// Exercise a fresh website login rather than relying on signup's session.
 	jar, _ = cookiejar.New(nil)
@@ -329,25 +331,27 @@ func TestTwoDeviceSyncIntegration(t *testing.T) {
 	apiA.HTTP.Transport = nil
 	put(wb, "Download while inactive.org", "* Still downloadable\n")
 	tick(b)
-	grant = exec.Command(binary, "grant", "--email", "sync@example.com", "--days", "0")
-	grant.Env = env
-	if output, err := grant.CombinedOutput(); err != nil {
-		t.Fatalf("disable: %s %v", output, err)
-	}
-	var inactive *APIError
-	if err = a.Tick(ctx); !errors.As(err, &inactive) || inactive.Status != 402 {
-		t.Fatalf("expected inactive entitlement: %v", err)
-	}
-	if read(wa, "Download while inactive.org") != "* Still downloadable\n" {
-		t.Fatal("pending upload blocked downloads")
-	}
-	if read(wa, "Pending.org") != "* Keep this pending edit\n" {
-		t.Fatal("inactive entitlement changed local files")
-	}
-	grant = exec.Command(binary, "grant", "--email", "sync@example.com", "--days", "30")
-	grant.Env = env
-	if output, err := grant.CombinedOutput(); err != nil {
-		t.Fatalf("reenable: %s %v", output, err)
+	if os.Getenv("ORBITAL_SYNC_TEST_DAEMON") != "1" {
+		grant := exec.Command(binary, "grant", "--email", "sync@example.com", "--days", "0")
+		grant.Env = env
+		if output, err := grant.CombinedOutput(); err != nil {
+			t.Fatalf("disable: %s %v", output, err)
+		}
+		var inactive *APIError
+		if err = a.Tick(ctx); !errors.As(err, &inactive) || inactive.Status != 402 {
+			t.Fatalf("expected inactive entitlement: %v", err)
+		}
+		if read(wa, "Download while inactive.org") != "* Still downloadable\n" {
+			t.Fatal("pending upload blocked downloads")
+		}
+		if read(wa, "Pending.org") != "* Keep this pending edit\n" {
+			t.Fatal("inactive entitlement changed local files")
+		}
+		grant = exec.Command(binary, "grant", "--email", "sync@example.com", "--days", "30")
+		grant.Env = env
+		if output, err := grant.CombinedOutput(); err != nil {
+			t.Fatalf("reenable: %s %v", output, err)
+		}
 	}
 	tick(a)
 	tick(b)

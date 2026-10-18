@@ -1,4 +1,30 @@
-# OrbitalNote 0.1.0-preview.22
+# OrbitalNote 0.1.0-preview.23
+
+## Self-hosted encrypted Sync
+
+This client release adds **Settings → OrbitalNote Sync → Sync service →
+Self-hosted server**. Enter your server's HTTPS origin, sign in to an account on
+that server, approve the device code, and connect your encrypted workspace.
+Hosted OrbitalNote Sync remains the default option.
+
+**Compatible release pair:** OrbitalNote **0.1.0-preview.23** and
+[OrbitalNote Sync daemon **0.1.0-preview.1**](https://github.com/mannders00/orbitalnote-sync/releases/tag/v0.1.0-preview.1).
+Earlier hosted-only client builds do not expose the server URL setting.
+The daemon stores metadata in SQLite and encrypted revisions on local disk;
+self-hosted accounts need no subscription. The client is GPL-3.0-only and the
+separate daemon is source-available under the Sustainable Use License 1.0.
+
+See the [self-hosting guide](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.23/docs/self-hosted-sync.md)
+and [daemon setup](https://github.com/mannders00/orbitalnote-sync#quick-start).
+Disconnect before changing servers; local notes stay on your device, but server
+history and accounts do not migrate. Save your recovery key before switching.
+
+Verified locally with the real macOS WebView, Wails bindings, Keychain storage,
+device authorization, bidirectional encrypted sync, and native app restart against
+the downloaded daemon release. Public client release publication is also gated
+on real two-client sync tests against that checksum-verified daemon binary.
+
+## Included from preview.22
 
 Persistent Android linked folders, in-place editing, and hidden shared settings.
 OrbitalNote is free and works locally without an account.

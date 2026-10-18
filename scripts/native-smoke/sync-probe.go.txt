@@ -1,0 +1,243 @@
+// Injected only into the native E2E test build through go build -overlay.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/mannders00/OrbitalNote/internal/syncclient"
+	"github.com/mannders00/OrbitalNote/internal/workspace"
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
+)
+
+func probeOpenWorkspace(s *workspace.Service) error {
+	_, err := s.Open(filepath.Join(os.Getenv("SYNC_PROBE_ROOT"), "native"))
+	return err
+}
+func probeConfigDir() (string, error) {
+	return filepath.Join(os.Getenv("SYNC_PROBE_ROOT"), "home"), nil
+}
+
+func (h *Host) ProbeReport(message string) { fmt.Fprintln(os.Stderr, "Native JS:", message) }
+func (h *Host) ProbePause()                { time.Sleep(100 * time.Millisecond) }
+
+func installSyncProbe(a *application.App, w *application.WebviewWindow, h *Host) {
+	root, origin := os.Getenv("SYNC_PROBE_ROOT"), os.Getenv("SYNC_PROBE_URL")
+	jar, _ := cookiejar.New(nil)
+	browser := &http.Client{Jar: jar, Timeout: 10 * time.Second}
+	csrf := regexp.MustCompile(`name="csrf" value="([a-f0-9]+)"`)
+	form := func(path, destination string, values url.Values) error {
+		r, err := browser.Get(origin + path)
+		if err != nil {
+			return err
+		}
+		b, err := io.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			return err
+		}
+		match := csrf.FindSubmatch(b)
+		if len(match) != 2 {
+			return fmt.Errorf("missing CSRF on %s: %s", path, b)
+		}
+		values.Set("csrf", string(match[1]))
+		r, err = browser.PostForm(origin+destination, values)
+		if err != nil {
+			return err
+		}
+		b, err = io.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			return err
+		}
+		if r.StatusCode != 200 {
+			return fmt.Errorf("form %s: %d %s", destination, r.StatusCode, b)
+		}
+		return nil
+	}
+	var once sync.Once
+	finish := func(ok bool, detail string) {
+		once.Do(func() {
+			b, _ := json.Marshal(map[string]any{"ok": ok, "detail": detail, "phase": os.Getenv("SYNC_PROBE_PHASE")})
+			_ = os.WriteFile(filepath.Join(root, "result-"+os.Getenv("SYNC_PROBE_PHASE")+".json"), b, 0600)
+			h.allowQuit.Store(true)
+			a.Quit()
+		})
+	}
+	time.AfterFunc(90*time.Second, func() { finish(false, "native sync probe timed out") })
+	if os.Getenv("SYNC_PROBE_PHASE") == "create" {
+		err := form("/signup", "/signup", url.Values{"email": {"native@example.com"}, "password": {"native-e2e-password-123"}, "invite": {"native-e2e-invitation"}})
+		if err != nil {
+			panic(err)
+		}
+	}
+	a.Event.On("sync-probe:approve", func(e *application.CustomEvent) {
+		go func() {
+			code := e.Data.(map[string]any)["code"].(string)
+			if err := form("/device?code="+code, "/device", url.Values{"code": {code}}); err != nil {
+				finish(false, err.Error())
+				return
+			}
+			application.InvokeSync(a.Show)
+			w.Focus()
+			w.ExecJS("window.__syncProbeApproved = true")
+		}()
+	})
+	a.Event.On("sync-probe:roundtrip", func(e *application.CustomEvent) {
+		go func() {
+			err := func() error {
+				key := e.Data.(map[string]any)["key"].(string)
+				api, err := syncclient.NewAPI(origin, "")
+				if err != nil {
+					return err
+				}
+				ctx := context.Background()
+				var login struct{ Token, Code, URL string }
+				if err = api.Request(ctx, "POST", "/api/device/start", map[string]string{"label": "Independent peer"}, &login); err != nil {
+					return err
+				}
+				if err = form("/device?code="+login.Code, "/device", url.Values{"code": {login.Code}}); err != nil {
+					return err
+				}
+				var approved struct{ Approved bool }
+				if err = api.Request(ctx, "POST", "/api/device/poll", map[string]string{"token": login.Token}, &approved); err != nil {
+					return err
+				}
+				if !approved.Approved {
+					return fmt.Errorf("peer not authorized")
+				}
+				api.Token = login.Token
+				keys, err := syncclient.ParseRecovery(key)
+				if err != nil {
+					return err
+				}
+				peer := workspace.NewService()
+				defer peer.Close()
+				if _, err = peer.Open(filepath.Join(root, "peer")); err != nil {
+					return err
+				}
+				engine, err := syncclient.NewEngine(api, keys, peer, filepath.Join(root, "peer-checkpoint.json"))
+				if err != nil {
+					return err
+				}
+				downloaded := false
+				for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); {
+					if err = engine.Tick(ctx); err != nil {
+						return err
+					}
+					b, _ := os.ReadFile(filepath.Join(root, "peer", "Native.org"))
+					if string(b) == "* Written by the native desktop\n" {
+						downloaded = true
+						break
+					}
+					time.Sleep(200 * time.Millisecond)
+				}
+				if !downloaded {
+					return fmt.Errorf("peer did not receive native note")
+				}
+				if err = os.WriteFile(filepath.Join(root, "peer", "Peer.org"), []byte("* Returned by the independent peer\n"), 0600); err != nil {
+					return err
+				}
+				if err = engine.Tick(ctx); err != nil {
+					return err
+				}
+				for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); {
+					b, _ := os.ReadFile(filepath.Join(root, "native", "Peer.org"))
+					if string(b) == "* Returned by the independent peer\n" {
+						w.ExecJS("window.__syncProbeRoundTripDone = true")
+						return nil
+					}
+					time.Sleep(200 * time.Millisecond)
+				}
+				return fmt.Errorf("native desktop did not receive peer note")
+			}()
+			if err != nil {
+				finish(false, err.Error())
+			}
+		}()
+	})
+	a.Event.On("sync-probe:result", func(e *application.CustomEvent) {
+		data := e.Data.(map[string]any)
+		ok, _ := data["ok"].(bool)
+		detail, _ := data["detail"].(string)
+		finish(ok, detail)
+	})
+	originJSON, _ := json.Marshal(origin)
+	phaseJSON, _ := json.Marshal(os.Getenv("SYNC_PROBE_PHASE"))
+	script := strings.ReplaceAll(strings.ReplaceAll(nativeSyncProbeJS, "__ORIGIN__", string(originJSON)), "__PHASE__", string(phaseJSON))
+	w.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+		fmt.Fprintln(os.Stderr, "Native sync probe: runtime ready")
+		w.ExecJS(script)
+	})
+	time.AfterFunc(3*time.Second, func() {
+		fmt.Fprintln(os.Stderr, "Native sync probe: injecting driver")
+		w.Focus()
+		w.ExecJS(script)
+	})
+}
+
+const nativeSyncProbeJS = `(async () => {
+ if(window.__nativeSyncProbeStarted)return;
+ window.__nativeSyncProbeStarted=true;
+ const {Call, Events} = await import('/wails/runtime.js');
+ await Call.ByName('main.Host.ProbeReport','runtime import succeeded');
+ const {syncCall} = await import('/api.js');
+ const origin=__ORIGIN__, phase=__PHASE__;
+ const el = id => document.getElementById(id);
+ const wait = async (fn, description) => {
+   await Call.ByName('main.Host.ProbeReport','Waiting: '+description);
+   for(let i=0;i<300;i++){if(await fn())return;await Call.ByName('main.Host.ProbePause');}
+   throw new Error('Timed out: '+description+'; '+el('sync-action-message')?.textContent+'; '+el('sync-status')?.textContent);
+ };
+ try {
+   await Call.ByName('main.Host.ProbeReport','settings driver started');
+   await wait(()=>el('sync-provider') && !el('sync-controls').hidden, 'native settings ready');
+   await new Promise(r=>setTimeout(r,500));
+   document.querySelector('[data-view="settings"]').click();
+   await wait(()=>!el('settings').hidden,'settings page opened');
+   if(phase==='create'){
+     el('sync-provider').value='self-hosted';
+     el('sync-provider').dispatchEvent(new Event('change',{bubbles:true}));
+     el('sync-server').value=origin;
+     el('sync-start').click();
+     await wait(()=>el('sync-code').textContent.includes('Device code:'), 'device login from native bridge');
+     const code=el('sync-code').textContent.match(/Device code: ([^.]+)/)[1];
+     Events.Emit('sync-probe:approve',{code});
+     await wait(()=>window.__syncProbeApproved,'server device approval');
+     await wait(()=>!el('sync-finish').disabled,'sign-in check enabled');
+     if(!(await syncCall('Status')).signedIn)el('sync-finish').click();
+     await wait(()=>!el('sync-workspace-setup').hidden && !el('sync-create').disabled,'approval and keychain save');
+     el('sync-create').click();
+     await wait(()=>el('sync-key-dialog').open && el('sync-key').value,'encrypted workspace creation');
+     const key=el('sync-key').value;
+     el('sync-key-dialog').close();
+     const status=await syncCall('Status');
+     if(!status.connected || status.server!==origin)throw new Error('Wrong connected origin');
+     Events.Emit('sync-probe:roundtrip',{key});
+     await wait(()=>window.__syncProbeRoundTripDone,'bidirectional encrypted sync');
+   }else{
+     await wait(async()=>{const s=await syncCall('Status');return s.connected && s.lastSuccess && s.server===origin},'saved credentials reconnect after restart');
+     await wait(()=>el('sync-provider').value==='self-hosted' && el('sync-server').value===origin && el('sync-server').disabled,'saved server displayed');
+   }
+   const state=await Call.ByName('github.com/mannders00/OrbitalNote/internal/workspace.Service.Status');
+   const note=await Call.ByName('github.com/mannders00/OrbitalNote/internal/workspace.Service.Read',state.id,'Peer.org');
+   if(note.source!=='* Returned by the independent peer\n')throw new Error('Native workspace binding did not read peer note');
+   if(phase==='restart'){
+     el('sync-disconnect').click();
+     await wait(async()=>!(await syncCall('Status')).signedIn,'disconnect and keychain cleanup');
+   }
+   Events.Emit('sync-probe:result',{ok:true,detail:phase==='create'?'Native URL entry, real Wails sign-in, device approval, Keychain save, encrypted workspace creation and bidirectional sync passed':'Native restart restored server and Keychain credentials, synced, read peer note, and disconnected'});
+ }catch(error){await Call.ByName('main.Host.ProbeReport',String(error));Events.Emit('sync-probe:result',{ok:false,detail:String(error)});}
+})()`
