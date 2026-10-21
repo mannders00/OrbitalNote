@@ -2,6 +2,21 @@
 
 ## Reading and source views
 
+Use **Jump to heading** in the command palette, or **Cmd+Shift+O** on macOS /
+**Ctrl+Shift+O** on Windows and Linux, to search headings in the current note.
+Results include parent headings and line numbers to distinguish repeated titles.
+Enter jumps to the selected heading and reveals it if folded, keeping your current
+source or preview mode. The shortcut can be changed in keyboard settings.
+
+**Insert link** offers an **Existing note** dropdown. Selecting a note fills in
+the correct relative `file:` link, including paths between folders. You can also
+type or paste a URL or internal link directly.
+
+In source mode, **Cmd-click** a bracketed Org link on macOS, or **Ctrl-click**
+on Windows/Linux, to follow it. Ordinary clicks keep editing the text.
+Links with `file:note.org::*Heading` targets jump to that heading. Task links in
+agenda and calendar views display their label and can be clicked directly.
+
 Use the document's **File actions → Open in new tab**, **Split right**, or
 **Split down** to open another view of the same note. Each view has its own
 source/preview mode, cursor, folds, and scroll position. Edits share a single
@@ -19,7 +34,12 @@ restriction. Focused tabs restore with the layout when their heading can still b
 identified. The preview toggle is disabled while focused.
 
 Bullet lists and checklists with nested content have fold arrows in source and
-reading views. Their fold state follows edits and mode switches. File actions
+reading views. Like heading arrows, these appear when you hover the row or focus
+the button (and stay visible on touch devices). Folded content is indicated by
+an ellipsis in both views. **Cmd-click on macOS or Ctrl-click on Windows/Linux**
+folds or unfolds the item and all nested headings, bullet lists, and checklists.
+A normal click changes only the parent, retaining its children's fold states.
+Their fold state follows edits and mode switches. File actions
 begin with **Fold all** and **Unfold all**, including headings, lists, and metadata.
 
 On macOS, tabs share the native title area by default. Drag empty tab-bar space
@@ -143,3 +163,19 @@ shared between open notes for this app session and reset when the app reloads.
 Macros operate on editor commands and text; app dialogs and toolbar actions
 are outside their scope. Use Cmd/Ctrl S to save. App-level keyboard shortcuts
 take priority over conflicting Vim bindings.
+## Managing files and folders
+
+**New note** asks for a name and a destination folder. You can leave off `.org`;
+it is added automatically. The default destination is the current note's folder.
+The folder's **⋮** menu offers **New note…** and **New subfolder…**, with that
+folder already selected. The prompt shows the resulting path and flags names
+that already exist in the destination.
+
+Use **Rename or move…** in a file or folder menu to change its name or choose a
+different folder. **Save a copy…** uses the same name-and-folder picker.
+
+To move an item by dragging, drop anywhere inside the destination folder's
+expanded area, including over one of its files. The highlighted boundary shows
+which folder will receive it; a nested folder takes precedence over its parent.
+Drop on **Workspace** or empty file-sidebar space to move to the workspace root.
+An item cannot be dropped into itself or one of its descendants.

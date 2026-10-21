@@ -40,7 +40,7 @@ type Document struct {
 	Warning    string            `json:"warning,omitempty"`
 }
 
-var headingRE = regexp.MustCompile(`^(\*+)\s+(.+)$`)
+var headingRE = regexp.MustCompile(`^(\*+)[ \t]+(.*)$`)
 var propertyRE = regexp.MustCompile(`^:([^: ]+):\s*(.*)$`)
 var linkRE = regexp.MustCompile(`\[\[([^\]]+)\](?:\[[^\]]*\])?\]`)
 

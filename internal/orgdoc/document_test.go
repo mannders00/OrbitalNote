@@ -25,6 +25,32 @@ func TestSemanticsAndPreservation(t *testing.T) {
 		t.Fatalf("links: %+v", d.Links)
 	}
 }
+
+func TestEmptyHeadingsKeepOutlineAndMetadata(t *testing.T) {
+	for _, eol := range []string{"\n", "\r\n"} {
+		for _, blank := range []string{" ", "   ", "\t"} {
+			source := strings.Join([]string{
+				"* Before", "**" + blank, "Empty heading body", "*** TODO Child", "SCHEDULED: <2026-10-20 Tue>",
+				"*" + blank, "* After", "#+begin_src org", "** ", "#+end_src", "**" + blank,
+			}, eol)
+			d := Parse(source)
+			if d.Warning != "" || d.Source != source || len(d.Headings) != 6 {
+				t.Fatalf("eol=%q blank=%q: warning=%q headings=%+v", eol, blank, d.Warning, d.Headings)
+			}
+			for i, line := range []int{1, 2, 4, 6, 7, 11} {
+				if d.Headings[i].Line != line {
+					t.Fatalf("heading %d points to line %d, want %d", i, d.Headings[i].Line, line)
+				}
+			}
+			if d.Headings[1].Title != "" || d.Headings[3].Title != "" || d.Headings[5].Title != "" || d.Headings[1].Parent != 0 || d.Headings[2].Parent != 1 || d.Headings[5].Parent != 4 {
+				t.Fatalf("empty titles or parent relationships lost: %+v", d.Headings)
+			}
+			if h := d.Headings[2]; h.State != "TODO" || h.Title != "Child" || len(h.Dates) != 1 {
+				t.Fatalf("child metadata shifted: %+v", h)
+			}
+		}
+	}
+}
 func TestUntrustedExportAndLongLine(t *testing.T) {
 	d := Parse("#+begin_export html\n<script>alert(1)</script><img src=https://tracker.example/x onerror=alert(2)><iframe src=file:///etc/passwd></iframe>\n#+end_export\n[[javascript:alert(1)][bad]]\n")
 	for _, bad := range []string{"<script", "<iframe", "<img", "javascript:"} {

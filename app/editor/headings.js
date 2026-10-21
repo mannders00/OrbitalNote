@@ -10,7 +10,7 @@ export function headingRanges(source) {
     } else if (drawer || /^\s*:[A-Za-z0-9_]+:\s*$/.test(text)) {
       drawer = text.trim().toUpperCase() !== ':END:';
     } else {
-      const match = /^(\*+)\s+(.+?)\s*$/.exec(text);
+      const match = /^(\*+)[ \t]+(.*?)\s*$/.exec(text);
       if (match) {
         const level = match[1].length;
         while (stack.length && stack.at(-1).level >= level) stack.pop().to = offset - 1;
@@ -43,7 +43,7 @@ export function listRanges(source) {
     else {
       const match = /^(\s*)([-+]|\d+[.)]|\*)\s+(.+?)\s*$/.exec(text);
       if (match && (match[2] !== '*' || indent > 0)) {
-        const item = { start: offset, from: offset + text.replace(/\r$/, '').length, to: offset + text.replace(/\r$/, '').length, level: indent, title: match[3], kind: 'list' };
+        const item = { start: offset, marker: offset + match[1].length, from: offset + text.replace(/\r$/, '').length, to: offset + text.replace(/\r$/, '').length, level: indent, title: match[3], kind: 'list' };
         items.push(item); stack.push(item);
       }
     }

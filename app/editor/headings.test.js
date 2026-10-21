@@ -12,6 +12,16 @@ test('block examples and drawer contents do not end a subtree', () => {
   const source = '* Real\n#+begin_src org\n* Fake\n#+end_src\n:PROPERTIES:\n* Also fake\n:END:\n** Child\ntext';
   expect(headingRanges(source).map(h => h.title)).toEqual(['Real', 'Child']);
 });
+test('untitled headings participate in folding and preserve subsequent source coordinates', () => {
+  const source = '* Before\n** \nBody\n*** Child\nChild body\n* \t\n* After\nAfter body\n** ';
+  const ranges = headingRanges(source);
+  expect(ranges.map(h => h.title)).toEqual(['Before', '', 'Child', '', 'After', '']);
+  expect(ranges[1].start).toBe(source.indexOf('** '));
+  expect(source.slice(ranges[1].from, ranges[1].to)).toBe('\nBody\n*** Child\nChild body');
+  expect(ranges[3].from).toBe(ranges[3].to);
+  expect(ranges[4].start).toBe(source.indexOf('* After'));
+  expect(headingRanges('*not a heading\n**\n')).toEqual([]);
+});
 test('empty headings have no fold range; CRLF offsets preserve source', () => {
   const [empty, body] = headingRanges('* Empty\r\n* Body\r\nuntouched\r\n');
   expect(empty.from).toBe(empty.to);

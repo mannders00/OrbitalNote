@@ -18,6 +18,9 @@ import { setupWorkspaceSettings, isSettingsFile } from './workspace-settings.js'
 import { timeGrid, bindCalendarGestures, formatTime, calendarClock, updateNowLine } from './calendar.js';
 import { patchHTML } from './dom.js';
 import { reconcileOutline } from './outline.js';
+import { mountSelectPickers } from './select-picker.js';
+import { taskTitleHTML } from './task-links.js';
+import { primaryModifier } from './platform.js';
 import { localNeighbors, localGraphHTML } from './local-graph.js';
 import { setupSyncSettings } from './sync.js';
 
@@ -215,10 +218,12 @@ async function dialog(title, body, action = 'Continue') {
   const modal = $('modal');
   if (modal.open) return null;
   $('modal-title').textContent = title; $('modal-body').innerHTML = body; $('modal-submit').textContent = action;
+  const disposePickers = mountSelectPickers($('modal-body'));
   for (const input of $('modal-body').querySelectorAll('input, textarea')) { input.spellcheck = false; input.setAttribute('autocorrect', 'off'); input.setAttribute('autocapitalize', 'off'); input.setAttribute('autocomplete', 'off'); }
   modal.returnValue = ''; modal.showModal();
-  const input = modal.querySelector('input'); if (input) { input.focus(); input.select(); }
+  const input = [...modal.querySelectorAll('input')].find(el => el.getClientRects().length); if (input) { input.focus(); input.select(); } else modal.querySelector('.select-picker-trigger')?.focus();
   return new Promise(resolve => modal.addEventListener('close', () => {
+    disposePickers();
     resolve(modal.returnValue === 'ok' ? new FormData($('modal-form')) : null);
   }, { once: true }));
 }
@@ -332,6 +337,7 @@ function createDocumentSurface(path, t) {
     const offset = editor.value.split('\n').slice(0, e.detail.line - 1).reduce((n, line) => n + line.length + 1, 0);
     editor.setSelectionRange(offset, offset); showHeadingMenu(e.detail.button);
   }));
+  editor.addEventListener('follow-link', focused(e => followNoteLink(e.detail.target, surface.dataset.path)));
   find('preview').addEventListener('click', focused(async e => {
     const a = e.target.closest('a'); if (!a) return; e.preventDefault();
     const href = a.getAttribute('href') || '';
@@ -344,7 +350,7 @@ function createDocumentSurface(path, t) {
       return;
     }
     if (/^(https?:|mailto:)/i.test(href)) { await openExternal(href); return; }
-    await openNote(relativePath(href, surface.dataset.path));
+    await followNoteLink(href, surface.dataset.path);
   }));
   mountIcons(surface);
 }
@@ -408,7 +414,9 @@ function renderTree() {
   };
   $('tree').innerHTML = render('') || empty(workspace.id ? 'No Org files' : 'No workspace open');
   $('tree').querySelectorAll('[data-open]').forEach(el => { el.draggable = true; el.dataset.movePath = el.dataset.open; });
-  $('tree').querySelectorAll('summary').forEach(el => { el.draggable = true; el.dataset.movePath = el.parentElement.dataset.path; el.dataset.dropFolder = el.parentElement.dataset.path; });
+  $('tree').querySelectorAll('details').forEach(el => { el.dataset.dropFolder = el.dataset.path; });
+  $('tree').querySelectorAll('summary').forEach(el => { el.draggable = true; el.dataset.movePath = el.parentElement.dataset.path; });
+  $('tree').dataset.dropFolder = '';
   if (workspace.id) $('tree').insertAdjacentHTML('afterbegin', '<div class="tree-root" data-drop-folder="" title="Drop here to move to the workspace root">Workspace</div>');
 }
 function setView(next) {
@@ -513,7 +521,7 @@ function renderContext(doc, surface = activeSurface) {
     for (const h of outline.headingState.headings) {
       while (stack.length > 1 && stack.at(-1).level >= h.level) stack.pop();
       const details = document.createElement('details'); details.dataset.heading = String(h.line); details.dataset.key = h.key; details.open = !closed.has(h.key);
-      details.innerHTML = `<summary><button data-jump="${h.line}">${esc(h.title)}</button></summary>`;
+      details.innerHTML = `<summary><button data-jump="${h.line}">${esc(h.title || 'Untitled heading')}</button></summary>`;
       stack.at(-1).element.append(details); stack.push({ level: h.level, element: details });
     }
     patchHTML(outline, doc.headings.length ? fragment.innerHTML : '<p class="empty">No headings</p>');
@@ -668,11 +676,12 @@ function setPreview(t, html) {
       button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 5 7 7-7 7"/></svg>';
       button.setAttribute('aria-expanded', String(!collapsed));
       button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} heading: ${title}`);
+      button.title = `${/Mac|iPhone|iPad/.test(navigator.platform) ? 'Cmd' : 'Ctrl'}-click to ${collapsed ? 'expand' : 'collapse'} this heading and all nested headings and lists`;
       if (sync && heading.dataset.sourceHeading !== undefined) t.documentView.fold(Number(heading.dataset.sourceHeading), collapsed);
     };
     button.updateFold(false, false);
     heading.addEventListener('click', () => { t.previewHeading = heading.id; });
-    button.addEventListener('click', e => { e.preventDefault(); button.updateFold(!body.hidden); });
+    button.addEventListener('click', e => { e.preventDefault(); t.documentView.fold(Number(heading.dataset.sourceHeading), !body.hidden, primaryModifier(e)); });
     heading.prepend(button);
   }
   if (preview.querySelector('.src-mermaid, .src-latex') || /\\\(|\\\[|\$/.test(preview.textContent)) {
@@ -728,6 +737,17 @@ function relativePath(target, path = active) {
   if (target.startsWith('/') || target.includes('\\') || /^[a-z]+:/i.test(target)) throw new Error('Link must stay inside the workspace');
   for (const p of target.split('/')) { if (p === '..') { if (!parts.length) throw new Error('Link leaves the workspace'); parts.pop(); } else if (p !== '.' && p) parts.push(p); }
   return parts.join('/');
+}
+async function followNoteLink(target, origin = active) {
+  if (/^(https?:|mailto:)/i.test(target)) return openExternal(target);
+  const [file, search = ''] = target.split('::');
+  const local = target.startsWith('#') || target.startsWith('*');
+  const path = local ? origin : relativePath(file, origin), headingTarget = decodeURIComponent(local ? target : search);
+  if (!headingTarget) return openNote(path);
+  const t = tabs.get(path), doc = t ? await call('Preview', { source: t.buffer }) : await call('Read', { id: workspace.id, path });
+  const heading = doc.headings.find(h => headingTarget.startsWith('#') ? h.properties?.CUSTOM_ID === headingTarget.slice(1) : h.title === headingTarget.replace(/^\*+\s*/, ''));
+  if (!heading) { notify('Heading not found in ' + path, 'error'); return; }
+  return openNote(path, heading.line);
 }
 function hydrateImages(t = current()) {
   if (!t?.surface) return;
@@ -789,31 +809,63 @@ async function closeTab(path) {
   renderTabs();
 }
 function disposeDocument(t) { clearTimeout(t?.previewTimer); clearTimeout(t?.saveTimer); t?.resizeObserver?.disconnect(); t?.documentView?.dispose(); t?.vi?.dispose(); t?.surface?.querySelector('[data-ui="source"]')?.dispose(); }
-async function createFile() {
-  const path = await askText('New note', 'Workspace-relative path', 'untitled.org', 'Create note'); if (!path) return;
-  await call('Save', { id: workspace.id, path, source: '', revision: '' }); workspace = await call('Status'); await refreshData(); await openNote(path);
+const parentFolder = path => path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+async function askDestination(title, { folder = '', name = '', directory = false, original = '', action = 'Create note' } = {}) {
+  if ($('modal').open) return null;
+  const folders = ['', ...workspace.files.filter(f => f.directory && !isSettingsFile(f.path) && (!directory || (f.path !== original && !f.path.startsWith(original + '/')))).map(f => f.path)].sort();
+  const pending = dialog(title, `<label>${directory ? 'Folder name' : 'Note name'}<input name="name" required value="${esc(name)}" placeholder="${directory ? 'Projects' : 'Untitled'}" aria-describedby="destination-path"></label><label>${directory ? 'Parent folder' : 'Folder'}<select name="folder">${folders.map(p => `<option value="${esc(p)}" ${p === folder ? 'selected' : ''}>${esc(p || 'Workspace root')}</option>`).join('')}</select></label><output id="destination-path" class="destination-path" aria-live="polite"></output>`, action);
+  const input = $('modal-body').querySelector('[name="name"]'), select = $('modal-body').querySelector('select');
+  let path;
+  const update = () => {
+    let name = input.value.trim();
+    if (!directory && name && !/\.org$/i.test(name)) name += '.org';
+    path = (select.value ? select.value + '/' : '') + name;
+    const error = !input.value.trim() ? 'Enter a name.' : /[\\/\x00-\x1f]/.test(name) || name === '.' || name === '..' ? 'Use a name without slashes or control characters.' : path !== original && workspace.files.some(f => f.path.toLowerCase() === path.toLowerCase()) ? 'That name already exists in this folder. Choose another name.' : '';
+    input.setCustomValidity(error);
+    $('destination-path').textContent = error || path;
+    $('destination-path').classList.toggle('invalid', !!error);
+  };
+  input.addEventListener('input', update); select.addEventListener('change', update); update();
+  return await pending ? path : null;
+}
+async function createFile(folder) {
+  const id = workspace.id;
+  if (!id) return;
+  const path = await askDestination('New note', { folder: typeof folder === 'string' ? folder : parentFolder(active) }); if (!path || id !== workspace.id) return;
+  await call('Save', { id, path, source: '', revision: '' }); workspace = await call('Status'); await refreshData(); await openNote(path);
+  current()?.surface.querySelector('[data-ui="source"]').focus();
+}
+async function createFolder(folder) {
+  const id = workspace.id;
+  if (!id) return;
+  const path = await askDestination('New folder', { folder: typeof folder === 'string' ? folder : parentFolder(active), directory: true, action: 'Create folder' });
+  if (!path || id !== workspace.id) return;
+  await call('Mkdir', { id, path }); workspace = await call('Status'); renderTree();
+  for (const el of $('tree').querySelectorAll('details')) if (el.dataset.path === path || path.startsWith(el.dataset.path + '/')) el.open = true;
+  notify(`Created ${path}`);
 }
 async function saveCopy() {
   const t = current(); if (!t) return;
-  const path = await askText('Save a separate copy', 'Workspace-relative .org path', active.replace(/\.org$/i, '-conflict.org'), 'Save copy'); if (!path) return;
-  await call('Save', { id: workspace.id, path, source: t.raw, revision: '' }); workspace = await call('Status'); await refreshData(); await openNote(path);
+  const id = workspace.id;
+  const path = await askDestination('Save a separate copy', { folder: parentFolder(t.path), name: t.path.split('/').pop().replace(/\.org$/i, '-conflict'), action: 'Save copy' }); if (!path || id !== workspace.id) return;
+  await call('Save', { id, path, source: t.raw, revision: '' }); workspace = await call('Status'); await refreshData(); await openNote(path);
 }
-function fileActions(event) { showFileMenu(active, event?.currentTarget || $('file-actions')); }
-function showFileMenu(path, anchor) {
+function fileActions(event) { showFileMenu(active, event?.currentTarget || $('file-actions'), true); }
+function showFileMenu(path, anchor, documentActions = false) {
   const fold = async action => { if (active !== path || view !== 'document') await openNote(path); headingFoldCommand(action); };
   const duplicate = async edge => { if (!tabs.has(path)) await openNote(path); duplicateDocument(path, edge); };
-  showActionMenu(anchor, 'File actions', [['Fold all', () => fold('fold-all')], ['Unfold all', () => fold('unfold-all')], ['Open in new tab', () => duplicate()], ['Split right', () => duplicate('right')], ['Split down', () => duplicate('bottom')], ['File metadata…', async () => { if (active !== path || view !== 'document') await openNote(path); await fileMetadata(); }], ['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
+  showActionMenu(anchor, 'File actions', [...(documentActions ? [['Fold all', () => fold('fold-all')], ['Unfold all', () => fold('unfold-all')], ['Open in new tab', () => duplicate()], ['Split right', () => duplicate('right')], ['Split down', () => duplicate('bottom')]] : []), ['File metadata…', async () => { if (active !== path || view !== 'document') await openNote(path); await fileMetadata(); }], ['Rename or move…', () => fileAction(path, 'rename')], ['Save a copy…', () => fileAction(path, 'copy')], ['Delete file…', () => fileAction(path, 'delete')]]);
 }
 async function fileAction(path, action) {
   const t = tabs.get(path), id = workspace.id;
   if (action === 'copy') {
     const note = t || await call('Read', { id, path });
-    const to = await askText('Save a copy', 'Workspace-relative .org path', path.replace(/\.org$/i, '-copy.org'), 'Save copy'); if (!to || id !== workspace.id) return;
+    const to = await askDestination('Save a copy', { folder: parentFolder(path), name: path.split('/').pop().replace(/\.org$/i, '-copy'), action: 'Save copy' }); if (!to || id !== workspace.id) return;
     await call('Save', { id, path: to, source: t ? t.raw : note.source, revision: '' }); workspace = await call('Status'); await refreshData(); return;
   }
   if (dirty(t) || t?.saving) { notify('Save your edits before renaming or deleting this file.'); return; }
   if (action === 'rename') {
-    const to = await askText('Rename or move note', 'Destination path inside this workspace', path, 'Move note'); if (!to || to === path) return;
+    const to = await askDestination('Rename or move note', { folder: parentFolder(path), name: path.split('/').pop().replace(/\.org$/i, ''), original: path, action: 'Save changes' }); if (!to || to === path) return;
     if (id !== workspace.id || dirty(t) || t?.saving) return;
     await call('Rename', { id, path, to });
     if (t) { tabs.delete(path); t.path = to; tabs.set(to, t); if (active === path) active = to; renderTabs(); if (view === 'document') showDocument(); }
@@ -828,17 +880,20 @@ async function fileAction(path, action) {
   workspace = await call('Status'); await refreshData(); renderTree();
 }
 function folderActions(path, anchor) {
-  showActionMenu(anchor, 'Folder actions', [['Rename or move…', () => folderAction(path, 'rename')], ['Delete empty folder…', () => folderAction(path, 'delete')]]);
+  showActionMenu(anchor, 'Folder actions', [['New note…', () => createFile(path)], ['New subfolder…', () => createFolder(path)], ['Rename or move…', () => folderAction(path, 'rename')], ['Delete empty folder…', () => folderAction(path, 'delete')]]);
 }
 async function folderAction(path, action) {
+  const id = workspace.id;
   if ([...tabs].some(([p,t]) => p.startsWith(path + '/') && (dirty(t) || t.saving))) { notify('Save edits in this folder before moving it.'); return; }
   if (action === 'rename') {
-    const to = await askText('Rename or move folder', 'Destination path inside this workspace', path, 'Move folder'); if (!to || to === path) return;
-    await call('Rename', { id: workspace.id, path, to });
+    const to = await askDestination('Rename or move folder', { folder: parentFolder(path), name: path.split('/').pop(), directory: true, original: path, action: 'Save changes' }); if (!to || to === path) return;
+    if (id !== workspace.id || [...tabs].some(([p,t]) => p.startsWith(path + '/') && (dirty(t) || t.saving))) return;
+    await call('Rename', { id, path, to });
     for (const [p,t] of [...tabs]) if (p.startsWith(path + '/')) { const next = to + p.slice(path.length); tabs.delete(p); t.path = next; tabs.set(next,t); if (active === p) active = next; }
     renderTabs(); if (view === 'document') showDocument();
   } else if (await confirm('Delete empty folder?', `Remove ${path}? Folders containing files will not be deleted.`, 'Delete folder')) {
-    await call('Remove', { id: workspace.id, path, revision: '' });
+    if (id !== workspace.id) return;
+    await call('Remove', { id, path, revision: '' });
   }
   workspace = await call('Status'); await refreshData();
 }
@@ -873,7 +928,7 @@ function entryHTML(e) {
   const clock = e.done || e.projected ? '' : `<button class="icon-button task-clock" data-clock="${index}" aria-pressed="${!!e.clock}" aria-label="${e.clock ? 'Clock out of' : 'Clock in to'} ${esc(e.title)}" title="${e.clock ? 'Clock out' : 'Clock in'}">${icon(e.clock ? 'clock-stop' : 'clock')}</button>`;
   const actions = `<div class="agenda-row-actions">${clock}<button class="icon-button agenda-edit" data-edit-task="${index}" aria-label="Edit task: ${esc(e.title)}" title="Edit task">${icon('pencil')}</button></div>`;
   const time = e.stamp.time ? formatTime(e.stamp.time, $('calendar-time-format').value) : e.stamp.date ? 'All day' : 'Unscheduled';
-  return `<div class="agenda-row ${e.done ? 'completed' : ''} ${e.projected ? 'projected' : ''}">${e.state ? e.stamp.kind === 'completed' || e.projected ? `<span class="task-state ${e.done ? 'org-done' : 'org-todo'}">${esc(e.state)}</span>` : `<button class="agenda-complete task-state ${e.done ? 'org-done' : 'org-todo'}" data-complete="${index}" aria-label="${e.done ? 'Reopen' : 'Mark'} ${esc(e.title)}${e.done ? '' : ' as done'}">${esc(e.state)}</button>` : ''}<button class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${esc(e.title)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(time)}<br><small>${e.projected ? 'Projected · ' : ''}${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></button>${actions}</div>`;
+  return `<div class="agenda-row ${e.done ? 'completed' : ''} ${e.projected ? 'projected' : ''}">${e.state ? e.stamp.kind === 'completed' || e.projected ? `<span class="task-state ${e.done ? 'org-done' : 'org-todo'}">${esc(e.state)}</span>` : `<button class="agenda-complete task-state ${e.done ? 'org-done' : 'org-todo'}" data-complete="${index}" aria-label="${e.done ? 'Reopen' : 'Mark'} ${esc(e.title)}${e.done ? '' : ' as done'}">${esc(e.state)}</button>` : ''}<div role="group" tabindex="0" aria-label="Open task" class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${taskTitleHTML(e.title, e.path)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(time)}<br><small>${e.projected ? 'Projected · ' : ''}${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></div>${actions}</div>`;
 }
 async function editAgendaTask(item) {
   if (!item) return;
@@ -974,7 +1029,7 @@ function calendarMatches(e) {
 function dayEntries(key) { return entries.filter(e => calendarMatches(e) && e.stamp.date && e.stamp.date <= key && (e.stamp.endDate || e.stamp.date) >= key); }
 function monthEntry(e) {
   const format = $('calendar-time-format').value;
-  return `<div class="calendar-item" data-key="${esc(e.path+':'+e.line+':'+e.stamp.kind+':'+e.stamp.date+':'+e.stamp.time)}"><button class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''} ${e.clock ? 'is-clocked' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entryIndices.get(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}">${calendarClock(e)}<span class="calendar-event-title">${esc(e.title)}</span>${e.stamp.time ? `<span class="calendar-event-time">${esc(formatTime(e.stamp.time,format))}${e.stamp.endTime ? '–'+esc(formatTime(e.stamp.endTime,format)) : ''}</span>` : ''}</button></div>`;
+  return `<div class="calendar-item" data-key="${esc(e.path+':'+e.line+':'+e.stamp.kind+':'+e.stamp.date+':'+e.stamp.time)}"><div role="group" tabindex="0" aria-label="Open task" class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''} ${e.clock ? 'is-clocked' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entryIndices.get(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}">${calendarClock(e)}<span class="calendar-event-title">${taskTitleHTML(e.title, e.path)}</span>${e.stamp.time ? `<span class="calendar-event-time">${esc(formatTime(e.stamp.time,format))}${e.stamp.endTime ? '–'+esc(formatTime(e.stamp.endTime,format)) : ''}</span>` : ''}</div></div>`;
 }
 function monthGrid(year, month) {
   const first = new Date(year, month, 1, 12), start = new Date(first); start.setDate(1 - (first.getDay() + 6) % 7);
@@ -1108,7 +1163,21 @@ async function editorCommand(name) {
     const data = await dialog(name === 'timestamp' ? 'Insert timestamp' : name === 'schedule' ? 'Schedule heading' : 'Set deadline', `<label>Date<input type="date" name="date" value="${today()}" required></label>`, 'Insert');
     if (!data) return; extra = data.get('date');
   }
-  if (name === 'link') { extra = await askText('Insert link', 'URL or file:relative/path.org', 'https://'); if (!extra) return; }
+  if (name === 'link') {
+    if ($('modal').open) return;
+    const path = active, editor = source;
+    const files = workspace.files.filter(f => !f.directory && !isSettingsFile(f.path));
+    const pending = dialog('Insert link', `<label>Existing note<select name="file"><option value="">Choose a note, or enter a URL below…</option>${files.map(f => `<option value="${esc(f.path)}">${esc(f.path)}</option>`).join('')}</select></label><label>URL or internal link<input name="target" required placeholder="https:// or file:relative/path.org"></label>`, 'Insert link');
+    const select = $('modal-body').querySelector('select'), input = $('modal-body').querySelector('[name="target"]');
+    select.addEventListener('change', () => {
+      if (!select.value) return;
+      const from = path.split('/').slice(0, -1), to = select.value.split('/');
+      while (from.length && to.length && from[0] === to[0]) { from.shift(); to.shift(); }
+      input.value = 'file:' + [...from.map(() => '..'), ...to.map(encodeURIComponent)].join('/');
+    });
+    const data = await pending; if (!data || active !== path || source !== editor) return;
+    extra = data.get('target').trim(); if (!extra) return;
+  }
   if (['promote', 'demote', 'todo', 'move-up', 'move-down', 'schedule', 'deadline'].includes(name)) {
     const t = current(), buffer = t.buffer, path = active;
     const line = source.value.slice(0, source.selectionStart).split('\n').length;
@@ -1263,6 +1332,7 @@ const actionDefinitions = [
   ['settings', 'Settings', 'Mod+,', () => setView('settings')],
   ['commands', 'Run command', 'Mod+P', () => openPalette('commands')],
   ['files', 'Find file by name', 'Mod+O', () => openPalette('files')],
+  ['jump-heading', 'Jump to heading', 'Mod+Shift+O', openHeadingPalette],
   ['close-tab', 'Close focused tab', 'Mod+W', closeActiveTab],
   ['fold-toggle', 'Toggle heading folding', '', () => headingFoldCommand('toggle')],
   ['fold', 'Collapse current heading', '', () => headingFoldCommand('fold')],
@@ -1299,17 +1369,53 @@ function updateShortcutHints() {
 }
 updateShortcutHints();
 function fuzzy(text, query) { let i = 0; for (const c of text.toLowerCase()) if (c === query[i]) i++; return i === query.length; }
-function openPalette(kind) { paletteKind = kind; $('palette-input').value = ''; $('palette-input').placeholder = kind === 'files' ? 'Open a file…' : 'Find a command…'; $('palette').showModal(); $('palette-input').focus(); renderPalette(); }
+let headingPaletteItems = [];
+async function openHeadingPalette() {
+  const t = current(); if (!t) { notify('Open a note to jump to a heading.'); return; }
+  const editor = t.surface.querySelector('[data-ui="source"]'), buffer = editor.value;
+  const doc = await call('Preview', { source: buffer });
+  if (current() !== t || editor.value !== buffer) return;
+  const parents = [];
+  headingPaletteItems = doc.headings.map(h => {
+    while (parents.length && parents.at(-1).level >= h.level) parents.pop();
+    const title = h.title || 'Untitled heading', context = [...parents.map(p => p.title), `Line ${h.line}`].join(' › ');
+    parents.push({ level: h.level, title });
+    return [title, context, () => {
+      if (current() !== t || editor.value !== buffer) { notify('The note changed. Open Jump to heading again.'); return; }
+      const pos = buffer.split('\n').slice(0, h.line - 1).reduce((n, line) => n + line.length + 1, 0);
+      const focus = editor.getFocusRange();
+      if (focus && (pos < focus.from || pos > focus.to)) t.surface.querySelector('.focus-exit')?.click();
+      editor.jumpTo(pos);
+      if (mode === 'preview') {
+        t.documentView.syncFolds();
+        const target = t.surface.querySelector(`[data-source-heading="${pos}"]`);
+        if (target) requestAnimationFrame(() => { target.classList.add('preview-jump-highlight'); target.scrollIntoView({ block: 'center' }); });
+      } else editor.focus();
+    }];
+  });
+  openPalette('headings');
+}
+function openPalette(kind) { paletteKind = kind; $('palette-input').value = ''; $('palette-input').placeholder = kind === 'files' ? 'Open a file…' : kind === 'headings' ? 'Jump to heading…' : 'Find a command…'; $('palette').showModal(); $('palette-input').focus(); renderPalette(); }
 function renderPalette() {
   const q = $('palette-input').value.toLowerCase().trim();
   const items = paletteKind === 'files' ? workspace.files.filter(f => !f.directory).sort((a, b) => (recent.indexOf(a.path) < 0 ? 999 : recent.indexOf(a.path)) - (recent.indexOf(b.path) < 0 ? 999 : recent.indexOf(b.path))).map(f => [f.path, recent.includes(f.path) ? 'Recent' : '', () => openNote(f.path)]) : actionDefinitions.map(d => [d.label, shortcuts.binding(d.id) ? shortcuts.label(d.id) : '', d.execute]);
-  paletteItems = items.filter(item => fuzzy(item[0], q)); paletteSelection = 0; drawPalette();
+  paletteItems = (paletteKind === 'headings' ? headingPaletteItems : items).filter(item => fuzzy(item[0] + (paletteKind === 'headings' ? ' ' + item[1] : ''), q)); paletteSelection = 0; drawPalette();
 }
 function drawPalette() { $('palette-results').innerHTML = paletteItems.map((item, i) => `<button data-command-index="${i}" class="${i === paletteSelection ? 'selected' : ''}">${esc(item[0])}<kbd>${esc(item[1])}</kbd></button>`).join('') || '<p class="empty">No matches</p>'; }
 async function executePalette(i) { const item = paletteItems[i]; if (!item) return; $('palette').close(); await item[2](); }
 
+document.addEventListener('keydown', e => {
+  if (e.target.matches('[data-open][role="group"]') && ['Enter', ' '].includes(e.key)) { e.preventDefault(); e.target.click(); }
+});
 document.addEventListener('click', run(async e => {
-  const b = e.target.closest('button, [data-month]'); if (!b) return;
+  const link = e.target.closest('[data-task-link]');
+  if (link) {
+    e.preventDefault();
+    const target = link.dataset.taskLink;
+    await followNoteLink(target, link.dataset.linkSource);
+    return;
+  }
+  const b = e.target.closest('button, [data-month], [data-open]'); if (!b) return;
   if (b.dataset.fileProperty !== undefined) return fileProperty(b.dataset.fileProperty);
   if (b.dataset.fileMetadata !== undefined) return fileMetadata();
   if (b.dataset.colorName !== undefined) {
@@ -1356,7 +1462,7 @@ document.addEventListener('click', run(async e => {
 }));
 for (const id of ['open-workspace', 'welcome-open', 'settings-open']) listen(id, 'click', openWorkspace);
 listen('new-file', 'click', createFile);
-listen('new-folder', 'click', async () => { const path = await askText('New folder', 'Workspace-relative folder path'); if (path) { await call('Mkdir', { id: workspace.id, path }); workspace = await call('Status'); renderTree(); } });
+listen('new-folder', 'click', createFolder);
 listen('menu', 'click', () => toggleSidebar('left'));
 listen('sidebar-close', 'click', () => { toggleSidebar('left'); $('menu').focus(); });
 listen('context-toggle', 'click', () => toggleSidebar('right'));
@@ -1440,7 +1546,14 @@ await onClose(run(async () => {
 }));
 let draggedEntry;
 let draggedFile, movingFile = false;
-function clearFileDrop() { $('tree').querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target')); }
+function clearFileDrop() { $('tree').classList.remove('drop-target'); $('tree').querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target')); }
+function fileDropTarget(event) {
+  const target = event.target.closest('[data-drop-folder]');
+  if (!target || !draggedFile || draggedFile.id !== workspace.id) return null;
+  const folder = target.dataset.dropFolder, from = draggedFile.path;
+  if (folder === parentFolder(from) || folder === from || folder.startsWith(from + '/')) return null;
+  return target;
+}
 $('tree').addEventListener('dragstart', e => {
   const el = e.target.closest('[data-move-path]'); if (!el || movingFile) { e.preventDefault(); return; }
   draggedFile = { path: el.dataset.movePath, id: workspace.id };
@@ -1448,13 +1561,15 @@ $('tree').addEventListener('dragstart', e => {
 });
 $('tree').addEventListener('dragover', e => {
   if (!draggedFile) return;
-  const target = e.target.closest('[data-drop-folder]'); clearFileDrop();
+  const target = fileDropTarget(e); clearFileDrop();
+  e.dataTransfer.dropEffect = target ? 'move' : 'none';
   if (target) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; target.classList.add('drop-target'); }
 });
 $('tree').addEventListener('dragleave', e => { if (!$('tree').contains(e.relatedTarget)) clearFileDrop(); });
 $('tree').addEventListener('dragend', () => { draggedFile = null; clearFileDrop(); });
 $('tree').addEventListener('drop', run(async e => {
-  const target = e.target.closest('[data-drop-folder]'), item = draggedFile;
+  const target = fileDropTarget(e), item = draggedFile;
+  if (item) e.preventDefault();
   draggedFile = null; clearFileDrop();
   if (!item || !target) return;
   e.preventDefault();

@@ -1,3 +1,5 @@
+import { primaryModifier } from './platform.js';
+
 // Share source coordinates between the two presentations. Heading folds live in
 // CodeMirror (and therefore map through edits); preview IDs are not identities.
 const headings = 'h1,h2,h3,h4,h5,h6';
@@ -85,11 +87,32 @@ export function createDocumentView(surface, editor) {
       if (index < 0) continue;
       listIndex = index + 1;
       const item = listItems[index]; if (!bodies.length || item.to <= item.from) continue;
-      let button = li.querySelector(':scope > .preview-list-fold');
-      if (!button) { button = document.createElement('button'); button.type = 'button'; button.className = 'preview-list-fold'; li.prepend(button); }
+      let label = li.querySelector(':scope > .preview-list-label, :scope > p > .preview-list-label');
+      if (!label) {
+        label = document.createElement('span'); label.className = 'preview-list-label';
+        const parent = firstParagraph || li;
+        for (const node of [...parent.childNodes]) {
+          if (node.nodeType === 1 && bodies.includes(node)) break;
+          label.append(node);
+        }
+        parent.prepend(label);
+      }
+      let button = label.querySelector('.preview-list-fold');
+      if (!button) {
+        const control = document.createElement('span'); control.className = 'preview-list-control';
+        button = document.createElement('button'); button.type = 'button'; button.className = 'preview-list-fold';
+        button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 5 7 7-7 7"/></svg>';
+        control.append(button); label.prepend(control);
+      }
       button.dataset.listStart = String(item.start);
-      button.updateFold = collapsed => { for (const body of bodies) body.hidden = collapsed; button.textContent = collapsed ? '▸' : '▾'; button.setAttribute('aria-expanded', String(!collapsed)); button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} list item`); };
-      button.onclick = event => { event.preventDefault(); event.stopPropagation(); editor.foldList(Number(button.dataset.listStart), button.getAttribute('aria-expanded') === 'true'); syncFolds(); };
+      button.updateFold = collapsed => {
+        for (const body of bodies) body.hidden = collapsed;
+        label.classList.toggle('is-folded', collapsed);
+        button.setAttribute('aria-expanded', String(!collapsed));
+        button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} list item: ${item.title}`);
+        button.title = `${/Mac|iPhone|iPad/.test(navigator.platform) ? 'Cmd' : 'Ctrl'}-click to ${collapsed ? 'expand' : 'collapse'} this item and all nested lists`;
+      };
+      button.onclick = event => { event.preventDefault(); event.stopPropagation(); pending = null; restored = null; sourceReturn = null; editor.foldList(Number(button.dataset.listStart), button.getAttribute('aria-expanded') === 'true', primaryModifier(event)); syncFolds(); };
       li.classList.add('foldable-list-item');
     }
     syncFolds();
@@ -134,11 +157,10 @@ export function createDocumentView(surface, editor) {
         if (mode === 'edit') sourceReturn = { anchor, scroll: editor.scrollTop, source: editor.value, folds: foldSignature() };
       }); }
     },
-    fold(start, collapsed) {
+    fold(start, collapsed, recursive = false) {
       pending = null; restored = null; sourceReturn = null;
-      const folds = new Set(editor.getHeadingFolds());
-      if (collapsed) folds.add(start); else folds.delete(start);
-      editor.setHeadingFolds([...folds]);
+      editor.foldAt(start, collapsed, recursive);
+      syncFolds();
     },
     dispose() { observer.disconnect(); },
   };

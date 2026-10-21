@@ -1,0 +1,88 @@
+// Run against app/dev with a disposable workspace.
+import { chromium } from 'playwright';
+import { strict as assert } from 'node:assert';
+const base = process.env.BASE_URL || 'http://127.0.0.1:9279';
+const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
+try {
+  const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const api = async (method, args = {}) => {
+    const r = await page.request.post(base + '/api', { data: { method, ...args } });
+    assert.ok(r.ok(), await r.text()); return r.json();
+  };
+  const { id } = await api('Status'), dir = `navigation-${Date.now()}`, path = `${dir}/Source.org`;
+  await api('Mkdir', { id, path: dir });
+  await api('Save', { id, path, revision: '', source: '* Alpha\n** Repeated\nBody\n* Beta\n** Repeated\nBody\n** \n' });
+  const target = `${dir}/Target note.org`;
+  await api('Save', { id, path: target, revision: '', source: '* Target\n' });
+  await page.goto(base);
+  assert.deepEqual(await page.evaluate(async () => {
+    const { primaryModifier } = await import('/platform.js');
+    return [primaryModifier({ metaKey: true, ctrlKey: false }), primaryModifier({ ctrlKey: true, metaKey: false })];
+  }), [true, false]);
+  await page.locator(`#tree details[data-path="${dir}"] > summary`).click();
+  await page.locator(`#tree [data-open="${path}"]`).click();
+  const run = async label => {
+    await page.locator('#palette-button').click();
+    await page.locator('#palette-input').fill(label);
+    await page.locator('#palette-input').press('Enter');
+  };
+  await run('Jump to heading');
+  await page.locator('#palette-input[placeholder="Jump to heading…"]').waitFor();
+  assert.equal(await page.locator('#palette-results button').count(), 5);
+  assert.match(await page.locator('#palette-results').textContent(), /Untitled heading/);
+  await page.locator('#palette-input').fill('Repeated Beta');
+  assert.equal(await page.locator('#palette-results button').count(), 1);
+  await page.locator('#palette-input').press('Enter');
+  assert.equal(await page.locator('#source').evaluate(el => el.cursorPosition().line), 5);
+  await run('Fold all headings');
+  await page.locator('.ui-preview-toggle').click();
+  await run('Jump to heading');
+  await page.locator('#palette-input[placeholder="Jump to heading…"]').waitFor();
+  await page.locator('#palette-input').fill('Repeated Beta');
+  await page.locator('#palette-input').press('Enter');
+  await page.locator('.ui-preview .preview-jump-highlight').waitFor({ state: 'visible' });
+  await run('Insert link');
+  await page.getByRole('button', { name: 'Existing note', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Search Existing note' }).fill(target);
+  await page.getByRole('combobox', { name: 'Search Existing note' }).press('Enter');
+  assert.equal(await page.locator('#modal input[name="target"]').inputValue(), 'file:Target%20note.org');
+  await page.locator('#modal-submit').click();
+  await page.waitForFunction(() => document.querySelector('#source').value.includes('[[file:Target%20note.org]'));
+  assert.match(await page.locator('#source').evaluate(el => el.value), /\[\[file:Target%20note.org\]/);
+  await page.locator('#source .org-link').click({ modifiers: ['Meta'] });
+  await page.locator(`.ui-document[data-path="${target}"]`).waitFor({ state: 'visible' });
+  await page.locator(`#tree [data-file-actions="${target}"]`).click();
+  assert.equal(await page.getByRole('button', { name: 'Fold all', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Split right', exact: true }).count(), 0);
+  await page.keyboard.press('Escape');
+  const now = new Date(), date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  await api('Save', { id, path: `${dir}/Tasks.org`, revision: '', source: `* TODO Read [[file:Target%20note.org][the plan]]\nSCHEDULED: <${date}>\n` });
+  await page.reload();
+  await page.locator('[data-view="agenda"]').click();
+  const taskLink = page.locator(`#agenda [data-link-source="${dir}/Tasks.org"]`);
+  await taskLink.waitFor();
+  assert.equal(await taskLink.textContent(), 'the plan');
+  await page.locator('#capture').click();
+  await page.locator('#modal input[name="path"]').fill(target);
+  await page.getByRole('button', { name: 'Parent heading', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Search Parent heading' }).fill('Target');
+  await page.getByRole('combobox', { name: 'Search Parent heading' }).press('Enter');
+  assert.equal(await page.locator('#modal select[name="parentLine"]').inputValue(), '1');
+  await page.keyboard.press('Escape');
+  await taskLink.click();
+  await page.locator(`.ui-document[data-path="${target}"]`).waitFor({ state: 'visible' });
+  await page.locator('[data-view="calendar"]').click();
+  await page.locator(`#calendar [data-link-source="${dir}/Tasks.org"]`).first().click();
+  await page.locator(`.ui-document[data-path="${target}"]`).waitFor({ state: 'visible' });
+  assert.deepEqual(errors, []);
+  const windows = await browser.newPage();
+  await windows.addInitScript(() => Object.defineProperty(navigator, 'platform', { value: 'Win32' }));
+  await windows.goto(base);
+  assert.deepEqual(await windows.evaluate(async () => {
+    const { primaryModifier } = await import('/platform.js');
+    return [primaryModifier({ metaKey: true, ctrlKey: false }), primaryModifier({ ctrlKey: true, metaKey: false })];
+  }), [false, true]);
+  await windows.close();
+  console.log('PASS: searchable heading picker, duplicate context, untitled headings, folded preview jumps, and relative internal-link selection.');
+} finally { await browser.close(); }

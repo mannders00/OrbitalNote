@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- Replace modal native selects with a shared searchable, keyboard-accessible
+  picker styled like the destination preview. Simplify sidebar file menus.
+- Render task-title links as clickable labels in agenda and calendar views.
+  Follow source links with Cmd-click on macOS or Ctrl-click on Windows/Linux;
+  recursive folding uses the same platform-specific modifier.
+
+- Add a searchable Jump to heading picker (Cmd/Ctrl+Shift+O), with parent
+  context, line numbers, and folded-target navigation in source and preview.
+  Insert link now offers an existing-note dropdown and generates relative paths.
+
+- Polish file management: choose a folder and a name in shared create, copy,
+  and rename/move prompts, with automatic `.org` extensions, destination previews,
+  and duplicate-name validation. Folder menus offer new notes and subfolders.
+  Drag onto an expanded folder's contents to move items into it, with a full-folder
+  highlight; empty file-sidebar space targets the workspace root.
+
+- Fix #60: empty heading titles no longer clear the file outline. Display them
+  as “Untitled heading” while preserving their source, navigation, and nesting.
+
+- Align bullet/checklist fold controls with their first text line and reveal
+  them on hover or keyboard focus in edit and preview modes. Show preview list
+  folds with an ellipsis, matching headings.
+- Cmd-click (macOS) or Ctrl-click (Windows/Linux) a heading or list fold arrow to
+  recursively fold/unfold its nested headings, bullet lists, and checklists.
+
 ## 0.1.0-preview.23 — 2026-10-18
 
 - Add a self-hosted server URL selector to Sync settings, retaining hosted Sync

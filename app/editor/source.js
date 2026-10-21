@@ -3,6 +3,7 @@ import { EditorView, Decoration, WidgetType, keymap, drawSelection, lineNumbers,
 import { history, defaultKeymap, undo, redo } from '@codemirror/commands';
 import { codeFolding, foldService, foldEffect, unfoldEffect, foldedRanges, unfoldAll } from '@codemirror/language';
 import { headingRanges, listRanges } from './headings.js';
+import { primaryModifier } from '../ui/platform.js';
 import { metadataRanges } from './metadata.js';
 import { attachVim } from './vi.js';
 import { noteSearch, openNoteSearch } from './search.js';
@@ -40,10 +41,12 @@ const skipFoldedSelection = EditorState.transactionFilter.of(tr => {
   const selection = EditorSelection.create(ranges, tr.selection.mainIndex);
   return selection.eq(tr.selection) ? tr : [tr, { selection }];
 });
-function foldHeading(view, heading, collapse = !isFolded(view.state, heading.from)) {
+function foldHeading(view, heading, collapse = !isFolded(view.state, heading.from), recursive = false) {
   if (heading.to <= heading.from) return false;
+  const source = recursive ? view.state.doc.toString() : '';
+  const ranges = recursive ? [...headingRanges(source), ...listRanges(source)].filter(range => range.start >= heading.start && range.to <= heading.to && range.to > range.from).sort((a, b) => a.from - b.from) : [heading];
   const head = view.state.selection.main.head;
-  view.dispatch({ effects: (collapse ? foldEffect : unfoldEffect).of(heading),
+  view.dispatch({ effects: ranges.map(range => (collapse ? foldEffect : unfoldEffect).of(range)),
     ...(collapse && head > heading.from && head <= heading.to ? { selection: { anchor: heading.start } } : {}) });
   return true;
 }
@@ -60,18 +63,21 @@ class HeadingFold extends WidgetType {
   constructor(heading, collapsed) { super(); this.heading = heading; this.collapsed = collapsed; }
   eq(other) { return this.collapsed === other.collapsed && this.heading.from === other.heading.from && this.heading.to === other.heading.to && this.heading.title === other.heading.title; }
   toDOM(view) {
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'editor-heading-fold';
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'editor-heading-fold' + (this.heading.kind === 'list' ? ' editor-list-fold' : '');
     button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 5 7 7-7 7"/></svg>';
     button.setAttribute('aria-expanded', String(!this.collapsed));
     button.setAttribute('aria-label', `${this.collapsed ? 'Expand' : 'Collapse'} ${this.heading.kind === 'list' ? 'list item' : 'heading'}: ${this.heading.title}`);
+    button.title = `${/Mac|iPhone|iPad/.test(navigator.platform) ? 'Cmd' : 'Ctrl'}-click to ${this.collapsed ? 'expand' : 'collapse'} this item and all nested headings and lists`;
     button.addEventListener('mousedown', e => e.preventDefault());
     button.addEventListener('click', e => {
       e.preventDefault(); e.stopPropagation();
       const start = view.state.doc.lineAt(view.posAtDOM(button.parentElement)).from;
       const heading = [...headingRanges(view.state.doc.toString()), ...listRanges(view.state.doc.toString())].find(h => h.start === start);
-      if (heading) foldHeading(view, heading);
+      if (heading) foldHeading(view, heading, undefined, primaryModifier(e));
     });
-    return headingControl(button);
+    const control = headingControl(button);
+    if (this.heading.kind === 'list') control.classList.add('editor-list-control');
+    return control;
   }
   ignoreEvent() { return true; }
 }
@@ -123,7 +129,8 @@ function decorations(state, onlyLine = 0) {
     ranges.push(Decoration.line({ class: 'org-metadata-fold-line' }).range(range.start));
   }
   for (const item of onlyLine ? [] : listRanges(source)) if (item.to > item.from) {
-    ranges.push(Decoration.widget({ widget: new HeadingFold(item, isFolded(state, item.from)), side: -2 }).range(item.start));
+    ranges.push(Decoration.widget({ widget: new HeadingFold(item, isFolded(state, item.from)), side: -2 }).range(item.marker));
+    ranges.push(Decoration.line({ class: 'org-list-fold-line' }).range(item.start));
   }
   const keywords = source.match(/^#\+TODO:\s*(.+)$/im)?.[1] || 'TODO | DONE';
   const [pending, finished = 'DONE'] = keywords.split('|');
@@ -243,6 +250,14 @@ export function createEditor(host) {
     } }),
     foldService.of((state, from) => [...headingRanges(state.doc.toString()), ...listRanges(state.doc.toString()), ...metadataRanges(state.doc.toString())].find(h => h.start === from && h.to > h.from) || null), orgStyle,
     EditorView.domEventHandlers({ click(event, view) {
+      if (primaryModifier(event)) {
+        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+        if (pos != null) {
+          const line = view.state.doc.lineAt(pos);
+          const match = [...line.text.matchAll(/\[\[([^\]\n]+)\](?:\[[^\]\n]*\])?\]/g)].find(m => line.from + m.index <= pos && pos < line.from + m.index + m[0].length);
+          if (match) { event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('follow-link', { bubbles: true, detail: { target: match[1] } })); return true; }
+        }
+      }
       const box = event.target.closest('[data-checkbox-line]'); if (box) { event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('checkbox-toggle', { bubbles: true, detail: { line: Number(box.dataset.checkboxLine) } })); return true; }
       const task = event.target.closest('[data-task-line]'); if (!task) return false;
       event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('task-toggle', { bubbles: true, detail: { line: Number(task.dataset.taskLine) } })); return true;
@@ -335,7 +350,12 @@ export function createEditor(host) {
   editor.openSearch = replace => openNoteSearch(view, replace);
   editor.getHeadingFolds = () => headingRanges(editor.value).filter(h => isFolded(view.state, h.from)).map(h => h.start);
   editor.listRanges = () => listRanges(editor.value).map(h => ({ ...h, folded: isFolded(view.state, h.from) }));
-  editor.foldList = (start, collapse) => { const item = listRanges(editor.value).find(h => h.start === start); if (item) foldHeading(view, item, collapse); };
+  editor.foldAt = (start, collapse, recursive = false) => {
+    const item = [...headingRanges(editor.value), ...listRanges(editor.value)].find(h => h.start === start);
+    if (item) return foldHeading(view, item, collapse, recursive);
+    return false;
+  };
+  editor.foldList = editor.foldAt;
   editor.metadataRanges = () => metadataRanges(editor.value).map(range => ({ ...range, folded: isFolded(view.state, range.from) }));
   editor.getMetadataFolds = () => editor.metadataRanges().filter(range => range.folded).map(range => range.start);
   editor.setMetadataFolds = starts => {

@@ -1,5 +1,6 @@
 import { escapeHTML as esc } from './editor.js';
 import { icon } from './icons.js';
+import { taskTitleHTML } from './task-links.js';
 
 export function formatTime(time, format = '12') {
   if (!time || format === '24') return time || '';
@@ -39,7 +40,7 @@ export function eventLanes(entries) {
 export function timeGrid(start, days, entries, colorStyle, indexOf = entry => entries.indexOf(entry), format = '12') {
   const dates = Array.from({ length: days }, (_, i) => { const day = new Date(start); day.setDate(start.getDate() + i); return day; });
   const onDay = date => entries.filter(e => e.stamp.date && e.stamp.date <= date && (e.stamp.endDate || e.stamp.date) >= date);
-  const task = (entry, cls, style = '') => `<button class="${cls} ${entry.done ? 'completed' : ''} ${entry.clock ? 'is-clocked' : ''}" ${colorStyle(entry)} draggable="false" data-entry="${indexOf(entry)}" data-open="${esc(entry.path)}" data-line="${entry.line}" ${style} title="${esc(entry.title)}">${calendarClock(entry)}${esc(formatTime(entry.stamp.time, format))}${entry.stamp.endTime ? '–' + esc(formatTime(entry.stamp.endTime, format)) : ''} ${esc(entry.title)}</button>`;
+  const task = (entry, cls, style = '') => `<div role="group" tabindex="0" aria-label="Open task" class="${cls} ${entry.done ? 'completed' : ''} ${entry.clock ? 'is-clocked' : ''}" ${colorStyle(entry)} draggable="false" data-entry="${indexOf(entry)}" data-open="${esc(entry.path)}" data-line="${entry.line}" ${style} title="${esc(entry.title)}">${calendarClock(entry)}${esc(formatTime(entry.stamp.time, format))}${entry.stamp.endTime ? '–' + esc(formatTime(entry.stamp.endTime, format)) : ''} ${taskTitleHTML(entry.title, entry.path)}</div>`;
   let html = `<div class="time-calendar" style="--days:${days}"><div class="calendar-pinned-header"><div class="time-day-headers"><span></span>${dates.map(day => `<button class="time-day-header ${dateKey(day) === dateKey(new Date()) ? 'is-today' : ''}" data-capture="${dateKey(day)}">${esc(day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }))}</button>`).join('')}</div><div class="all-day-row"><span>All day</span>${dates.map(day => `<div data-key="${dateKey(day)}" data-drop-date="${dateKey(day)}">${onDay(dateKey(day)).filter(e => !e.stamp.time || e.stamp.endDate).map(e => `<div class="calendar-item">${task(e, 'calendar-event')}</div>`).join('')}</div>`).join('')}</div></div><div class="time-grid"><div class="time-labels">${Array.from({ length: 24 }, (_, h) => `<span style="top:${h * 60}px">${formatTime(clock(h * 60),format)}</span>`).join('')}</div>`;
   for (const day of dates) {
     const date = dateKey(day), scheduled = onDay(date).filter(e => e.stamp.time && !e.stamp.endDate);
@@ -69,6 +70,7 @@ export function bindCalendarGestures(root, { entry, create, change }) {
     if (cell && !e.target.closest('[data-entry]')) { e.stopPropagation(); create(cell.dataset.dropDate, '', ''); }
   }, true);
   root.addEventListener('pointerdown', e => {
+    if (e.target.closest('[data-task-link]')) return;
     if (e.button !== 0 || !e.target.closest('.time-calendar')) return;
     suppressClick = false;
     const target = e.target.closest('[data-entry]'), item = target ? entry(Number(target.dataset.entry)) : null;
