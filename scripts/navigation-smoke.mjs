@@ -43,9 +43,8 @@ try {
   await page.locator('#palette-input').press('Enter');
   await page.locator('.ui-preview .preview-jump-highlight').waitFor({ state: 'visible' });
   await run('Insert link');
-  await page.getByRole('button', { name: 'Existing note', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Search Existing note' }).fill(target);
-  await page.getByRole('combobox', { name: 'Search Existing note' }).press('Enter');
+  await page.getByRole('combobox', { name: 'Existing note', exact: true }).fill(target);
+  await page.getByRole('combobox', { name: 'Existing note', exact: true }).press('Enter');
   assert.equal(await page.locator('#modal input[name="target"]').inputValue(), 'file:Target%20note.org');
   await page.locator('#modal-submit').click();
   await page.waitForFunction(() => document.querySelector('#source').value.includes('[[file:Target%20note.org]'));
@@ -65,10 +64,18 @@ try {
   assert.equal(await taskLink.textContent(), 'the plan');
   await page.locator('#capture').click();
   await page.locator('#modal input[name="path"]').fill(target);
-  await page.getByRole('button', { name: 'Parent heading', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Search Parent heading' }).fill('Target');
-  await page.getByRole('combobox', { name: 'Search Parent heading' }).press('Enter');
+  await page.getByRole('combobox', { name: 'Parent heading', exact: true }).fill('Target');
+  await page.getByRole('combobox', { name: 'Parent heading', exact: true }).press('Enter');
   assert.equal(await page.locator('#modal select[name="parentLine"]').inputValue(), '1');
+  await page.getByRole('radio', { name: 'Prepend', exact: true }).check();
+  const geometry = await page.locator('#modal .task-file-picker').evaluateAll(nodes => nodes.map(el => {
+    const field = el.querySelector('input').getBoundingClientRect(), arrow = el.querySelector('button').getBoundingClientRect();
+    return { inside: arrow.left >= field.left && arrow.right <= field.right, delta: Math.abs((arrow.top + arrow.bottom - field.top - field.bottom) / 2) };
+  }));
+  assert.ok(geometry.every(g => g.inside && g.delta < 1), 'picker arrows are inside and vertically centered');
+  await page.keyboard.press('Escape');
+  await page.locator('#capture').click();
+  assert.equal(await page.getByRole('radio', { name: 'Prepend', exact: true }).isChecked(), true);
   await page.keyboard.press('Escape');
   await taskLink.click();
   await page.locator(`.ui-document[data-path="${target}"]`).waitFor({ state: 'visible' });

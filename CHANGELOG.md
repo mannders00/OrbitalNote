@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.1.0-preview.25 — 2026-10-20
+
+- Keep the quiet Show whole file control directly after the filename. Focused
+  headings now support reading mode and the normal preview interactions while
+  showing only their subtree. Protect the root heading's level and expand
+  shallower headings to child level when editing inside a focused subtree.
+
+- Add a persistent Prepend / Append toggle below the task parent-heading picker.
+  Placement respects the selected nesting level and preserves parent metadata,
+  prose, and existing child subtrees.
+
+- Standardize modal selectors on the New task → Org file combobox: type to
+  filter, choose from a floating list, and use the same keyboard controls.
+  Place the chevron inside the input field and center it vertically. Folder,
+  internal-link, priority, and task-parent selectors now share the task-file
+  picker's implementation and styling.
+
 ## 0.1.0-preview.24 — 2026-10-20
 
 - Replace modal native selects with a shared searchable, keyboard-accessible

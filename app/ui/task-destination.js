@@ -1,37 +1,46 @@
 import { escapeHTML as esc } from './editor.js';
-import { icon } from './icons.js';
+import { mountPicker } from './select-picker.js';
+
+export function taskInsertion(source, headings, parentLine, position = 'append') {
+  const index = parentLine ? headings.findIndex(h => h.line === Number(parentLine)) : -1;
+  if (parentLine && index < 0) throw new Error('The selected parent heading no longer exists.');
+  const parent = headings[index], level = parent ? parent.level + 1 : 1;
+  const next = parent
+    ? position === 'prepend' ? headings[index + 1] : headings.slice(index + 1).find(h => h.level <= parent.level)
+    : position === 'prepend' ? headings[0] : null;
+  const at = next ? source.split('\n').slice(0, next.line - 1).reduce((n, line) => n + line.length + 1, 0) : source.length;
+  return { at, level };
+}
 
 // The caller supplies a snapshot ordered by open/recent use, not a live file list.
 export function mountTaskDestination(root, files, readNote, memoryKey) {
   const input = root.querySelector('[name="path"]');
   if (!input || input.type === 'hidden') return () => {};
-  const wrapper = document.createElement('div'); wrapper.className = 'task-file-picker';
-  input.replaceWith(wrapper); wrapper.append(input);
-  const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'icon-button';
-  toggle.innerHTML = icon('down'); toggle.setAttribute('aria-label', 'Choose Org file'); wrapper.append(toggle);
-  const list = document.createElement('div'); list.className = 'task-file-options'; list.id = 'task-file-options'; list.role = 'listbox'; list.hidden = true; wrapper.append(list);
-  input.setAttribute('role', 'combobox'); input.setAttribute('aria-autocomplete', 'list'); input.setAttribute('aria-controls', list.id); input.setAttribute('aria-expanded', 'false'); input.autocomplete = 'off';
+  const picker = mountPicker(input, {
+    label: 'Org file',
+    options: () => files.map(f => ({ value: f.path, label: f.path, detail: f.label || '' })),
+    choose: option => { input.value = option.value; load(); },
+    empty: 'No matching files. Enter a new .org path to create one.',
+  });
   const parentLabel = document.createElement('label'); parentLabel.textContent = 'Parent heading';
-  const parent = document.createElement('select'); parent.name = 'parentLine'; parentLabel.append(parent); wrapper.closest('label').after(parentLabel);
+  const parent = document.createElement('select'); parent.name = 'parentLine'; parentLabel.append(parent); picker.wrapper.closest('label').after(parentLabel);
   const revision = document.createElement('input'); revision.type = 'hidden'; revision.name = 'parentRevision'; parentLabel.append(revision);
-  let matches = [], selected = -1, sequence = 0, disposed = false;
+  let sequence = 0, disposed = false;
   let memory = {};
   try { memory = JSON.parse(localStorage.getItem(memoryKey) || '{}'); } catch {}
-  const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); };
-  const highlight = () => {
-    [...list.children].forEach((el, i) => el.setAttribute('aria-selected', String(i === selected)));
-    if (selected >= 0) { input.setAttribute('aria-activedescendant', `task-file-${selected}`); list.children[selected]?.scrollIntoView({ block: 'nearest' }); }
-  };
-  const draw = (all = false) => {
-    const query = all ? '' : input.value.toLowerCase();
-    matches = files.filter(f => f.path.toLowerCase().includes(query)).slice(0, 50); selected = -1;
-    list.innerHTML = matches.map((f, i) => `<div role="option" id="task-file-${i}" data-index="${i}" aria-selected="false"><span>${esc(f.path)}</span><small>${esc(f.label || '')}</small></div>`).join('') || '<p>No matching files. Enter a new .org path to create one.</p>';
-    list.hidden = false; input.setAttribute('aria-expanded', 'true'); input.removeAttribute('aria-activedescendant');
-  };
+  const placement = document.createElement('fieldset'); placement.className = 'task-insertion';
+  placement.innerHTML = '<legend>Insert at this level</legend><div><label><input type="radio" name="insertionPosition" value="prepend">Prepend</label><label><input type="radio" name="insertionPosition" value="append">Append</label></div>';
+  parentLabel.after(placement);
+  const initial = memory.insertionPosition || (memory.parents?.[input.value.trim()] === 'start' ? 'prepend' : 'append');
+  placement.querySelector(`[value="${initial === 'prepend' ? 'prepend' : 'append'}"]`).checked = true;
+  placement.addEventListener('change', () => {
+    memory.insertionPosition = placement.querySelector(':checked').value;
+    if (memoryKey) localStorage.setItem(memoryKey, JSON.stringify(memory));
+  });
   async function load() {
     const seq = ++sequence, path = input.value.trim();
     parent.onchange = null;
-    parent.disabled = true; parent.innerHTML = '<option value="">Top level (end of file)</option><option value="start">Top level (beginning of file)</option>'; revision.value = '';
+    parent.disabled = true; parent.innerHTML = '<option value="">Top level</option>'; revision.value = '';
     input.setCustomValidity('');
     if (!files.some(f => f.path === path)) { parent.disabled = false; return; }
     input.setCustomValidity('Wait for the heading list to load.');
@@ -43,7 +52,7 @@ export function mountTaskDestination(root, files, readNote, memoryKey) {
       const saved = memory.parents?.[path];
       const matches = saved?.title ? note.headings.filter(h => h.title === saved.title && h.level === saved.level) : [];
       const heading = matches.length === 1 ? matches[0] : matches.find(h => h.line === saved?.line);
-      parent.value = heading ? String(heading.line) : saved === 'start' ? 'start' : '';
+      parent.value = heading ? String(heading.line) : '';
       parent.onchange = () => {
         const h = note.headings.find(h => String(h.line) === parent.value);
         memory.parents ||= {}; memory.parents[path] = h ? { title: h.title, level: h.level, line: h.line } : parent.value;
@@ -54,23 +63,13 @@ export function mountTaskDestination(root, files, readNote, memoryKey) {
       if (!disposed && seq === sequence) input.setCustomValidity('Unable to load this file. Choose it again to retry.');
     }
   }
-  const choose = index => { if (!matches[index]) return; input.value = matches[index].path; close(); load(); input.focus(); };
-  input.addEventListener('input', () => { draw(); load(); });
-  input.addEventListener('focus', () => draw(true));
-  toggle.addEventListener('click', () => list.hidden ? draw(true) : close());
-  list.addEventListener('pointerdown', e => { const option = e.target.closest('[data-index]'); if (option) { e.preventDefault(); choose(Number(option.dataset.index)); } });
-  input.addEventListener('keydown', e => {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (list.hidden) draw(true); selected = Math.max(0, Math.min(matches.length - 1, selected + (e.key === 'ArrowDown' ? 1 : -1))); highlight(); }
-    else if (e.key === 'Enter' && !list.hidden && (selected >= 0 || matches.length === 1)) { e.preventDefault(); e.stopPropagation(); choose(selected >= 0 ? selected : 0); }
-    else if (e.key === 'Escape' && !list.hidden) { e.preventDefault(); e.stopPropagation(); close(); }
-  });
-  const outside = e => { if (!wrapper.contains(e.target)) close(); };
+  input.addEventListener('input', load);
   const remember = () => {
     parent.onchange?.(); memory.path = input.value.trim();
     if (!parent.onchange) { memory.parents ||= {}; memory.parents[memory.path] = parent.value; }
     if (memoryKey) localStorage.setItem(memoryKey, JSON.stringify(memory));
   };
   const form = root.closest('form'); form?.addEventListener('submit', remember);
-  root.addEventListener('pointerdown', outside); load();
-  return () => { disposed = true; sequence++; root.removeEventListener('pointerdown', outside); form?.removeEventListener('submit', remember); };
+  load();
+  return () => { disposed = true; sequence++; picker.dispose(); input.removeEventListener('input', load); form?.removeEventListener('submit', remember); };
 }

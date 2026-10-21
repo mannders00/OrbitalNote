@@ -20,10 +20,24 @@ export function createDocumentView(surface, editor) {
   const visible = el => el.getClientRects().length && !el.closest('[hidden], details:not([open])');
   const foldSignature = () => editor.getHeadingFolds().join(',') + '/' + editor.getMetadataFolds().join(',') + '/' + editor.listRanges().filter(h => h.folded).map(h => h.start).join(',');
   function syncFolds() {
+    for (const el of preview.querySelectorAll('[data-focus-hidden]')) delete el.dataset.focusHidden;
     const lists = new Map(editor.listRanges().map(h => [h.start, h]));
     for (const button of preview.querySelectorAll('.preview-list-fold')) button.updateFold(!!lists.get(Number(button.dataset.listStart))?.folded);
     const folds = new Set(editor.getHeadingFolds());
     for (const heading of preview.querySelectorAll('[data-source-heading]')) heading.querySelector('.preview-heading-fold')?.updateFold(folds.has(Number(heading.dataset.sourceHeading)), false);
+    const focus = editor.getFocusRange();
+    if (focus) {
+      const heading = preview.querySelector(`[data-source-heading="${focus.from}"]`);
+      let branch = heading?.parentElement;
+      if (branch) {
+        while (branch && branch !== preview) {
+          for (const sibling of branch.parentElement.children) if (sibling !== branch) sibling.dataset.focusHidden = '';
+          // Folded ancestors belong to the surrounding document, not this view.
+          if (branch !== heading.parentElement) branch.hidden = false;
+          branch = branch.parentElement;
+        }
+      }
+    }
     const metadata = editor.metadataRanges();
     for (const details of preview.querySelectorAll('details')) {
       const summary = details.querySelector(':scope > summary');

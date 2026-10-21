@@ -31,7 +31,9 @@ Choose **Heading actions → Focus on heading** for a new source-editor tab show
 only that heading and its subtree. Edits and undo use the same underlying file;
 surrounding source is protected in that view. **Show whole file** removes the
 restriction. Focused tabs restore with the layout when their heading can still be
-identified. The preview toggle is disabled while focused.
+identified. Source and reading modes both show only the selected subtree, with
+the usual preview controls. While focused, the root heading's level is protected;
+new or promoted headings that would escape the subtree expand to child level.
 
 Bullet lists and checklists with nested content have fold arrows in source and
 reading views. Like heading arrows, these appear when you hover the row or focus
@@ -164,6 +166,12 @@ Macros operate on editor commands and text; app dialogs and toolbar actions
 are outside their scope. Use Cmd/Ctrl S to save. App-level keyboard shortcuts
 take priority over conflicting Vim bindings.
 ## Managing files and folders
+
+In **New task**, choose an **Org file** and **Parent heading**, then use
+**Prepend / Append** to insert before the first child or after the last child's
+subtree. With **Top level** selected, this places the task before the first
+heading (after file metadata) or at the end of the file. Your placement choice
+is remembered per workspace on this device.
 
 **New note** asks for a name and a destination folder. You can leave off `.org`;
 it is added automatically. The default destination is the current note's folder.

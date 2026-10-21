@@ -13,6 +13,7 @@ import { icon, mountIcons } from './icons.js';
 import { TabLayout } from './tab-layout.js';
 import { createEditor } from './vendor/editor.js';
 import { taskDialog } from './task-dialog.js';
+import { taskInsertion } from './task-destination.js';
 import { projectOccurrences } from './recurrence.js';
 import { setupWorkspaceSettings, isSettingsFile } from './workspace-settings.js';
 import { timeGrid, bindCalendarGestures, formatTime, calendarClock, updateNowLine } from './calendar.js';
@@ -99,17 +100,19 @@ function closeDuplicate(id) {
 }
 function focusHeading() {
   const heading = source?.focusHeadingRange(); if (!heading) return;
+  const nextMode = mode;
   const t = duplicateDocument(active); if (!t) return;
   isolateHeading(t, heading);
-  setMode('edit'); renderTabs(); source.focus();
+  setMode(nextMode); renderTabs(); if (nextMode === 'edit') source.focus();
 }
 function isolateHeading(t, heading) {
   const editor = t.surface.querySelector('[data-ui="source"]');
-  t.focusTitle = heading.title; t.mode = 'edit';
+  t.focusTitle = heading.title || 'Untitled heading';
   editor.setFocusRange({ from: heading.start, to: heading.to });
   const exit = document.createElement('button'); exit.type = 'button'; exit.className = 'focus-exit'; exit.textContent = 'Show whole file';
-  exit.addEventListener('click', () => { editor.setFocusRange(null); delete t.focusTitle; exit.remove(); updateMode(t); renderTabs(); });
+  exit.addEventListener('click', () => { editor.setFocusRange(null); delete t.focusTitle; exit.remove(); t.documentView.syncFolds(); updateMode(t); renderTabs(); });
   t.surface.querySelector('[data-ui="document-name"]').after(exit);
+  t.documentView.syncFolds();
   updateMode(t);
 }
 const pendingSaves = new Map();
@@ -221,7 +224,7 @@ async function dialog(title, body, action = 'Continue') {
   const disposePickers = mountSelectPickers($('modal-body'));
   for (const input of $('modal-body').querySelectorAll('input, textarea')) { input.spellcheck = false; input.setAttribute('autocorrect', 'off'); input.setAttribute('autocapitalize', 'off'); input.setAttribute('autocomplete', 'off'); }
   modal.returnValue = ''; modal.showModal();
-  const input = [...modal.querySelectorAll('input')].find(el => el.getClientRects().length); if (input) { input.focus(); input.select(); } else modal.querySelector('.select-picker-trigger')?.focus();
+  const input = [...modal.querySelectorAll('input')].find(el => el.getClientRects().length); if (input) { input.focus(); input.select(); }
   return new Promise(resolve => modal.addEventListener('close', () => {
     disposePickers();
     resolve(modal.returnValue === 'ok' ? new FormData($('modal-form')) : null);
@@ -704,7 +707,7 @@ function syncEditorScroll(surface) { /* The rich editor owns wrapping, highlight
 function syncScroll() { if (activeSurface) syncEditorScroll(activeSurface); }
 function setMode(next) {
   const t = current(); if (!t) return;
-  next = next === 'preview' && !t.focusTitle ? 'preview' : 'edit';
+  next = next === 'preview' ? 'preview' : 'edit';
   const anchor = next !== t.mode ? t.documentView.capture(t.mode) : null;
   mode = t.mode = next === 'preview' ? 'preview' : 'edit'; updateMode(t);
   if (mode === 'edit') source.refresh();
@@ -718,7 +721,7 @@ function setMode(next) {
 function updateMode(t) {
   t.surface.querySelector('[data-ui="panes"]').dataset.mode = t.mode;
   const toggle = t.surface.querySelector('[data-ui="preview-toggle"]'), label = t.mode === 'edit' ? 'Read preview' : 'Edit source';
-  toggle.disabled = !!t.focusTitle;
+  toggle.disabled = false;
   if (toggle.dataset.renderedMode === t.mode) return;
   toggle.dataset.renderedMode = t.mode;
   toggle.innerHTML = icon(t.mode === 'edit' ? 'book' : 'pencil'); toggle.title = label; toggle.setAttribute('aria-label', label); toggle.setAttribute('aria-pressed', String(t.mode === 'preview'));
@@ -1083,16 +1086,10 @@ async function capture(date = today(), time = '', endTime = '') {
   let note = { source: '', revision: '' };
   if (workspace.files.some(f => f.path === path)) note = await call('Read', { id: workspace.id, path });
   const eol = note.source.includes('\r\n') ? '\r\n' : '\n';
-  let at = note.source.length, level = 1;
-  if (data.get('parentLine') === 'start') at = 0;
-  else if (data.get('parentLine')) {
-    if (note.revision !== data.get('parentRevision')) { notify('The parent file changed. Reopen New task to choose its current heading.'); return; }
-    const index = note.headings.findIndex(h => h.line === Number(data.get('parentLine')));
-    if (index < 0) { notify('The selected parent heading no longer exists.'); return; }
-    level = note.headings[index].level + 1;
-    const next = note.headings[index + 1];
-    if (next) at = note.source.split('\n').slice(0, next.line - 1).reduce((n, text) => n + text.length + 1, 0);
-  }
+   if (data.get('parentLine')) {
+     if (note.revision !== data.get('parentRevision')) { notify('The parent file changed. Reopen New task to choose its current heading.'); return; }
+   }
+   const { at, level } = taskInsertion(note.source, note.headings || [], data.get('parentLine'), data.get('insertionPosition'));
   const prefix = note.source.slice(0, at), separator = prefix && !prefix.endsWith('\n') ? eol : '';
   const addition = `${separator}${'*'.repeat(level)} ${data.get('title').trim()}${eol}`;
   const source = prefix + addition + note.source.slice(at), line = (prefix + separator).split('\n').length;

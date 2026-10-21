@@ -148,14 +148,21 @@
 #modal-body .task-planning input { position: absolute; opacity: 0; width: 1px; }
 #modal-body .task-planning label:focus-within { outline: 2px solid var(--accent); }
 .task-date-picker { background: var(--bg); padding: 10px; border: 1px solid var(--border); border-radius: 7px; }
-.task-file-picker { position: relative; display: flex; gap: 4px; }
-.task-file-picker input { min-width: 0; flex: 1; }
+.task-file-picker { position: relative; min-width: 0; }
+.task-file-picker input { width: 100%; min-width: 0; padding-right: 36px; }
+.task-file-picker > .icon-button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
 .task-file-options { position: absolute; z-index: 5; top: 100%; left: 0; right: 0; max-height: 220px; overflow: auto; padding: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 16px var(--shadow); }
 .task-file-options [role="option"] { display: flex; justify-content: space-between; gap: 12px; padding: 8px; cursor: pointer; font-size: 13px; }
 .task-file-options [role="option"] span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-file-options [role="option"] small { flex-shrink: 0; }
 .task-file-options [role="option"]:hover, .task-file-options [aria-selected="true"] { background: var(--hover); }
 .task-file-options small, .task-file-options p { color: var(--muted); font-size: 11px; }
+.task-insertion { border: 0; padding: 0; margin: 0; }
+.task-insertion legend { margin-bottom: 6px; color: var(--muted); font-size: 12px; }
+.task-insertion > div { display: flex; gap: 4px; padding: 3px; border-radius: 6px; background: var(--hover); }
+.task-insertion label { flex: 1; display: flex !important; align-items: center; justify-content: center; gap: 7px; margin: 0 !important; padding: 7px 10px; border-radius: 4px; cursor: pointer; }
+.task-insertion label:has(:checked) { background: var(--panel); color: var(--accent); }
+.task-insertion input { width: auto; margin: 0; accent-color: var(--accent); }
 .settings-sync { padding: 20px 0; border-bottom: 1px solid var(--border); }
 .settings-sync h2 { font-size: 15px; margin: 0 0 8px; }
 .settings-sync p { color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -210,7 +217,10 @@ body { margin: 0; width: 100%; height: 100dvh; display: flex; overflow: hidden; 
 .preview-list-label:hover > .preview-list-control > .preview-list-fold, .preview-list-fold:focus-visible, .org-list-fold-line:hover .editor-list-fold, .editor-list-fold:focus-visible { opacity: 1; }
 .preview-list-fold:hover { background: var(--hover); color: var(--text); }
 .preview-list-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
-.focus-exit { white-space: nowrap; font-size: 12px; }
+.document-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.focus-exit { flex: none; white-space: nowrap; font-size: 12px; padding: 3px 5px; border: 0; box-shadow: none; background: transparent; color: var(--muted); }
+.focus-exit:hover { background: var(--hover); color: var(--text); }
+.ui-preview [data-focus-hidden] { display: none !important; }
 [hidden] { display: none !important; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button {
@@ -758,17 +768,6 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .destination-hint { color: var(--muted); font-size: 12px; margin: 0; }
 .destination-path { display: block; padding: 10px 12px; border-radius: 6px; background: var(--hover); overflow-wrap: anywhere; font-size: 13px; }
 .destination-path.invalid { color: var(--muted); }
-.select-picker { position: relative; min-width: 0; }
-.select-picker-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; text-align: left; border: 1px solid transparent; border-radius: 6px; background: var(--hover); color: var(--text); overflow-wrap: anywhere; }
-.select-picker-trigger:focus-visible, .select-picker-trigger[aria-expanded="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
-.select-picker-trigger span { flex: none; display: flex; }
-.select-picker-popup { margin-top: 6px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--side); }
-.select-picker-popup input { width: 100%; }
-.select-picker-options { max-height: 220px; overflow: auto; margin-top: 5px; }
-.select-picker-options [role="option"] { padding: 9px 10px; border-radius: 5px; cursor: pointer; overflow-wrap: anywhere; }
-.select-picker-options [role="option"]:hover, .select-picker-options .highlighted { background: var(--hover); }
-.select-picker-options [aria-selected="true"] { color: var(--accent); background: var(--selected); }
-.select-picker-options p { padding: 8px 10px; color: var(--muted); }
 [data-open][role="group"] { cursor: pointer; }
 [data-task-link] { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 @media (hover: none) {

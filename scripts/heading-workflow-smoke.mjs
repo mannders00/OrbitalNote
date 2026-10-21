@@ -26,9 +26,9 @@ try {
   await editor.evaluate(el => { el.foldHeading('unfold-all'); el.foldList(el.value.indexOf('- [ ] Parent'), true); });
   assert.equal(await editor.evaluate(el => el.listRanges().find(h => h.title.includes('Parent')).folded), true);
   await page.locator('#preview-toggle').click();
-  const parent = page.locator('.ui-preview li').filter({ has: page.locator(':scope > .preview-list-fold') }).first();
-  assert.equal(await parent.locator(':scope > .preview-list-fold').getAttribute('aria-expanded'), 'false');
-  await parent.locator(':scope > .preview-list-fold').click();
+  const parent = page.locator('.ui-preview .preview-list-fold').first();
+  assert.equal(await parent.getAttribute('aria-expanded'), 'false');
+  await parent.click();
   assert.equal(await editor.evaluate(el => el.listRanges().find(h => h.title.includes('Parent')).folded), false);
   console.log('PASS Vim O between folded headings; source/preview nested checklist folds');
   await page.locator('#preview-toggle').click();
@@ -64,6 +64,18 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('.ui-source')].every(el => el.value.includes('Second body')));
   await page.locator('#source').evaluate(el => el.replaceText('BAD', 0, 1));
   assert.ok((await page.locator('#source').evaluate(el => el.value)).startsWith('* First\nFirst body\n'));
+  const titleAlignment = await page.locator('#document .document-title').evaluate(el => {
+    const name = el.querySelector('h1').getBoundingClientRect(), exit = el.querySelector('.focus-exit').getBoundingClientRect();
+    return exit.left >= name.right && exit.left - name.right <= 10;
+  });
+  assert.ok(titleAlignment, 'focus exit sits immediately after filename');
+  await page.locator('#preview-toggle').click();
+  await page.locator('#preview').waitFor({ state: 'visible' });
+  const focusedText = await page.locator('#preview').innerText();
+  assert.ok(focusedText.includes('Second body'));
+  assert.ok(!focusedText.includes('First body') && !focusedText.includes('Third body'));
+  assert.ok(await page.locator('#preview .preview-checkbox:visible').count() > 0);
+  await page.locator('#preview-toggle').click();
   await page.waitForFunction(() => [...document.querySelectorAll('.ui-save-state')].every(el => el.textContent === 'Saved to disk'));
   await page.reload();
   await page.getByRole('button', { name: 'Show whole file', exact: true }).waitFor();
@@ -86,17 +98,21 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('.ui-save-state')].every(el => el.textContent === 'Saved to disk'));
   await page.locator('#ribbon [data-view="agenda"]').click(); await page.locator('#capture').click();
   await page.locator('#modal [name="path"]').fill(path); await page.locator('#modal [name="parentLine"] option', { hasText: 'Second' }).waitFor({ state: 'attached' });
-  await page.locator('#modal [name="parentLine"]').selectOption({ label: 'Second' });
+  await page.getByRole('combobox', { name: 'Parent heading', exact: true }).fill('Second');
+  await page.getByRole('combobox', { name: 'Parent heading', exact: true }).press('Enter');
   await page.locator('#modal [name="title"]').fill('Remembered child'); await page.locator('#modal-submit').click();
   await page.waitForFunction(() => !document.querySelector('#modal').open);
   await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('Task saved'));
   await page.locator('#capture').click();
   await page.waitForFunction(() => document.querySelector('[name="parentLine"]')?.selectedOptions[0]?.textContent === 'Second');
   assert.equal(await page.locator('#modal [name="path"]').inputValue(), path);
-  await page.locator('#modal [name="parentLine"]').selectOption('start');
+  await page.getByRole('combobox', { name: 'Parent heading', exact: true }).fill('Top level');
+  await page.getByRole('combobox', { name: 'Parent heading', exact: true }).press('Enter');
+  await page.getByRole('radio', { name: 'Prepend', exact: true }).check();
+  const captured = page.waitForResponse(response => response.url().endsWith('/api') && response.request().postDataJSON()?.method === 'Save' && response.request().postDataJSON()?.path === path);
   await page.locator('#modal [name="title"]').fill('At beginning'); await page.locator('#modal-submit').click();
-  for (let i = 0; i < 100; i++) { if ((await api('Read', { id: state.id, path })).source.startsWith('* TODO At beginning')) break; await page.waitForTimeout(50); }
-  assert.ok((await api('Read', { id: state.id, path })).source.startsWith('* TODO At beginning'));
+  const insertedSource = (await (await captured).json()).source;
+  assert.ok(insertedSource.startsWith('Extra prefix\n* TODO At beginning'), JSON.stringify(insertedSource));
   const extra = 'unopened-planner.org', status = await api('Status');
   const extraOld = status.files.some(f => f.path === extra) ? await api('Read', { id: state.id, path: extra }) : null;
   await api('Save', { id: state.id, path: extra, revision: extraOld?.revision || '', source: '* TODO Unopened clock\nSCHEDULED: <2026-10-09 Fri 13:00>\n:LOGBOOK:\nCLOCK: [2026-10-09 Fri 13:15]\n:END:\n' });

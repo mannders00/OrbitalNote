@@ -1,4 +1,25 @@
-# OrbitalNote 0.1.0-preview.24
+# OrbitalNote 0.1.0-preview.25
+
+## Consistent modal selectors
+
+- Focused headings now support source and reading modes with the normal preview
+  controls, limited to the selected subtree. **Show whole file** is a quiet
+  control beside the filename. Focused editing protects the root marker and
+  expands shallow headings to child level.
+
+- Add a **Prepend / Append** toggle below Parent heading. It remembers your
+  choice per workspace/device and inserts at the start or end of that nesting
+  level, preserving parent notes and existing child subtrees.
+
+- Standardize selectors on the **New task → Org file** combobox, with inline
+  search and a floating results list.
+- Place the chevron inside the field, vertically centered.
+- Use one component for task files, parent headings, folders, internal-link
+  destinations, and priorities, with consistent keyboard navigation.
+- Keep free-form task file paths supported; fixed-choice selectors restore the
+  selected value if a search is dismissed.
+
+Includes the file-management, navigation, and folding improvements from preview.24:
 
 ## File management and navigation
 

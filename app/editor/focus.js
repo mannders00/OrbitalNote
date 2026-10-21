@@ -1,5 +1,6 @@
 import { StateEffect, StateField, EditorState, EditorSelection, Annotation } from '@codemirror/state';
 import { Decoration, EditorView } from '@codemirror/view';
+import { headingRanges } from './headings.js';
 
 export const focusEffect = StateEffect.define();
 export const externalEdit = Annotation.define();
@@ -29,6 +30,16 @@ export const headingFocus = [focusRange, hidden, EditorState.transactionFilter.o
     let outside = false;
     tr.changes.iterChangedRanges((from, to) => { if (from < range.from || to > range.to) outside = true; });
     if (outside) return [];
+    const level = /^(\*+)[ \t]/.exec(tr.startState.doc.lineAt(range.from).text)?.[1].length;
+    if (level) {
+      const next = tr.state.field(focusRange), root = tr.newDoc.lineAt(next.from);
+      // The root marker anchors the isolated subtree. Keep it intact even when
+      // a delete/paste/structural command would turn it into prose or a sibling.
+      if (/^(\*+)[ \t]/.exec(root.text)?.[1].length !== level) return [];
+      const fixes = headingRanges(tr.newDoc.toString()).filter(h => h.start > next.from && h.start < next.to && h.level <= level)
+        .map(h => ({ from: h.start, to: h.start + h.level, insert: '*'.repeat(level + 1) }));
+      if (fixes.length) return [tr, { changes: fixes, sequential: true }];
+    }
   }
   const next = tr.state.field(focusRange), selection = tr.newSelection;
   const clamp = n => Math.max(next.from, Math.min(next.to, n));

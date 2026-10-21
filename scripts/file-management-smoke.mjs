@@ -9,8 +9,7 @@ try {
   await page.goto(base);
   const prefix = `files-${Date.now()}`;
   const chooseFolder = async path => {
-    await page.locator('#modal .select-picker-trigger').click();
-    await page.locator('#modal .select-picker-popup input').fill(path);
+    await page.locator('#modal input[role="combobox"]').fill(path);
     await page.getByRole('option', { name: path, exact: true }).click();
   };
   const api = async (method, args = {}) => {
