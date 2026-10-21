@@ -7,7 +7,6 @@ on:
       version:
         description: 'Version without v (must match a tag pointing at this commit)'
         required: true
-        default: '0.1.0-preview.1'
 permissions:
   contents: read
 concurrency:

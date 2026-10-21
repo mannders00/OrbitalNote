@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0-preview.24 — 2026-10-20
+
 - Replace modal native selects with a shared searchable, keyboard-accessible
   picker styled like the destination preview. Simplify sidebar file menus.
 - Render task-title links as clickable labels in agenda and calendar views.

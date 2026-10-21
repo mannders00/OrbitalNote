@@ -8,9 +8,9 @@ Daemon repository: https://github.com/mannders00/orbitalnote-sync
 
 ## Compatible public builds
 
-Download **both** components for the initial supported self-hosting combination:
+Download **both** components for self-hosting:
 
-- [OrbitalNote client 0.1.0-preview.23](https://github.com/mannders00/OrbitalNote/releases/tag/v0.1.0-preview.23):
+- [OrbitalNote client 0.1.0-preview.24](https://github.com/mannders00/OrbitalNote/releases/tag/v0.1.0-preview.24):
   macOS Apple Silicon/Intel, Windows x64, Linux x64, and Android ARM64.
 - [OrbitalNote Sync daemon 0.1.0-preview.1](https://github.com/mannders00/orbitalnote-sync/releases/tag/v0.1.0-preview.1):
   Linux amd64/arm64, macOS Apple Silicon/Intel, and Windows x64.

@@ -1,143 +1,67 @@
-# OrbitalNote 0.1.0-preview.23
+# OrbitalNote 0.1.0-preview.24
+
+## File management and navigation
+
+- Move files by dropping anywhere inside an expanded folder, with a full-folder
+  destination highlight. Empty sidebar space targets the workspace root.
+- Create, copy, rename, and move notes with separate name and folder fields,
+  automatic `.org` extensions, destination previews, and duplicate-name feedback.
+- Folder menus offer new notes and subfolders. Sidebar file menus focus on file
+  operations; folding and split-view actions remain in the open note's menu.
+- Shared searchable modal pickers replace native dropdowns. Folder chevrons are
+  aligned with their labels and have no animation.
+- Jump to headings with **Cmd/Ctrl+Shift+O**, with parent context and line numbers.
+  Folded targets are revealed in source and preview modes.
+- Insert internal links using an existing-note picker that generates relative paths.
+- Follow bracketed source links with **Cmd-click on macOS** or **Ctrl-click on
+  Windows/Linux**, including cross-file heading targets. Agenda and calendar task
+  links display clickable labels.
+
+## Folding and outline fixes
+
+- Consistent heading, list, and checklist fold controls in source and preview,
+  with hover/focus visibility, aligned controls, and folded-content ellipses.
+- Cmd-click on macOS or Ctrl-click on Windows/Linux recursively folds or unfolds
+  nested headings and lists. Ordinary clicks retain descendant fold states.
+- Fix #60: empty headings no longer clear the outline. They appear as
+  **Untitled heading**, with working hierarchy and navigation.
+
+See the [editing guide](https://github.com/mannders00/OrbitalNote/blob/main/docs/editing.md)
+and [changelog](https://github.com/mannders00/OrbitalNote/blob/main/CHANGELOG.md).
+Local validation includes project checks and browser regressions for navigation,
+file management, task links, pickers, folding, and empty headings.
 
 ## Self-hosted encrypted Sync
 
-This client release adds **Settings → OrbitalNote Sync → Sync service →
-Self-hosted server**. Enter your server's HTTPS origin, sign in to an account on
-that server, approve the device code, and connect your encrypted workspace.
-Hosted OrbitalNote Sync remains the default option.
+Includes the self-hosted server selector introduced in preview.23. Choose
+**Settings → OrbitalNote Sync → Sync service → Self-hosted server** and enter
+your server's HTTPS origin. Hosted OrbitalNote Sync remains available.
 
-**Compatible release pair:** OrbitalNote **0.1.0-preview.23** and
-[OrbitalNote Sync daemon **0.1.0-preview.1**](https://github.com/mannders00/orbitalnote-sync/releases/tag/v0.1.0-preview.1).
-Earlier hosted-only client builds do not expose the server URL setting.
-The daemon stores metadata in SQLite and encrypted revisions on local disk;
-self-hosted accounts need no subscription. The client is GPL-3.0-only and the
-separate daemon is source-available under the Sustainable Use License 1.0.
-
-See the [self-hosting guide](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.23/docs/self-hosted-sync.md)
-and [daemon setup](https://github.com/mannders00/orbitalnote-sync#quick-start).
-Disconnect before changing servers; local notes stay on your device, but server
-history and accounts do not migrate. Save your recovery key before switching.
-
-Verified locally with the real macOS WebView, Wails bindings, Keychain storage,
-device authorization, bidirectional encrypted sync, and native app restart against
-the downloaded daemon release. Public client release publication is also gated
-on real two-client sync tests against that checksum-verified daemon binary.
-
-## Included from preview.22
-
-Persistent Android linked folders, in-place editing, and hidden shared settings.
-OrbitalNote is free and works locally without an account.
-
-## What's new since preview.21
-
-- **Link an Android folder:** use Open workspace → Link a device folder to edit
-  its original files. Folder access and the selected workspace survive restarts.
-  Open private notebook remains available, and both work offline without an account.
-- Reconcile external changes while foregrounded and on resume. Reject stale saves
-  and pause optional encrypted Sync when a provider is unavailable or its listing
-  is incomplete. Sync uses the selected workspace's own binding.
-- Retain exportable recovery copies before provider writes. Android providers do
-  not offer universal atomic replacement; avoid simultaneous edits to the same
-  file in multiple apps. Interrupted-save copies can be exported from Open workspace.
-- Move shared settings to **`.orbitalnote.org`**, migrating the previous
-  `OrbitalNote-settings.org` with byte-preserving copy and revision-checked removal.
-  Update all Sync clients before sharing the new file: older builds reject hidden
-  filenames. No Sync server upgrade is required.
-
-Validated with project checks, encrypted two-device Sync tests, an Android APK
-build, and real Android emulator folder-picker/provider tests covering in-place
-saves, external edits, file operations, persisted access, and cold restart.
-Physical-device linked-folder and third-party-provider checks remain pending.
-Start phone testing with a copy of a small notebook.
-
-See [Android testing](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.22/docs/android-testing.md)
-and [shared settings](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.22/docs/workspace-settings.md).
-
-## Also included from preview.21
-
-### Editing and navigation
-- Fold nested bullet lists and checklists in source and reading views, retaining fold state across mode switches.
-- Put **Fold all** and **Unfold all** first in file actions, covering headings, lists, and metadata.
-- Fix Vim `O` inserting a new line above a heading when the preceding section is folded.
-- Use **Ctrl+W, then h/j/k/l** to focus the split to the left/below/above/right. Vim insert mode retains its word-deletion behavior.
-- Choose **Heading actions → Focus on heading** to open an isolated source-editor tab. Edits and saves use the original file, surrounding text is protected, and **Show whole file** exits focus. Focused tabs restore when their heading can still be identified.
-
-### Window, mobile, and planning
-- Merge macOS tabs with the draggable native title area by default; disable **Merge tabs with title bar** in Settings for a separate title area.
-- Prevent mobile pinch gestures from magnifying the application UI, including disabling Android WebView zoom controls.
-- When a split exists, clicking an Agenda/Calendar task opens a new tab in another pane and keeps the planner visible, including for previously unopened files.
-- Respect the 12/24-hour setting in editor and Calendar running-clock labels; make calendar event text nonselectable.
-- Remember the last task file and selected parent heading per workspace/device, and offer **Top level (beginning of file)** alongside end-of-file insertion.
-
-Validation includes Go tests/vet, JavaScript unit tests, heading-workflow browser checks, Vim regressions, multiple-view checks, and source/preview folding checks. Native macOS dragging and physical-device pinch behavior still need hands-on verification.
-
-See the [editing guide](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.21/docs/editing.md) for the new workflows.
-
-## Also included from preview.20
-
-### Faster input and multiple views
-- Remove whole-document scans and repeated DOM searches from Vim motions; coalesce cursor-status updates.
-- Incrementally highlight ordinary prose edits, defer hidden previews, and avoid rebuilding unchanged tab layouts and outlines.
-- Open the same file in multiple tabs or split panes, sharing edits and saves while retaining independent reading modes, cursors, folds, and scroll positions.
-- Include a reproducible performance benchmark and regression checks. On a 1,000-heading fixture with 4× Chrome CPU throttling, median unfolded Vim motion time fell from 11.0 to 1.8 ms. This is a synthetic measurement, not a guarantee for every device.
-
-### Easier planning
-- Put **New task…** first in each document's + menu, inserting at the cursor after the task form is confirmed.
-- Add a searchable open/recent-first file picker and parent-heading selector to New task. Child tasks preserve the parent's prose and metadata.
-- Show projected repeating occurrences in Agenda and Calendar without adding duplicate headings or invented completion history. Completion-relative repeaters remain estimates.
-- Align a prominent full-date heading and the pencil control across the top of minimal Agenda.
-
-### Reading and shared preferences
-- Indent nested reading sections without vertical guides by default; choose flat alignment in Settings.
-- Add an option to hide the editor footer.
-- Add opt-in settings-sync categories for calendar/tag colors and time format, theme/appearance, and editor-display preferences. Enable matching categories on each device.
-- Store shared settings in a versioned JSON block in `OrbitalNote-settings.org`, using existing encrypted note Sync without a server upgrade. Keybindings and custom CSS remain device-local.
-- Refresh README and website screenshot assets with the left app ribbon visible.
-
-See [workspace settings and planning](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.20/docs/workspace-settings.md) and [editor performance](https://github.com/mannders00/OrbitalNote/blob/v0.1.0-preview.20/docs/editor-performance.md) for details.
-
-Open the [Connected sample vault](https://github.com/mannders00/OrbitalNote/tree/v0.1.0-preview.20/examples/Connected) and start with Dispatch.org to explore the graph, or Systems-notebook.org for the theme showcase. The Engineer and Showcase examples are also included.
-See the [changelog](CHANGELOG.md) and [interaction notes](docs/interaction-update.md) for details.
-
-Default shortcuts remain Cmd/Ctrl+, for Settings, Cmd/Ctrl+P for Run command,
-and Cmd/Ctrl+O for filename search. Existing hosted Sync connections remain supported.
+This client is tested by the release workflow against
+[OrbitalNote Sync daemon 0.1.0-preview.1](https://github.com/mannders00/orbitalnote-sync/releases/tag/v0.1.0-preview.1).
+The products have independent versions and licenses: GPL-3.0-only for the client,
+Sustainable Use License 1.0 for the daemon. Self-hosted accounts need no subscription.
+See the [self-hosting guide](https://github.com/mannders00/OrbitalNote/blob/main/docs/self-hosted-sync.md).
 
 ## Downloads
 
 - **macOS Apple Silicon:** `darwin-arm64.zip`
 - **macOS Intel:** `darwin-amd64.zip`
 - **Windows x64:** `windows-amd64.zip` (requires Microsoft WebView2)
-- **Linux x64:** `linux-amd64.tar.gz` (Ubuntu 24.04-compatible; requires GTK4 and WebKitGTK 6.0)
-- **Android ARM64:** `android-arm64.apk` (Android 7+, signed preview; linked folders and private notebook)
-- **iOS ARM64 Simulator:** available separately in the release workflow's artifacts (developers only; not installable on iPhone)
+- **Linux x64:** `linux-amd64.tar.gz` (Ubuntu 24.04-compatible; GTK4 and WebKitGTK 6.0)
+- **Android ARM64:** `android-arm64.apk` (Android 7+, linked folders or private notebook)
+- **iOS ARM64 Simulator:** workflow artifact for developers, not installable on iPhone.
 
-Extract the archive before opening the app. Each download has a SHA-256 checksum
-and includes GPLv3 and third-party license notices. The exact client source is
-available at this release's tag and in GitHub's source archives.
+Extract archives before opening the app. Downloads include SHA-256 checksums and
+license notices. macOS previews are ad-hoc signed, not Apple-notarized; Windows
+previews are not Authenticode-signed. OS approval prompts may appear.
 
-These are **preview builds**. macOS builds are ad-hoc signed, not Apple-notarized;
-macOS may require allowing the app in System Settings → Privacy & Security after
-the first launch attempt. Windows builds are not Authenticode-signed and may
-show SmartScreen's unrecognized-app prompt. Download only from this repository.
+Android retains the existing release signing configuration for update continuity.
+See [Android testing](https://github.com/mannders00/OrbitalNote/blob/main/docs/android-testing.md)
+and [shared settings](https://github.com/mannders00/OrbitalNote/blob/main/docs/workspace-settings.md).
+Physical-device linked-folder and third-party-provider checks remain pending.
 
-## Current scope
-
-Mermaid and math render in reading view; their source is edited in the editor.
-KaTeX supports math, not full LaTeX documents or packages. Code blocks are not
-executed. Image paste/import and resize controls remain future work.
-Saved views remain device-local. Selected appearance and display preferences can now be shared through workspace settings.
-
-Repeater history shows recorded completions, not invented past occurrences.
-Calendar drag/resize currently edits single-day events; multi-day ranges require
-source editing. Optional end-to-end
-encrypted Sync is available at https://sync.orbitalnote.org/ for $5/month or
-$48/year USD, including 1 GB. macOS ↔ Android Sync has been tested on real devices.
-Sync handles .org notes in one workspace; attachments and history cleanup are
-not yet available. Mobile Sync runs while foregrounded. iOS device distribution
-and real-device validation are still pending. The app works offline without an
-account or subscription. The Android preview retains the existing GitHub release
-signing configuration for update continuity. Independently signed developer builds
-may differ; do not uninstall one without first preserving its notebook.
-
-Questions or interest in Sync: **matt@masoftware.net**.
+The app works offline without an account. Optional hosted encrypted Sync is
+available at https://sync.orbitalnote.org/ for $5/month or $48/year USD, including
+1 GB. Sync handles `.org` notes in one workspace; attachment sync and history
+cleanup are not yet available. Mobile Sync runs while foregrounded.
