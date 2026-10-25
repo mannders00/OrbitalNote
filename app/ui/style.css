@@ -142,11 +142,11 @@
 
 /* Task scheduling controls use the same surfaces and accents as the workspace. */
 .task-location { font-size: 12px; color: var(--muted); }
-#modal-body .task-planning { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: 6px; }
-#modal-body .task-planning label { position: relative; flex: 1; margin: 0; padding: 6px 12px; border-radius: 4px; text-align: center; cursor: pointer; }
-#modal-body .task-planning label:has(:checked) { background: var(--selected); color: var(--text); }
-#modal-body .task-planning input { position: absolute; opacity: 0; width: 1px; }
-#modal-body .task-planning label:focus-within { outline: 2px solid var(--accent); }
+#modal-body .task-segmented { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: 6px; }
+#modal-body .task-segmented label { position: relative; flex: 1; margin: 0; padding: 6px 12px; border-radius: 4px; text-align: center; cursor: pointer; }
+#modal-body .task-segmented label:has(:checked) { background: var(--selected); color: var(--text); }
+#modal-body .task-segmented input { position: absolute; opacity: 0; width: 1px; }
+#modal-body .task-segmented label:focus-within { outline: 2px solid var(--accent); }
 .task-date-picker { background: var(--bg); padding: 10px; border: 1px solid var(--border); border-radius: 7px; }
 .task-file-picker { position: relative; min-width: 0; }
 .task-file-picker input { width: 100%; min-width: 0; padding-right: 36px; }
@@ -157,12 +157,9 @@
 .task-file-options [role="option"] small { flex-shrink: 0; }
 .task-file-options [role="option"]:hover, .task-file-options [aria-selected="true"] { background: var(--hover); }
 .task-file-options small, .task-file-options p { color: var(--muted); font-size: 11px; }
-.task-insertion { border: 0; padding: 0; margin: 0; }
+.task-file-options { position: fixed; inset: auto; margin: 0; overscroll-behavior: contain; z-index: 100; box-sizing: border-box; }
+.task-insertion { border: 0; padding: 0; margin: 0 0 24px; }
 .task-insertion legend { margin-bottom: 6px; color: var(--muted); font-size: 12px; }
-.task-insertion > div { display: flex; gap: 4px; padding: 3px; border-radius: 6px; background: var(--hover); }
-.task-insertion label { flex: 1; display: flex !important; align-items: center; justify-content: center; gap: 7px; margin: 0 !important; padding: 7px 10px; border-radius: 4px; cursor: pointer; }
-.task-insertion label:has(:checked) { background: var(--panel); color: var(--accent); }
-.task-insertion input { width: auto; margin: 0; accent-color: var(--accent); }
 .settings-sync { padding: 20px 0; border-bottom: 1px solid var(--border); }
 .settings-sync h2 { font-size: 15px; margin: 0 0 8px; }
 .settings-sync p { color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -410,7 +407,11 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .editor-heading-fold:hover, .preview-heading-fold:hover { background: var(--hover); color: var(--text); }
 .editor-heading-control { display: inline-block; width: 0; height: 1em; padding: 0; border: 0; vertical-align: text-bottom; }
 .source-pane .cm-line.org-jump-highlight, .ui-preview .preview-jump-highlight { background: color-mix(in srgb, #f4cb42 28%, transparent); }
-.org-heading.org-clocked, .ui-preview .org-clocked { box-shadow: inset 3px 0 0 var(--accent); }
+.org-heading.org-clocked, .ui-preview .org-clocked { box-shadow: none; }
+.heading-clock-status { display: inline-block; margin-left: .8em; padding: 2px 7px; border-radius: 5px; background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); font: 500 10px/1.5 system-ui, sans-serif; letter-spacing: .02em; vertical-align: middle; white-space: nowrap; user-select: none; }
+.all-day-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 5px 10px; border: 0; border-radius: 0; background: transparent; color: var(--muted); font-size: 11px; text-align: left; }
+.all-day-toggle:hover { background: var(--hover); color: var(--text); }
+.all-day-count { font-variant-numeric: tabular-nums; opacity: .75; }
 .calendar-event.is-clocked, .timed-event.is-clocked { box-shadow: inset 3px 0 0 var(--accent); }
 .task-clock[aria-pressed="true"] { color: var(--accent); }
 .calendar-item { position: relative; }
@@ -781,6 +782,54 @@ dialog::backdrop { background: #0006; }
 #modal-body label { display: block; margin: 13px 0; font-size: 12px; }
 #modal-body input, #modal-body select { display: block; width: 100%; margin-top: 6px; color: var(--text); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+/* Keep dialog actions on screen; only unusually long bodies need to scroll. */
+#modal { padding: 0; overflow: hidden; }
+#modal-form { display: flex; flex-direction: column; max-height: calc(100dvh - 34px); }
+#modal .modal-heading { flex-shrink: 0; margin: 0; padding: 18px 22px 12px; }
+#modal-body { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0 22px; }
+#modal .modal-actions { flex-shrink: 0; margin: 0; padding: 14px 22px 18px; }
+#modal.task-modal { width: min(820px, calc(100vw - 32px)); }
+.task-form-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 32px; margin-top: 8px; }
+.task-form-columns section { min-width: 0; }
+.task-section-label { margin: 0 0 10px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.task-schedule-fields { border-left: 1px solid var(--border); padding-left: 32px; }
+#modal.task-modal #modal-body label { margin: 6px 0; }
+#modal.task-modal #modal-body .task-segmented label { margin: 0; }
+.task-modal .task-insertion { margin-bottom: 12px; }
+.task-modal .time-presets { margin: 0 0 6px; }
+.task-repeat-help { font-size: 11px; line-height: 1.5; }
+.task-repeat-help summary { cursor: pointer; }
+.task-repeat-help p { margin: 8px 0; }
+.task-time-row { display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 24px; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+.task-time-row .time-presets { padding-bottom: 6px; }
+.task-modal .task-date-picker + .task-planning { margin-top: 18px; margin-bottom: 10px; }
+#modal.task-modal #modal-body .task-date-field { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 6px; }
+#modal.task-modal #modal-body .task-date-field input { margin-top: 0; }
+#modal.task-modal #modal-body .task-time-row label { margin: 3px 0; }
+.task-modal .date-picker-grid button { min-height: 24px; height: 24px; line-height: 18px; padding: 2px; }
+#modal.task-modal .modal-heading { padding: 20px 24px 12px; }
+#modal.task-modal #modal-body { padding-inline: 24px; }
+#modal.task-modal .modal-actions { padding: 18px 24px; }
+.task-modal .task-location { overflow-wrap: anywhere; }
+.task-modal .task-date-picker { padding: 7px; }
+.task-modal .date-picker-header { padding-bottom: 4px; }
+.task-modal .date-picker-grid { gap: 1px; }
+.task-modal .date-picker-grid button { padding: 3px; }
+.task-modal .date-picker-actions { margin-top: 4px; }
+.task-modal .time-presets { display: flex; flex-wrap: wrap; gap: 4px; }
+.task-modal .time-presets button { padding: 3px 6px; font-size: 11px; }
+@media (max-width: 600px) {
+  .task-form-columns { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .task-time-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .task-schedule-fields { border-left: 0; border-top: 1px solid var(--border); padding: 20px 0 0; }
+}
+@media (max-height: 680px) and (min-width: 601px) {
+  #modal.task-modal .modal-heading { padding-block: 8px 6px; }
+  #modal.task-modal .modal-actions { padding-block: 8px 10px; }
+  .task-form-columns { margin-top: 6px; }
+  .task-modal .task-date-picker + .task-planning { margin-top: 14px; margin-bottom: 6px; }
+  .task-time-row { margin-top: 4px; padding-top: 0; border-top: 0; }
+}
 #palette { padding: 0; margin-top: 16vh; }
 #palette-input { width: 100%; padding: 16px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; font-size: 15px; background: transparent; outline: none; }
 #palette-results { max-height: 350px; overflow: auto; padding: 6px; }

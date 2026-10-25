@@ -23,7 +23,7 @@ type taskEdit struct {
 var taskTags = regexp.MustCompile(`\s+:[\w@#%:]+:\s*$`)
 var taskPriority = regexp.MustCompile(`^\[#[^\]]+\]\s+`)
 
-// Only the selected heading line and its planning stamp are spliced. Bodies,
+// Only the selected heading line and its date stamp are spliced. Bodies,
 // drawers, descendants, tags, priorities and unrelated timestamps stay intact.
 func editTask(source string, h Heading, value string) (string, error) {
 	var edit taskEdit
@@ -33,7 +33,7 @@ func editTask(source string, h Heading, value string) (string, error) {
 	if strings.TrimSpace(edit.Title) == "" || strings.ContainsAny(edit.Title, "\r\n") {
 		return "", errors.New("task title must be a single non-empty line")
 	}
-	if edit.Kind != "scheduled" && edit.Kind != "deadline" {
+	if edit.Kind != "scheduled" && edit.Kind != "deadline" && edit.Kind != "event" {
 		return "", errors.New("invalid planning type")
 	}
 	if edit.Date != "" && !orgdate.ValidDate(edit.Date) {
@@ -69,7 +69,7 @@ func editTask(source string, h Heading, value string) (string, error) {
 	}
 	text := strings.TrimRight(raw, "\r\n")
 	state := h.State
-	if state == "" {
+	if state == "" && edit.Kind != "event" {
 		ast := config().Parse(strings.NewReader(source), "")
 		fields := strings.Fields(ast.Get("TODO"))
 		state = "TODO"
@@ -89,7 +89,11 @@ func editTask(source string, h Heading, value string) (string, error) {
 	}
 	priority := taskPriority.FindString(text[titleStart:])
 	tags := taskTags.FindString(text[titleStart:])
-	newHeading := text[:h.Level] + " " + state + " " + priority + strings.TrimSpace(edit.Title) + tags
+	statePrefix := ""
+	if state != "" {
+		statePrefix = state + " "
+	}
+	newHeading := text[:h.Level] + " " + statePrefix + priority + strings.TrimSpace(edit.Title) + tags
 	if strings.HasSuffix(raw, "\n") {
 		newHeading += eol
 	}
@@ -110,12 +114,15 @@ func editTask(source string, h Heading, value string) (string, error) {
 	var matching []orgdate.Stamp
 	matchKind := edit.Kind
 	if edit.PreviousKind != "" {
-		if edit.PreviousKind != "scheduled" && edit.PreviousKind != "deadline" {
+		if edit.PreviousKind != "scheduled" && edit.PreviousKind != "deadline" && edit.PreviousKind != "event" {
 			return "", errors.New("invalid previous planning type")
 		}
 		matchKind = edit.PreviousKind
 	}
 	for _, date := range h.Dates {
+		if !date.Active {
+			continue
+		}
 		if date.Kind == edit.Kind && edit.Kind != matchKind {
 			return "", errors.New("this heading already has that planning type")
 		}
@@ -138,14 +145,33 @@ func editTask(source string, h Heading, value string) (string, error) {
 		at := old.Start
 		if stamp == "" || edit.Kind != matchKind {
 			prefix := strings.TrimRight(source[:at], " \t")
-			if strings.HasSuffix(prefix, strings.ToUpper(matchKind)+":") {
+			if matchKind != "event" && strings.HasSuffix(prefix, strings.ToUpper(matchKind)+":") {
 				at = len(prefix) - len(matchKind) - 1
 			}
-			if stamp != "" {
+			if stamp != "" && edit.Kind != "event" {
 				stamp = strings.ToUpper(edit.Kind) + ": " + stamp
 			}
 		}
-		out = source[:at] + stamp + source[old.End:]
+		if edit.Kind == "event" && matchKind != "event" && stamp != "" {
+			out = source[:at] + source[old.End:]
+			lineStart := strings.LastIndex(out[:at], "\n") + 1
+			lineEnd := strings.IndexByte(out[at:], '\n')
+			if lineEnd >= 0 && strings.TrimSpace(out[lineStart:at+lineEnd]) == "" {
+				out = out[:lineStart] + out[at+lineEnd+1:]
+			}
+			out = insertEventStamp(out, start+len(raw), stamp, eol)
+		} else if matchKind == "event" && edit.Kind != "event" && stamp != "" {
+			out = source[:at] + source[old.End:]
+			lineStart := strings.LastIndex(out[:at], "\n") + 1
+			lineEnd := strings.IndexByte(out[at:], '\n')
+			if lineEnd >= 0 && strings.TrimSpace(out[lineStart:at+lineEnd]) == "" {
+				out = out[:lineStart] + out[at+lineEnd+1:]
+			}
+			insertAt := start + len(raw)
+			out = out[:insertAt] + stamp + eol + out[insertAt:]
+		} else {
+			out = source[:at] + stamp + source[old.End:]
+		}
 	} else if stamp != "" {
 		bodyEnd := len(source)
 		for _, next := range Parse(source).Headings {
@@ -157,7 +183,7 @@ func editTask(source string, h Heading, value string) (string, error) {
 				break
 			}
 		}
-		if strings.Contains(source[start+len(raw):bodyEnd], strings.ToUpper(edit.Kind)+":") {
+		if edit.Kind != "event" && strings.Contains(source[start+len(raw):bodyEnd], strings.ToUpper(edit.Kind)+":") {
 			return "", errors.New("existing planning syntax is unsupported; edit the source explicitly")
 		}
 		at := start + len(raw)
@@ -165,7 +191,36 @@ func editTask(source string, h Heading, value string) (string, error) {
 		if !strings.HasSuffix(raw, "\n") {
 			prefix = eol
 		}
-		out = source[:at] + prefix + strings.ToUpper(edit.Kind) + ": " + stamp + eol + source[at:]
+		if edit.Kind == "event" {
+			out = insertEventStamp(source, at, stamp, eol)
+		} else {
+			out = source[:at] + prefix + strings.ToUpper(edit.Kind) + ": " + stamp + eol + source[at:]
+		}
 	}
 	return out[:start] + newHeading + out[start+len(raw):], nil
+}
+
+func insertEventStamp(source string, at int, stamp, eol string) string {
+	// Keep property drawers adjacent to their heading/planning metadata.
+	inDrawer := false
+	for _, line := range strings.SplitAfter(source[at:], "\n") {
+		trimmed := strings.TrimSpace(line)
+		if headingRE.MatchString(trimmed) {
+			break
+		}
+		if !inDrawer && (trimmed == ":PROPERTIES:" || trimmed == ":LOGBOOK:") {
+			inDrawer = true
+		} else if !inDrawer && !strings.HasPrefix(trimmed, "SCHEDULED:") && !strings.HasPrefix(trimmed, "DEADLINE:") && !strings.HasPrefix(trimmed, "CLOSED:") {
+			break
+		}
+		at += len(line)
+		if trimmed == ":END:" {
+			inDrawer = false
+		}
+	}
+	prefix := ""
+	if at > 0 && source[at-1] != '\n' {
+		prefix = eol
+	}
+	return source[:at] + prefix + stamp + eol + source[at:]
 }

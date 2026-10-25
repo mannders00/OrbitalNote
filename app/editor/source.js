@@ -82,6 +82,17 @@ class HeadingFold extends WidgetType {
   ignoreEvent() { return true; }
 }
 
+class ClockStatus extends WidgetType {
+  eq() { return true; }
+  toDOM() {
+    const badge = document.createElement('span');
+    badge.className = 'heading-clock-status'; badge.textContent = '◷ Clocking';
+    badge.setAttribute('aria-label', 'Clock running');
+    return badge;
+  }
+  ignoreEvent() { return true; }
+}
+
 class HeadingMenu extends WidgetType {
   constructor(line) { super(); this.line = line; }
   eq(other) { return this.line === other.line; }
@@ -156,6 +167,7 @@ function decorations(state, onlyLine = 0) {
     }
     const heading = /^(\*+)\s+(?:(\S+)\s+)?/.exec(text);
     if (heading) {
+      if (clocked.has(line.from)) ranges.push(Decoration.widget({ widget: new ClockStatus(), side: -1 }).range(line.to));
       ranges.push(Decoration.widget({ widget: new HeadingMenu(n), side: 1 }).range(line.to));
       ranges.push(Decoration.line({ class: `org-heading org-h${Math.min(heading[1].length, 6)}${clocked.has(line.from) ? ' org-clocked' : ''}` }).range(line.from));
       ranges.push(Decoration.mark({ class: 'org-marker' }).range(line.from, line.from + heading[1].length));

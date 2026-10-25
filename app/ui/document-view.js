@@ -96,7 +96,12 @@ export function createDocumentView(surface, editor) {
     for (const li of preview.querySelectorAll('li')) {
       const firstParagraph = li.querySelector(':scope > p');
       const bodies = [...li.children].filter(el => el.matches('ul, ol') || el.matches('p') && el !== firstParagraph);
-      const title = plain([...li.childNodes].filter(node => node.nodeType === 3 || node.nodeType === 1 && !node.matches('ul, ol, button')).map(node => node.textContent).join('')).replace(/^\[[ Xx-]\]\s*/, '');
+      // prepare() can run again without replacing the rendered HTML. Ignore
+      // controls inside the existing label too (notably a checked box's ✓),
+      // or the source match and fold offsets become stale after an edit.
+      const titleContent = li.cloneNode(true);
+      titleContent.querySelectorAll('ul, ol, button').forEach(node => node.remove());
+      const title = plain(titleContent.textContent).replace(/^\[[ Xx-]\]\s*/, '');
       const index = listItems.findIndex((item, i) => i >= listIndex && title.startsWith(plain(item.title).replace(/^\[[ Xx-]\]\s*/, '')));
       if (index < 0) continue;
       listIndex = index + 1;

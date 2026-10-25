@@ -62,7 +62,8 @@ export function createShortcuts(definitions, container, changed) {
     label: id => shortcutLabel(values.get(id)),
     match: event => {
       const shortcut = eventShortcut(event);
-      return shortcut && definitions.find(d => values.get(d.id) === shortcut);
+      return shortcut && (definitions.find(d => values.get(d.id) === shortcut)
+        || (['Mod++', 'Mod+Shift++', 'Mod+Shift+='].includes(shortcut) && values.get('zoom-in') === 'Mod+=' ? definitions.find(d => d.id === 'zoom-in') : undefined));
     },
     capture: event => {
       if (!recording) return false;

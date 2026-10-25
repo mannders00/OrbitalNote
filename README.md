@@ -1,16 +1,6 @@
-<p align="center"><img src="docs/assets/workspace.png" alt="OrbitalNote Systems notebook: Calendar and minimal Agenda beside rendered TODO tasks, tags, a LaTeX equation, and a Mermaid service diagram, with Go instrumentation source below." width="1200"></p>
-
 # OrbitalNote
 
-[What's new in the latest preview](docs/release-notes.md)
-
-[Ask a question](https://github.com/mannders00/OrbitalNote/discussions) ·
-[Request an improvement](https://github.com/mannders00/OrbitalNote/issues/new?template=improvement.yml) ·
-[Report a bug](https://github.com/mannders00/OrbitalNote/issues/new?template=bug.yml) ·
-[Project board](https://github.com/users/mannders00/projects/1) ·
-[Roadmap and work history](docs/roadmap.md) · [Contribute](CONTRIBUTING.md)
-
-**Org mode. A modern interface.**
+**Your notes. Your next move.**
 
 OrbitalNote is a polished, free, open-source Org client for desktop and mobile.
 Notes, tasks, and a visual calendar, built on your own `.org` files.
@@ -23,23 +13,38 @@ keep your desktop and phone together.
 agenda, and encrypted Sync are available now. macOS ↔ Android Sync has been
 tested on real devices.
 
-[**Get OrbitalNote**](https://orbitalnote.org/#download)
-· [**Get Sync**](https://sync.orbitalnote.org/signup)
-· [See the website](https://orbitalnote.org/)
-· [Talk on Discord](https://discord.gg/TdXgh69gwP)
+[**Download**](https://orbitalnote.org/#download)
+· [**Documentation**](https://orbitalnote.org/docs/)
+· [Releases](https://github.com/mannders00/OrbitalNote/releases)
+· [Contribute](CONTRIBUTING.md)
+
+<p align="center"><img src="docs/assets/workspace.png" alt="OrbitalNote with Calendar and Agenda beside project notes, tasks, and a local note graph." width="1200"></p>
+
+## Find your next step
+
+| Here to… | Start here |
+| --- | --- |
+| Try the app | [Download for your device](https://orbitalnote.org/#download) · [Installation guide](https://orbitalnote.org/docs/installation.html) |
+| Make your first notebook | [First-use walkthrough](https://orbitalnote.org/docs/getting-started.html) · [Org essentials](https://orbitalnote.org/docs/org-basics.html) |
+| Bring existing Org files | [Workspaces and file ownership](https://orbitalnote.org/docs/workspaces.html) |
+| Connect another device | [Encrypted Sync setup](https://orbitalnote.org/docs/sync.html) |
+| Ask a question or report a problem | [Troubleshooting](https://orbitalnote.org/docs/troubleshooting.html) · [Discussions](https://github.com/mannders00/OrbitalNote/discussions) · [Bug reports](https://github.com/mannders00/OrbitalNote/issues/new?template=bug.yml) |
+| Explore or contribute to the code | [Building and technical details](#building-and-technical-details) · [Contributing](CONTRIBUTING.md) · [Roadmap](docs/roadmap.md) |
 
 ## Download and try it
 
-The app is free. These are direct downloads for **0.1.0-preview.25**, including
-task clocks, repeating tasks, interactive checklists, and encrypted Sync.
+The app is free; no account is needed for local notes. The
+[website download picker](https://orbitalnote.org/#download) selects a build for
+your platform. For versioned packages, checksums, and release-specific changes,
+use [GitHub Releases](https://github.com/mannders00/OrbitalNote/releases).
 
-| Your device | Download | Getting started |
+| Your device | Build | Getting started |
 |---|---|---|
-| Mac with Apple Silicon | [Download for Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.25/orbitalnote-0.1.0-preview.25-darwin-arm64.zip) | M1 or newer. Unzip and move the app to Applications. |
-| Intel Mac | [Download for Intel Mac](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.25/orbitalnote-0.1.0-preview.25-darwin-amd64.zip) | Unzip and move the app to Applications. |
-| Windows | [Download for Windows](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.25/orbitalnote-0.1.0-preview.25-windows-amd64.zip) | x64. Extract the ZIP and open OrbitalNote.exe. Requires WebView2. |
-| Linux | [Download for Linux](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.25/orbitalnote-0.1.0-preview.25-linux-amd64.tar.gz) | x64, Ubuntu 24.04-compatible. Requires GTK4 and WebKitGTK 6.0. |
-| Android | [Download the APK](https://github.com/mannders00/OrbitalNote/releases/download/v0.1.0-preview.25/orbitalnote-0.1.0-preview.25-android-arm64.apk) | Android 7+, ARM64. Open the APK and allow installation from your browser. |
+| Mac with Apple Silicon | `darwin-arm64.zip` | M1 or newer. Unzip and move the app to Applications. |
+| Intel Mac | `darwin-amd64.zip` | Unzip and move the app to Applications. |
+| Windows | `windows-amd64.zip` | x64. Extract the ZIP and open OrbitalNote.exe. Requires WebView2. |
+| Linux | `linux-amd64.tar.gz` | x64, Ubuntu 24.04-compatible. Requires GTK4 and WebKitGTK 6.0. |
+| Android | `android-arm64.apk` | Android 7+, ARM64. Open the APK and allow installation from your browser. |
 
 macOS builds aren't notarized yet; you may need to allow the app in System
 Settings → Privacy & Security after the first launch attempt. Windows builds
@@ -48,8 +53,10 @@ aren't Authenticode-signed yet and may show a SmartScreen prompt.
 **iPhone and iPad:** the app builds and opens in the iOS simulator. An installable
 iPhone preview is still to come. Android is available now.
 
-[Release notes and checksums](https://github.com/mannders00/OrbitalNote/releases/tag/v0.1.0-preview.25)
-· [Find the newest downloads](https://orbitalnote.org/#download)
+After installation, open a folder on desktop or start in Android's private
+notebook. Create a note, add a TODO heading, and give it a date in the task form.
+The [first notebook guide](https://orbitalnote.org/docs/getting-started.html)
+walks through the whole flow, including an example workspace you can explore.
 
 ## What's here today
 
@@ -73,6 +80,9 @@ split the window, resize the panes, and make the workspace yours.
 - **Calendar:** day, week, month, and year views. Schedule a task, give it a time,
   or drag a simple event to another day. The actual Org timestamp updates.
 - **Live updates:** edit a note and see its tasks update in the other pane.
+- **Events:** choose Event in the task form or Set event date in a heading’s
+  menu to add a plain active timestamp, without `SCHEDULED` or `DEADLINE`.
+  Regular headings stay regular headings; existing TODO states are preserved.
 
 ### Find things without losing your place
 
@@ -83,7 +93,7 @@ collapsible sidebars, keyboard shortcuts, and optional Vi controls are included.
 ### Make it yours
 
 The same real workspace in **Default**, **Terminal**, and **Editorial**. These
-captures show preview.17's nested tasks, LaTeX, Mermaid, Calendar,
+captures show nested tasks, LaTeX, Mermaid, Calendar,
 Agenda, and local note graph. Click an image to see it full-size.
 
 | Default (Workbench) | Terminal | Editorial |
@@ -121,7 +131,7 @@ Sign-in finishes automatically. To use your own server, choose **Self-hosted
 server** in Sync settings and enter its URL. See [Self-hosted Sync](docs/self-hosted-sync.md).
 
 [**Get Sync preview**](https://sync.orbitalnote.org/signup)
-· [Try the simulated desktop/phone demo](https://orbitalnote.org/#sync)
+· [Sync setup guide](https://orbitalnote.org/docs/sync.html)
 · [Manage your account](https://sync.orbitalnote.org/)
 
 The app stays free and works offline without a subscription. Hosted Sync is
@@ -132,8 +142,9 @@ optional. Attachments and history cleanup aren't available yet.
 Feedback and contributions help shape the next release.
 Current preview limits:
 
-- Android uses a private app notebook. Linking an existing device folder isn't
-  implemented yet. Updates preserve the notebook; uninstalling the app deletes it.
+- Android supports a private notebook and, in recent previews, linked device
+  folders through the system picker. Provider compatibility is still being tested.
+  Updates preserve the private notebook; uninstalling the app deletes it.
 - Org repeaters advance on completion; recorded completions appear in Calendar.
   Multi-day repeating ranges still require source editing.
 - This isn't a complete Emacs or Org agenda implementation. There's no Babel
@@ -317,11 +328,11 @@ editing or reading mode. Folding changes only the view, never the Org source.
 
 ## Boundaries and known limitations
 
-- Repeaters are parsed, preserved and displayed, **not expanded or automatically
-  advanced**. Complex Org agenda semantics, diary expressions and inherited
-  settings are not implemented. Calendar resizing is not implemented.
+- Repeaters advance on completion and project future occurrences. Complex Org
+  agenda semantics, diary expressions and inherited settings are not implemented.
+  Projected occurrences cannot be dragged or resized independently.
 - No Babel/Lisp execution, remote includes, raw executable HTML, automatic remote
-  image fetching, LaTeX typesetting, encrypted-subtree editing or custom exporters.
+  image fetching, encrypted-subtree editing or custom exporters.
   Unknown source stays intact; preview may omit unsupported constructs.
 - Only UTF-8 notes up to 8 MiB are editable. go-org has a 64 KiB per-line parser
   limit; affected files remain accessible as source with a preview fallback.
@@ -334,9 +345,9 @@ editing or reading mode. Folding changes only the view, never the Org source.
 - Revision rechecks cannot provide atomic compare-and-swap against uncooperative
   external processes on a normal filesystem. There remains a small check/rename
   race. File-provider/mobile atomicity needs separate implementation and tests.
-- Responsive layout and an Android private-notebook preview are implemented;
-  **linked iOS/Android device folders are not**.
-  Upstream mobile pickers import copies and do not meet linked-folder requirements.
+- Android supports private and linked-folder workspaces. Linked iOS folders and
+  installable iPhone builds are not yet available. Mobile file-provider behavior
+  still needs broader physical-device testing.
 - Installer integration, signing/notarization, auto-update, screen-reader auditing,
   comprehensive mobile device testing and release performance gates remain open.
 

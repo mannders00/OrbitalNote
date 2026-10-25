@@ -281,6 +281,7 @@ function createDocumentSurface(path, t) {
   t.documentView = createDocumentView(surface, editor);
   editor.setLineNumbers($('line-numbers').value);
   t.surface = surface; t.vi = attachVi(editor, find('vi-state'));
+  t.initialFoldState = $('initial-fold-state').value;
   t.vi.setEnabled($('vi-mode').checked);
   const focused = fn => run(e => { activateTab(surface.dataset.viewId); return fn(e); });
   const bind = (id, event, fn) => find(id).addEventListener(event, focused(fn));
@@ -501,6 +502,10 @@ function renderDocument(t) {
   if (!t.surface) return;
   const editor = t.surface.querySelector('[data-ui="source"]');
   if (editor.value !== t.buffer) { if (t.focusTitle) editor.syncValue(t.buffer); else { editor.value = t.buffer; editor.setSelectionRange(t.position, t.position); editor.scrollTop = t.scroll; t.vi.reset(); } }
+  if (t.initialFoldState) {
+    editor.foldHeading(t.initialFoldState === 'folded' ? 'fold-all' : 'unfold-all');
+    delete t.initialFoldState;
+  }
   setPreview(t, t.html);
   updateMode(t);
    const compact = narrowLayout.matches || t.surface.getBoundingClientRect().width < 760;
@@ -649,6 +654,10 @@ function setPreview(t, html) {
     if (task) {
       heading.parentElement.classList.add('preview-section');
       heading.classList.toggle('org-clocked', !!task.clock);
+      if (task.clock) {
+        const badge = document.createElement('span'); badge.className = 'heading-clock-status';
+        badge.textContent = '◷ Clocking'; badge.setAttribute('aria-label', 'Clock running'); heading.append(badge);
+      }
       const selectHeading = () => {
          layout.select(t.surface.dataset.viewId);
         const offset = t.buffer.split('\n').slice(0, task.line - 1).reduce((n, line) => n + line.length + 1, 0);
@@ -1061,7 +1070,7 @@ function renderCalendar() {
     patchHTML($('calendar-grid'), html + '</div>'); return;
   }
   const start = new Date(calendarDate); if (calendarMode === 'week') start.setDate(start.getDate() - (start.getDay() + 6) % 7);
-  patchHTML($('calendar-grid'), timeGrid(start, calendarMode === 'week' ? 7 : 1, entries.filter(calendarMatches), entryColorStyle, e => entryIndices.get(e), $('calendar-time-format').value));
+  patchHTML($('calendar-grid'), timeGrid(start, calendarMode === 'week' ? 7 : 1, entries.filter(calendarMatches), entryColorStyle, e => entryIndices.get(e), $('calendar-time-format').value, localStorage.getItem('orbitalnote-calendar-all-day-collapsed') === 'true'));
   updateNowLine($('calendar-grid'), $('calendar-time-format').value);
 }
 function shiftCalendar(delta) {
@@ -1133,7 +1142,8 @@ async function editTaskAtCursor(kindOverride) {
   let title = buffer.split('\n')[heading.line - 1].replace(/^\*+\s+/, '');
   if (heading.state && title.startsWith(heading.state + ' ')) title = title.slice(heading.state.length + 1);
   title = title.replace(/^\[#[^\]]+\]\s+/, '').replace(/\s+:[\w@#%:]+:\s*$/, '');
-  const stamp = heading.dates.find(st => st.kind === 'scheduled' || st.kind === 'deadline');
+  const editableStamp = st => st.active && ['event', 'scheduled', 'deadline'].includes(st.kind);
+  const stamp = heading.dates.find(st => editableStamp(st) && st.kind === kindOverride) || heading.dates.find(editableStamp);
   const data = await taskDialog(dialog, { editing: true, title, path, date: stamp?.date || '', time: stamp?.time || '', endTime: stamp?.endTime || '', repeater: stamp?.repeater || '', kind: kindOverride || stamp?.kind || 'scheduled' });
   if (!data) return;
   if (!liveDocument(path, t) || t.buffer !== buffer) { notify('This heading changed while the task dialog was open. Please try again.'); return; }
@@ -1275,7 +1285,7 @@ function showHeadingMenu(anchor = source) {
     ['Edit task…', () => editTaskAtCursor()], ['Toggle task state', () => headingAction('complete')],
     ['Clock in / out', clockHeading],
     ['Edit tags…', () => headingAction('tags')], ['Edit properties…', () => headingAction('property')], ['Set priority…', () => headingAction('priority')],
-    ['Schedule…', () => editTaskAtCursor('scheduled')], ['Set deadline…', () => editTaskAtCursor('deadline')],
+    ['Set event date…', () => editTaskAtCursor('event')], ['Schedule…', () => editTaskAtCursor('scheduled')], ['Set deadline…', () => editTaskAtCursor('deadline')],
     ['Fold / unfold', () => headingFoldCommand('toggle')], ['Promote heading', () => editorCommand('promote')], ['Demote heading', () => editorCommand('demote')],
     ['Move up', () => editorCommand('move-up')], ['Move down', () => editorCommand('move-down')],
   ];
@@ -1449,6 +1459,7 @@ document.addEventListener('click', run(async e => {
   if (b.dataset.view) return setView(workspace.id ? b.dataset.view : 'welcome');
   if (b.dataset.mode) return setMode(b.dataset.mode);
   if (b.dataset.filter) { agendaFilter = b.dataset.filter; if (agendaFilter === 'today') agendaDate = ''; renderAgenda(); }
+  if (b.hasAttribute('data-all-day-toggle')) { localStorage.setItem('orbitalnote-calendar-all-day-collapsed', String(b.getAttribute('aria-expanded') === 'true')); renderCalendar(); }
   if (b.dataset.calendar) { calendarMode = b.dataset.calendar; renderCalendar(); }
   if (b.dataset.capture) return capture(b.dataset.capture, b.dataset.time || '');
   if (b.dataset.day) { calendarDate = civil(b.dataset.day); calendarMode = 'day'; renderCalendar(); }
@@ -1486,6 +1497,8 @@ $('agenda-query-builder').addEventListener('saved-views-changed', e => {
   renderCalendar();
 });
 $('line-numbers').value = localStorage.getItem('orbitalnote-line-numbers') || 'off';
+$('initial-fold-state').value = localStorage.getItem('orbitalnote-initial-fold-state') === 'folded' ? 'folded' : 'expanded';
+listen('initial-fold-state', 'change', () => localStorage.setItem('orbitalnote-initial-fold-state', $('initial-fold-state').value));
 listen('line-numbers', 'change', () => { localStorage.setItem('orbitalnote-line-numbers', $('line-numbers').value); for (const t of [...tabs.values(), ...duplicateViews.values()]) t.surface?.querySelector('[data-ui="source"]')?.setLineNumbers($('line-numbers').value); });
 $('monospace-mode').checked = localStorage.getItem('orbitalnote-monospace') === 'true';
 for (const [id, fallback] of [['preview-indent', true], ['hide-footer', false]]) {
@@ -1519,8 +1532,9 @@ $('vi-mode').checked = localStorage.getItem('org-vi-mode') === 'true';
 listen('vi-mode', 'change', () => { localStorage.setItem('org-vi-mode', String($('vi-mode').checked)); for (const t of [...tabs.values(), ...duplicateViews.values()]) t.vi?.setEnabled($('vi-mode').checked); });
 const dialogs = document.getElementsByTagName('dialog');
 document.addEventListener('keydown', run(async e => {
-  if (shortcuts.capture(e) || e.isComposing || [...dialogs].some(dialog => dialog.open)) return;
+  if (shortcuts.capture(e) || e.isComposing) return;
   const action = shortcuts.match(e);
+  if ([...dialogs].some(dialog => dialog.open) && !['zoom-in', 'zoom-out', 'zoom-reset'].includes(action?.id)) return;
   const editing = source && current()?.mode === 'edit' && !e.target.closest('button') && (e.target === source || source.contains(e.target));
   if (action && (action.scope !== 'editor' || editing)) {
     e.preventDefault(); e.stopImmediatePropagation(); await action.execute();

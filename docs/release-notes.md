@@ -1,6 +1,43 @@
-# OrbitalNote 0.1.0-preview.25
+# OrbitalNote 0.1.0-preview.26
 
-## Consistent modal selectors
+## Events, calmer dialogs, and editing polish
+
+- Add **Event** beside Scheduled and Deadline, plus **Set event date…** in
+  heading actions. Event dates use plain active Org timestamps and work for
+  regular headings as well as TODOs. Existing events can be edited from Agenda
+  or the heading menu; unrelated text, drawers, and timestamps are preserved.
+- Refine task-dialog padding, column spacing, and the separate time-control row.
+- Allow zoom in/out and actual-size shortcuts while dialogs are open, including
+  the shifted Cmd/Ctrl-plus spelling. Add space below the task title and around
+  the Event / Scheduled / Deadline selector.
+
+- Refresh the native app icon with the selected Electric sky artwork.
+- Collapse or expand the all-day section in day/week calendars. The control
+  shows the number of entries and remembers the choice on this device.
+- Replace the clocked heading's blue edge with a compact clock-status badge.
+- Refresh checklist fold bindings reliably when a checked item's rendered label
+  is reused after source offsets change, including compact list markup.
+- Keep Vim navigation inside a focused heading's visible line range. Preserve
+  the final empty line's caret so opening a new line at the focused boundary
+  does not redirect typing to the preceding line.
+- Make Vim linewise deletion at a focused heading's end remove the actual line
+  while preserving the following hidden heading, including empty lines and counts.
+- Use matching segmented controls for task placement and planning type, with
+  spacing between the two groups.
+- Contain dropdown scrolling at list boundaries. Keyboard option navigation
+  scrolls only the option list rather than the surrounding modal or page.
+- Arrange task dialogs into location and planning columns on laptops, with an
+  always-visible calendar at the top right and on-demand repeat-syntax help. Dialog headers and actions stay
+  visible while long bodies scroll; narrow screens use a single column.
+- Show shared dropdown lists in a top-layer overlay anchored to their input.
+  Lists can extend beyond the modal, size to the app viewport, and open upward
+  when there is more room above the field.
+- Vim `o` on a folded heading or list opens a visible line after the complete
+  subtree, preserving the original fold and any nested folds.
+- Update the repository README with first-use documentation, current downloads,
+  and clearer paths for users and contributors arriving from the website.
+
+## Included from earlier previews
 
 - Focused headings now support source and reading modes with the normal preview
   controls, limited to the selected subtree. **Show whole file** is a quiet

@@ -18,7 +18,13 @@ const hidden = StateField.define({
     if (!tr.docChanged && !tr.effects.some(e => e.is(focusEffect))) return value;
     const range = tr.state.field(focusRange), ranges = [];
     if (range?.from) ranges.push(Decoration.replace({ block: true }).range(0, range.from));
-    if (range && range.to < tr.state.doc.length) ranges.push(Decoration.replace({ block: true }).range(range.to, tr.state.doc.length));
+    if (range && range.to < tr.state.doc.length) {
+      // Keep the focused final line's newline in the DOM. Starting a block
+      // replacement at an empty final line swallows its caret position, so
+      // native input can jump back to the preceding line after Vim's `o`.
+      const after = range.to + (tr.state.doc.sliceString(range.to, range.to + 1) === '\n' ? 1 : 0);
+      if (after < tr.state.doc.length) ranges.push(Decoration.replace({ block: true }).range(after, tr.state.doc.length));
+    }
     return Decoration.set(ranges);
   },
   provide: field => EditorView.decorations.from(field),

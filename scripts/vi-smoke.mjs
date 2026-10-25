@@ -70,6 +70,9 @@ try {
 
   const metadataText = '* Task\nDEADLINE: <2026-10-03 Sat>\n:LOGBOOK:\nCLOCK: [2026-10-03 Sat 09:00]\n:END:\nBody\n';
   await setup(metadataText);
+  // New tabs now honor the expanded/folded preference; this scenario needs a
+  // closed drawer explicitly rather than relying on the old startup default.
+  await editor.evaluate(el => el.setMetadataFolds(el.metadataRanges().map(range => range.start)));
   const placeholder = editor.locator('.editor-metadata-placeholder');
   const alignment = await placeholder.evaluate(el => {
     const line = el.closest('.cm-line');

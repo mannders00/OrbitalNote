@@ -1,6 +1,7 @@
 import { vim, Vim, getCM } from '@replit/codemirror-vim';
-import { foldedRanges, foldEffect } from '@codemirror/language';
+import { foldedRanges, foldEffect, unfoldEffect } from '@codemirror/language';
 import { headingRanges, listRanges } from './headings.js';
+import { focusRange } from './focus.js';
 
 let recordingOwner;
 const foldedCuts = new Map();
@@ -27,7 +28,24 @@ function subtreeRanges(cm, args, ranges) {
   return expanded;
 }
 Vim.defineOperator('orbitalDelete', function(cm, args, ranges, ...rest) {
-  return this.delete(cm, args, subtreeRanges(cm, args, ranges), ...rest);
+  const expanded = subtreeRanges(cm, args, ranges), focus = cm.cm6.state.field(focusRange, false);
+  if (focus && args.linewise && !cm.state.vim.visualBlock && expanded.length === 1) {
+    const doc = cm.cm6.state.doc;
+    const a = cm.indexFromPos(expanded[0].anchor), b = cm.indexFromPos(expanded[0].head);
+    const first = doc.lineAt(Math.min(a, b));
+    if (Math.max(a, b) >= focus.to && first.from > focus.from) {
+      // The next line belongs to hidden source. Delete the preceding newline
+      // instead, just as Vim does at real EOF, preserving the sibling separator.
+      // Otherwise the focus guard rejects the edit but Vim still moves up.
+      const cut = first.from - 1;
+      const text = doc.sliceString(first.from, focus.to).replace(/\n?$/, '\n');
+      cm.replaceRange('', cm.posFromIndex(cut), cm.posFromIndex(focus.to));
+      Vim.getVimGlobalState_().registerController.pushText(args.registerName, 'delete', text, true, false);
+      const previous = cm.cm6.state.doc.lineAt(cut);
+      return cm.posFromIndex(previous.from + (previous.text.match(/^\s*/)?.[0].length || 0));
+    }
+  }
+  return this.delete(cm, args, expanded, ...rest);
 });
 Vim.mapCommand('d', 'operator', 'orbitalDelete', {});
 Vim.defineOperator('orbitalYank', function(cm, args, ranges, ...rest) {
@@ -67,10 +85,32 @@ Vim.defineAction('orbitalOpenAbove', function(cm, args, state) {
 });
 Vim.mapCommand('O', 'action', 'orbitalOpenAbove', {}, { context: 'normal', isEdit: true, interlaceInsertRepeat: true });
 
+Vim.defineAction('orbitalOpenBelow', function(cm, args, state) {
+  const cursor = cm.getCursor();
+  const folded = foldedHeadings(cm).find(h => cm.cm6.state.doc.lineAt(h.start).number - 1 === cursor.line);
+  if (!folded) return this.newLineAndEnterInsertMode(cm, { ...args, after: true }, state);
+  const indent = cm.getLine(cursor.line).match(/^[ \t]*/)[0];
+  const insert = '\n' + indent;
+  cm.cm6.dispatch({
+    changes: { from: folded.to, insert },
+    // Do not let insertion at the fold's end extend the fold over the new line.
+    effects: [unfoldEffect.of(folded), foldEffect.of({ from: folded.from, to: folded.to })],
+    selection: { anchor: folded.to + insert.length }, scrollIntoView: true,
+    userEvent: 'input',
+  });
+  this.enterInsertMode(cm, { repeat: args.repeat }, state);
+});
+Vim.mapCommand('o', 'action', 'orbitalOpenBelow', {}, { context: 'normal', isEdit: true, interlaceInsertRepeat: true });
+
 // Relative gutters count source lines. The upstream motion consults findPosV
 // to skip folded rows, which makes a count overshoot the gutter's destination.
 // Keep its column/operator semantics, but use source coordinates for j/k.
 function sourceLines(cm, head, args, state) {
+  if (cm.cm6.state.field(focusRange, false)) {
+    const available = args.forward ? cm.lastLine() - head.line : head.line - cm.firstLine();
+    if (available <= 0) return head;
+    args = { ...args, repeat: Math.min(available, args.repeat + (args.repeatOffset || 0)), repeatOffset: 0 };
+  }
   const findPosV = cm.findPosV;
   if (state.lastMotion === sourceLines) state.lastMotion = this.moveByLines;
   cm.findPosV = (start, amount) => ({ line: Math.max(cm.firstLine(), Math.min(cm.lastLine(), start.line + amount)), ch: start.ch });
@@ -105,6 +145,11 @@ export function attachVim(view, compartment, status) {
     view.dispatch({ effects: compartment.reconfigure(enabled ? vim({ status: false }) : []) });
     const cm = getCM(view);
     if (cm) {
+      // Vim must see the focused subtree's line boundaries, rather than moving
+      // into hidden source and having its cursor clamped to the final offset.
+      const firstLine = cm.firstLine.bind(cm), lastLine = cm.lastLine.bind(cm);
+      cm.firstLine = () => { const range = view.state.field(focusRange, false); return range ? view.state.doc.lineAt(range.from).number - 1 : firstLine(); };
+      cm.lastLine = () => { const range = view.state.field(focusRange, false); return range ? view.state.doc.lineAt(range.to).number - 1 : lastLine(); };
       cm.on('vim-command-done', () => {
         if (cm.state.vim?.insertMode || cm.state.vim?.visualMode) return;
         const pos = cm.indexFromPos(cm.getCursor());

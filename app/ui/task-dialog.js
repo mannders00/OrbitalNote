@@ -9,13 +9,23 @@ export async function taskDialog(dialog, { title = '', path = '', date = '', tim
   date ||= key(new Date());
   const pending = dialog(editing ? 'Edit task' : 'New task', `
     <label>Title<input name="title" required value="${esc(title)}" placeholder="Task title"></label>
+    <div class="task-form-columns"><section class="task-destination-fields" aria-label="Task location and repeat"><p class="task-section-label">Location</p>
     ${editing || inDocument ? `<p class="task-location">${esc(path)} · ${inDocument ? 'at cursor' : 'selected heading'}</p><input type="hidden" name="path" value="${esc(path)}">` : `<label>Org file<input name="path" required value="${esc(path)}" placeholder="inbox.org"></label>`}
-    <div class="task-planning" role="group" aria-label="Planning type"><label><input type="radio" name="kind" value="scheduled" ${kind === 'scheduled' ? 'checked' : ''}>Scheduled</label><label><input type="radio" name="kind" value="deadline" ${kind === 'deadline' ? 'checked' : ''}>Deadline</label></div>
+    <label>Repeat <small>optional</small><input name="repeater" value="${esc(repeater)}" placeholder="e.g. +1w"></label><details class="task-repeat-help"><summary>Repeating task syntax</summary><p>+1w: every week · ++1w: catch up · .+1w: a week after completion. Units: h, d, w, m, y.</p></details>
+    </section><section class="task-schedule-fields" aria-label="Task schedule"><p class="task-section-label">Planning</p>
+    <div class="task-planning task-segmented" role="group" aria-label="Planning type"><label title="An event date, stored as a plain active Org timestamp"><input type="radio" name="kind" value="event" ${kind === 'event' ? 'checked' : ''}>Event</label><label><input type="radio" name="kind" value="scheduled" ${kind === 'scheduled' ? 'checked' : ''}>Scheduled</label><label><input type="radio" name="kind" value="deadline" ${kind === 'deadline' ? 'checked' : ''}>Deadline</label></div>
     <label>Date <small>optional</small><input name="date" value="${esc(date)}" placeholder="YYYY-MM-DD" inputmode="numeric" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"></label>
-    <label>Repeat <small>optional</small><input name="repeater" value="${esc(repeater)}" placeholder="e.g. +1w"><small>+1w: every week · ++1w: catch up · .+1w: a week after completion. Units: h, d, w, m, y.</small></label>
     <div class="task-date-picker"><div class="date-picker-header"><button type="button" data-date-step="-1" aria-label="Previous month">${icon('left')}</button><strong data-date-month></strong><button type="button" data-date-step="1" aria-label="Next month">${icon('right')}</button></div><div class="date-picker-grid" role="group" aria-label="Choose date"></div><div class="date-picker-actions"><button type="button" data-date-today>Today</button><button type="button" data-date-clear>No date</button></div></div>
-    <div class="task-times"><label>Start time <small>optional</small><input type="time" name="time" value="${esc(time)}"></label><label>End time <small>optional</small><input type="time" name="endTime" value="${esc(endTime)}"></label></div><div class="time-presets" role="group" aria-label="Quick time choices"><button type="button" data-time="09:00">9 am</button><button type="button" data-time="12:00">Noon</button><button type="button" data-time="15:00">3 pm</button><button type="button" data-duration="30">30 minutes</button><button type="button" data-duration="60">1 hour</button><button type="button" data-time="">No time</button></div>`, editing ? 'Save task' : 'Create task');
+    <div class="task-times"><label>Start time <small>optional</small><input type="time" name="time" value="${esc(time)}"></label><label>End time <small>optional</small><input type="time" name="endTime" value="${esc(endTime)}"></label></div><div class="time-presets" role="group" aria-label="Quick time choices"><button type="button" data-time="09:00">9 am</button><button type="button" data-time="12:00">Noon</button><button type="button" data-time="15:00">3 pm</button><button type="button" data-duration="30">30 min</button><button type="button" data-duration="60">1 hour</button><button type="button" data-time="">No time</button></div></section></div>`, editing ? 'Save task' : 'Create task');
   const root = document.getElementById('modal-body'), dateInput = root.querySelector('[name="date"]');
+  root.closest('dialog').classList.add('task-modal');
+  const calendar = root.querySelector('.task-date-picker');
+  root.querySelector('.task-schedule-fields').prepend(calendar);
+  root.querySelector('.task-schedule-fields > .task-section-label').remove();
+  dateInput.closest('label').classList.add('task-date-field');
+  const timeRow = document.createElement('div'); timeRow.className = 'task-time-row';
+  timeRow.append(root.querySelector('.task-times'), root.querySelector('.time-presets'));
+  root.querySelector('.task-form-columns').after(timeRow);
   const disposeDestination = readNote ? mountTaskDestination(root, files, readNote, memoryKey) : () => {};
   const now = new Date();
   let month = /^\d{4}-\d{2}-\d{2}$/.test(date) ? civil(date) : now;
@@ -51,10 +61,15 @@ export async function taskDialog(dialog, { title = '', path = '', date = '', tim
     start.setCustomValidity(start.value && !dateInput.value ? 'Choose a date for this time.' : '');
     end.setCustomValidity(end.value && (!start.value || end.value <= start.value) ? 'End time must be later than start time on the same day.' : '');
   }
-  const onInput = () => { validate(); draw(); };
+  const updateLabels = () => {
+    const event = root.querySelector('[name="kind"]:checked')?.value === 'event';
+    document.getElementById('modal-title').textContent = `${editing ? 'Edit' : 'New'} ${event ? 'event' : 'task'}`;
+    document.getElementById('modal-submit').textContent = `${editing ? 'Save' : 'Create'} ${event ? 'event' : 'task'}`;
+  };
+  const onInput = () => { validate(); draw(); updateLabels(); };
   root.addEventListener('click', onClick);
   root.addEventListener('input', onInput);
-  draw(); validate();
+  draw(); validate(); updateLabels();
   try { return await pending; }
-  finally { disposeDestination(); root.removeEventListener('click', onClick); root.removeEventListener('input', onInput); }
+  finally { disposeDestination(); root.closest('dialog').classList.remove('task-modal'); root.removeEventListener('click', onClick); root.removeEventListener('input', onInput); }
 }

@@ -29,7 +29,7 @@ export function mountTaskDestination(root, files, readNote, memoryKey) {
   let memory = {};
   try { memory = JSON.parse(localStorage.getItem(memoryKey) || '{}'); } catch {}
   const placement = document.createElement('fieldset'); placement.className = 'task-insertion';
-  placement.innerHTML = '<legend>Insert at this level</legend><div><label><input type="radio" name="insertionPosition" value="prepend">Prepend</label><label><input type="radio" name="insertionPosition" value="append">Append</label></div>';
+  placement.innerHTML = '<legend>Insert at this level</legend><div class="task-segmented"><label><input type="radio" name="insertionPosition" value="prepend">Prepend</label><label><input type="radio" name="insertionPosition" value="append">Append</label></div>';
   parentLabel.after(placement);
   const initial = memory.insertionPosition || (memory.parents?.[input.value.trim()] === 'start' ? 'prepend' : 'append');
   placement.querySelector(`[value="${initial === 'prepend' ? 'prepend' : 'append'}"]`).checked = true;
