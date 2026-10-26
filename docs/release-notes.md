@@ -12,7 +12,7 @@
 - Remove the desktop tile edge from iOS and Android artwork so mobile launcher
   masks provide the outer shape.
 
-## Local follow-up build
+## Events, calmer dialogs, and editing polish (preview.26)
 
 - Add **Event** beside Scheduled and Deadline, plus **Set event date…** in
   heading actions. Event dates use plain active Org timestamps and work for
