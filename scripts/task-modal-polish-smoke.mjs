@@ -1,6 +1,8 @@
 // Run against a disposable app/dev workspace.
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 const base = process.env.BASE_URL || 'http://127.0.0.1:9250';
 const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
 try {
@@ -63,7 +65,7 @@ try {
   await list.locator('[role="option"]').first().click();
   assert(await list.isHidden(), 'Selecting a portaled option closes the list');
   await page.setViewportSize({width:1280,height:720});
-  await page.screenshot({path:'/private/var/folders/0y/thqb3_1s69nf62hymzpf94p40000gn/T/opencode/task-modal-polish.png'});
+  await page.screenshot({path:join(tmpdir(), 'orbitalnote-task-modal-polish.png')});
   await page.locator('#modal .modal-actions button[value="cancel"]').click();
   await page.waitForFunction(() => !document.querySelector('.task-file-options'));
   assert.equal(await page.locator('.task-file-options').count(), 0, 'Closing the modal cleans up the overlays');
