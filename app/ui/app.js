@@ -755,11 +755,32 @@ async function followNoteLink(target, origin = active) {
   const [file, search = ''] = target.split('::');
   const local = target.startsWith('#') || target.startsWith('*');
   const path = local ? origin : relativePath(file, origin), headingTarget = decodeURIComponent(local ? target : search);
-  if (!headingTarget) return openNote(path);
+  if (!headingTarget) return openLinkedNote(path, undefined, origin);
   const t = tabs.get(path), doc = t ? await call('Preview', { source: t.buffer }) : await call('Read', { id: workspace.id, path });
   const heading = doc.headings.find(h => headingTarget.startsWith('#') ? h.properties?.CUSTOM_ID === headingTarget.slice(1) : h.title === headingTarget.replace(/^\*+\s*/, ''));
   if (!heading) { notify('Heading not found in ' + path, 'error'); return; }
-  return openNote(path, heading.line);
+  return openLinkedNote(path, heading.line, origin);
+}
+async function openLinkedNote(path, line, origin) {
+  if (view !== 'document' || active !== origin) return openNote(path, line);
+  if (path === origin) {
+    if (line && active === origin) {
+      const pos = source.value.split('\n').slice(0, line - 1).reduce((n, s) => n + s.length + 1, 0);
+      setMode('edit'); source.focus(); source.jumpTo(pos); syncScroll();
+    }
+    return;
+  }
+  const previous = activeDocumentID, group = layout.owner(previous)?.id, workspaceID = workspace.id;
+  const alreadyOpen = tabs.has(path);
+  await save(origin);
+  if (workspace.id !== workspaceID || activeDocumentID !== previous) return;
+  await openNote(path, line);
+  if (workspace.id !== workspaceID || active !== path || !group || !layout.tabs.has(previous)) return;
+  const next = alreadyOpen ? duplicateDocument(path).viewID : 'file:' + path;
+  layout.move(next, group, 'center', previous);
+  if (previous.startsWith('copy:')) closeDuplicate(previous);
+  else await closeTab(origin);
+  layout.select(next);
 }
 function hydrateImages(t = current()) {
   if (!t?.surface) return;
@@ -1359,6 +1380,11 @@ const actionDefinitions = [
     ['indent', 'Indent line', 'Tab'], ['outdent', 'Outdent line', 'Shift+Tab'],
   ].map(([id, label, key]) => [id, label, key, () => editorCommand(id), 'editor']),
   ['undo', 'Undo edit', 'Mod+Z', () => source?.undo(), 'editor'],
+  ['follow-link', 'Open link at cursor', 'Mod+Enter', () => {
+    const target = source?.linkAtCursor();
+    if (target) return followNoteLink(target);
+    notify('Place the cursor on a link to open it.');
+  }, 'editor'],
   ['find-note', 'Find in note', 'Mod+F', () => { if (view === 'document') { if (mode !== 'edit') setMode('edit'); source?.openSearch(); } }],
   ['replace-note', 'Find and replace in note', 'Mod+Alt+F', () => { if (view === 'document') { if (mode !== 'edit') setMode('edit'); source?.openSearch(true); } }],
   ['redo', 'Redo edit', 'Mod+Shift+Z', () => source?.redo(), 'editor'],

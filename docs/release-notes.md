@@ -1,6 +1,18 @@
-# OrbitalNote 0.1.0-preview.26
+# OrbitalNote 0.1.0-preview.27
 
-## Events, calmer dialogs, and editing polish
+## Source links and platform icons
+
+- Show source links as their label until the text cursor enters or selects them,
+  revealing the full Org syntax for editing without changing the saved text.
+- Open the link at the cursor with configurable Cmd/Ctrl+Enter. Internal note
+  links replace the current tab after saving; external links open in the browser.
+- Replace stale Android launcher assets with the Electric sky artwork, including
+  adaptive layers and all five legacy densities. Generate all platform icons
+  together and check their freshness before release builds.
+- Remove the desktop tile edge from iOS and Android artwork so mobile launcher
+  masks provide the outer shape.
+
+## Local follow-up build
 
 - Add **Event** beside Scheduled and Deadline, plus **Set event date…** in
   heading actions. Event dates use plain active Org timestamps and work for
@@ -37,7 +49,7 @@
 - Update the repository README with first-use documentation, current downloads,
   and clearer paths for users and contributors arriving from the website.
 
-## Included from earlier previews
+## Consistent modal selectors
 
 - Focused headings now support source and reading modes with the normal preview
   controls, limited to the selected subtree. **Show whole file** is a quiet

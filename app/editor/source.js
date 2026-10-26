@@ -8,6 +8,7 @@ import { metadataRanges } from './metadata.js';
 import { attachVim } from './vi.js';
 import { noteSearch, openNoteSearch } from './search.js';
 import { headingFocus, focusRange, focusEffect, externalEdit } from './focus.js';
+import { collapsedLinks, linkAt } from './links.js';
 
 const metadataLabels = new WeakMap();
 function metadataLabel(state, from) {
@@ -261,15 +262,17 @@ export function createEditor(host) {
       return placeholder;
     } }),
     foldService.of((state, from) => [...headingRanges(state.doc.toString()), ...listRanges(state.doc.toString()), ...metadataRanges(state.doc.toString())].find(h => h.start === from && h.to > h.from) || null), orgStyle,
-    EditorView.domEventHandlers({ click(event, view) {
+    collapsedLinks(orgStyle),
+    EditorView.domEventHandlers({ mousedown(event, view) {
       if (primaryModifier(event)) {
         const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
         if (pos != null) {
-          const line = view.state.doc.lineAt(pos);
-          const match = [...line.text.matchAll(/\[\[([^\]\n]+)\](?:\[[^\]\n]*\])?\]/g)].find(m => line.from + m.index <= pos && pos < line.from + m.index + m[0].length);
-          if (match) { event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('follow-link', { bubbles: true, detail: { target: match[1] } })); return true; }
+          const link = linkAt(view.state, pos);
+          if (link) { event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('follow-link', { bubbles: true, detail: { target: link.target } })); return true; }
         }
       }
+      return false;
+    }, click(event, view) {
       const box = event.target.closest('[data-checkbox-line]'); if (box) { event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('checkbox-toggle', { bubbles: true, detail: { line: Number(box.dataset.checkboxLine) } })); return true; }
       const task = event.target.closest('[data-task-line]'); if (!task) return false;
       event.preventDefault(); view.contentDOM.dispatchEvent(new CustomEvent('task-toggle', { bubbles: true, detail: { line: Number(task.dataset.taskLine) } })); return true;
@@ -304,6 +307,7 @@ export function createEditor(host) {
     })];
   const view = new EditorView({ parent: host, state: EditorState.create({ extensions }) });
   const editor = view.contentDOM;
+  editor.linkAtCursor = () => linkAt(view.state)?.target;
   editor.classList.add('ui-source');
   editor.cursorPosition = () => {
     const at = view.state.selection.main.from, line = view.state.doc.lineAt(at);

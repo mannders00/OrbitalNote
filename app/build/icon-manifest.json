@@ -1,0 +1,14 @@
+{
+  "app/ui/mark.svg": "ad673bb7fd5fd6b118837cc78e42d42291c8b2644166e79ff309c151c70e1244",
+  "scripts/render-brand.mjs": "9796ddfa1a5b1fcf782413a9b4193844e2297191f230c63c6450c1ef8eeaba93",
+  "scripts/render-android-icons.mjs": "f4540eba4bec4cb36e486ab73af22e4a1e29df47e458543c5849a1a367c1e24b",
+  "app/build/icon.png": "56c884e54dfbc7dee88145783688f019c1fbd35ce6d0533e00b69493b3e3782e",
+  "app/build/icon-ios.png": "22ad38326a59e46153ad680880e704d00c0b8f1fa5576efb8274f4c45d1e5a66",
+  "app/build/android/res/drawable-nodpi/ic_launcher_background.png": "5fd1a98f56a844921b6969da18091b522415495f58d550169bfe1738a3fdfbcc",
+  "app/build/android/res/drawable-nodpi/ic_launcher_foreground.png": "00e7c74596dad77f131dce25120540c6c893de6a6992d238a464831b23a719c4",
+  "app/build/android/res/mipmap-mdpi/ic_launcher.png": "5bdd07ef976785c87858cebdff2d127633ae37a783fe6209cd848083a8eccd8e",
+  "app/build/android/res/mipmap-hdpi/ic_launcher.png": "9275ec43364afe923baa33f3fc39333c2dd7d5b2d4bb76aa288fb627d661e1f0",
+  "app/build/android/res/mipmap-xhdpi/ic_launcher.png": "44d0b887a4bec7e851ca890149e455f7024681b088092d330003140df00bc826",
+  "app/build/android/res/mipmap-xxhdpi/ic_launcher.png": "e5a517c3587e8c234aefe062982ad663d4460de54a5db251e0626da76adeda6c",
+  "app/build/android/res/mipmap-xxxhdpi/ic_launcher.png": "addd9bdb76ac1727f3578008a07b727a0a7fab3ef1bd83519b079894b48115d9"
+}

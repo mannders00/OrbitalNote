@@ -2,20 +2,14 @@
 
 ## Unreleased
 
-## 0.1.0-preview.26 — 2026-10-25
+## 0.1.0-preview.27 — 2026-10-26
 
-- Refresh the native Electric sky icon and the README's download/documentation paths.
-- Add plain Event dates alongside Scheduled and Deadline, accessible from task
-  forms and heading actions, while preserving regular headings and TODO states.
-- Rework task dialogs for laptop screens: visible calendar, clearer spacing,
-  shared segmented controls, and pinned headers/actions. Dropdowns use top-layer
-  overlays with viewport-aware sizing and contained scrolling.
-- Keep zoom shortcuts available inside dialogs, including Cmd/Ctrl-plus.
-- Add a persistent all-day calendar collapse control and inline clock-status badges.
-- Fix focused-view Vim boundaries, final-line deletion and insertion. `o` on a
-  folded heading/list inserts after the whole subtree while keeping it folded.
-- Refresh checked-list fold bindings when rendered markup is reused after edits.
-- Add the global Open files preference for expanded or folded new/restored tabs.
+- Collapse source links to their labels until the cursor enters or selects them.
+- Add configurable Cmd/Ctrl+Enter to open the link at the cursor; internal note
+  links replace the current tab after saving edits.
+- Refresh Android's stale launcher artwork, generate all platform icon variants
+  together, and verify icon freshness in CI and release builds.
+- Remove desktop tile edges from mobile icons for native launcher masking.
 
 ## 0.1.0-preview.25 — 2026-10-20
 

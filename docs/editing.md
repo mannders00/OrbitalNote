@@ -12,8 +12,16 @@ source or preview mode. The shortcut can be changed in keyboard settings.
 the correct relative `file:` link, including paths between folders. You can also
 type or paste a URL or internal link directly.
 
-In source mode, **Cmd-click** a bracketed Org link on macOS, or **Ctrl-click**
-on Windows/Linux, to follow it. Ordinary clicks keep editing the text.
+In source mode, Org links show only their label (or target for links without a
+label). Move the text cursor into a link to reveal its full `[[target][label]]`
+syntax; moving away collapses it again. Selecting across a link also reveals it.
+The saved Org text is unchanged.
+
+Use **Cmd+Enter** on macOS or **Ctrl+Enter** on Windows/Linux to open the link at
+the cursor. Change **Open link at cursor** in Settings → Keyboard shortcuts to
+use a different binding. **Cmd-click** / **Ctrl-click** also follows links;
+ordinary clicks edit them. Internal note links replace the current tab, saving
+its edits first. External links open in the browser.
 Links with `file:note.org::*Heading` targets jump to that heading. Task links in
 agenda and calendar views display their label and can be clicked directly.
 

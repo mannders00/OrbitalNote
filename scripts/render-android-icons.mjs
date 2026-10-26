@@ -1,11 +1,12 @@
-// Generate checked-in Android layers from the canonical Quantum Confident artwork.
+// Generate checked-in Android layers from the canonical app artwork.
 import { chromium } from 'playwright';
 import { readFile, mkdir } from 'node:fs/promises';
 const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
 try {
   const mark = await readFile('app/ui/mark.svg', 'utf8');
   const defs = mark.match(/<defs>[\s\S]*?<\/defs>/)[0];
-  const art = mark.match(/<g id="foreground">([\s\S]*?)<\/g><!-- foreground-end -->/)[1];
+  // The launcher supplies the outer mask; the desktop tile edge is not artwork.
+  const art = mark.match(/<g id="foreground">([\s\S]*?)<\/g><!-- foreground-end -->/)[1].replace(/<rect x="1" y="1" width="254"[^>]*\/>/, '');
   const background = mark.match(/<g id="background">([\s\S]*?)<\/g><!-- background-end -->/)[1].replace(/ rx="[^"]*"/g, '');
   const inset = scale => `<g transform="translate(${128 * (1 - scale)} ${128 * (1 - scale)}) scale(${scale})">${art}</g>`;
   const svg = body => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">${defs}${body}</svg>`;

@@ -5,6 +5,7 @@ test -z "$(gofmt -l app internal scripts/native-smoke scripts/appicon)"
 go test ./...
 go vet ./...
 if command -v bun >/dev/null; then
+  bun scripts/check-icons.mjs
   bun test app/ui/editor.test.js app/ui/task-links.test.js app/ui/task-destination.test.js app/ui/calendar.test.js app/ui/agenda-query.test.js app/ui/local-graph.test.js app/ui/recurrence.test.js app/ui/workspace-settings.test.js app/editor/headings.test.js app/editor/metadata.test.js
-  if test -d app/editor/node_modules; then bun test app/editor/search.test.js app/editor/focus.test.js; fi
+  if test -d app/editor/node_modules; then bun test app/editor/search.test.js app/editor/focus.test.js app/editor/links.test.js; fi
 fi
