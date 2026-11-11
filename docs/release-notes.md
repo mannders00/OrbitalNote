@@ -1,8 +1,14 @@
-# OrbitalNote 1.0.0-beta.3
+# OrbitalNote 1.0.0-beta.4
 
-The third beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
+The fourth beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
 
 ## New in this beta
+
+- Center explorer folder labels, chevrons, and action buttons on desktop and mobile.
+- Keep the Outline overlay below its pane's tabs, matching the explorer's mobile
+  top alignment and preventing its shadow from bleeding into the tab strip.
+
+## Included from beta.3
 
 - Adjust source heading asterisks downward by 0.17em in the native Android app
   to compensate for the system monospace font's raised glyph. Heading text,

@@ -318,15 +318,15 @@ kbd { font-family: inherit; font-size: 11px; color: var(--faint); }
 .tree > details { padding-left: 0; }
 .tree details > .tree-file-row { margin-left: 18px; }
 .tree details > details { margin-left: 6px; }
-.tree summary { position: relative; list-style: none; padding: 6px 29px 6px 24px; border-radius: 4px; cursor: pointer; color: var(--muted); }
+.tree summary { position: relative; display: flex; align-items: center; list-style: none; padding: 6px 29px 6px 24px; border-radius: 4px; cursor: pointer; color: var(--muted); }
 .tree summary:hover { background: var(--hover); }
 .tree summary::marker { content: ''; }
 .tree summary::-webkit-details-marker { display: none; }
-.tree summary::before { content: ''; position: absolute; left: 7px; top: calc(50% + 1px); width: 12px; height: 12px; background: currentColor; color: var(--faint); clip-path: polygon(37% 15%, 72% 50%, 37% 85%, 28% 76%, 54% 50%, 28% 24%); transform: translateY(-50%); pointer-events: none; }
+.tree summary::before { content: ''; position: absolute; left: 7px; top: 50%; width: 12px; height: 12px; background: currentColor; color: var(--faint); clip-path: polygon(37% 15%, 72% 50%, 37% 85%, 28% 76%, 54% 50%, 28% 24%); transform: translateY(-50%); pointer-events: none; }
 .tree details[open] > summary::before { transform: translateY(-50%) rotate(90deg); }
 .tree summary:hover::before, .tree summary:focus-visible::before { color: var(--text); }
 .tree summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.tree summary .folder-actions { position: absolute; right: 0; top: 1px; width: 27px; height: 27px; opacity: 0; }
+.tree summary .folder-actions { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 27px; height: 27px; opacity: 0; }
 .tree summary:hover .folder-actions, .tree summary:focus-within .folder-actions { opacity: 1; }
 .tree-file-row { position: relative; }
 .tree-file-row button[data-open] { padding-right: 28px; }
@@ -975,7 +975,8 @@ dialog::backdrop { background: #0006; }
   .topbar { position: relative; z-index: 30; padding: 0 5px; gap: 2px; }
   #menu, #context-toggle { width: 34px; height: 36px; }
   #sidebar { position: fixed; z-index: 20; top: var(--mobile-file-sidebar-top, var(--bar-height)); bottom: 0; left: var(--rail-width); width: min(260px, calc(100vw - 64px)); box-shadow: 8px 0 24px var(--shadow); }
-  .ui-context { position: fixed; z-index: 20; top: var(--bar-height); bottom: 0; right: 0; width: min(260px, calc(100vw - 64px)); box-shadow: -8px 0 24px var(--shadow); }
+  /* Keep Outline inside its document surface, below that pane's tab strip. */
+  .ui-context { position: absolute; z-index: 20; top: 0; bottom: 0; right: 0; width: min(260px, calc(100vw - 64px)); box-shadow: -8px 0 24px var(--shadow); }
   #panel-scrim:not([hidden]) { display: block; position: fixed; z-index: 10; inset: var(--mobile-file-sidebar-top, var(--bar-height)) 0 0 var(--rail-width); border: 0; border-radius: 0; background: #0005; }
   .tree button[data-open], .tree summary { min-height: 36px; }
   .tree summary .folder-actions { opacity: 1; height: 32px; }

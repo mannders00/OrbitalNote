@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.0.0-beta.4 — 2026-11-11
+
+- Center explorer folder labels, chevrons, and actions on desktop and mobile.
+- Keep the Outline overlay below its pane's tabs at every responsive width.
+
 ## 1.0.0-beta.3 — 2026-11-11
 
 - Lower source heading asterisks slightly in native Android to compensate for
