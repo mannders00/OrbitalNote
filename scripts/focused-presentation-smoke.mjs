@@ -40,6 +40,16 @@ try {
   await heading.hover();
   assert(await heading.locator('.heading-menu-button').isVisible());
   assert(await heading.locator('.editor-heading-fold').isVisible());
+  const checkControlAlignment = async root => {
+    const centers = await root.evaluate(el => [...el.querySelectorAll('.heading-menu-button svg, .editor-heading-fold svg, .preview-heading-fold svg')].map(icon => {
+      const r = icon.getBoundingClientRect(); return r.top + r.height / 2;
+    }));
+    assert.equal(centers.length, 2);
+    assert(Math.abs(centers[0] - centers[1]) < 1, 'Heading menu and fold icons share the first-line center');
+  };
+  await page.setViewportSize({ width: 390, height: 844 });
+  await checkControlAlignment(heading);
+  await page.setViewportSize({ width: 1300, height: 950 });
   assert.match(await focused.innerText(), /Visible child body/);
   assert.doesNotMatch(await focused.innerText(), /Outside parent|Outside after|Hidden child body|Hidden grandchild body|Nested item/);
   await heading.locator('.editor-heading-fold').click();
@@ -53,6 +63,9 @@ try {
   assert.doesNotMatch(await preview.innerText(), /Hidden child body|Nested item|Outside parent|Outside after/);
   const previewRoot = preview.locator('[data-source-heading]').filter({ hasText: 'Focus root' });
   assert(await previewRoot.locator('.preview-heading-fold').isVisible());
+  await page.setViewportSize({ width: 390, height: 844 });
+  await checkControlAlignment(previewRoot);
+  await page.setViewportSize({ width: 1300, height: 950 });
   await previewRoot.locator('.preview-heading-fold').click();
   assert.doesNotMatch(await preview.innerText(), /Root body/);
   await previewRoot.locator('.preview-heading-ellipsis').click();

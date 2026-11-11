@@ -30,6 +30,16 @@ generated HTML shell changes: its script entry point bootstraps the worker and
 then imports the original `app.js`; its CSP permits WASM; demo-only CSS hides
 unavailable native controls. `source-manifest.json` records the source asset hashes.
 
+Startup preloads the frontend's static module graph while the worker loads the
+engine. It uses streaming WebAssembly instantiation when supported and served
+as `application/wasm`, with a buffered fallback. Rich rendering remains lazy.
+For local profiling, inspect `window.demoStartupTimings` in the demo iframe's
+console: WASM load/compile, engine initialization, UI import, and total startup
+milliseconds. These diagnostics are not sent anywhere. Download and compilation
+overlap in streaming mode; total startup ends at the demo's existing ready signal.
+Browsers using interpreted WebAssembly (including JIT-disabled configurations)
+may still spend substantially longer initializing the engine.
+
 ## Runtime / disposal
 
 - Each iframe gets a new worker, Go service, and revision-checked memory store.
@@ -56,8 +66,8 @@ The host exchanges only `ready`, `failed`, and `escape` messages, checks origin
 and frame identity, and never receives document contents. Expand uses a page
 overlay with a visible exit button; Escape exits unless an app popover/dialog
 needs it. The demo loads automatically without scrolling the homepage. The
-screenshot stays visible until the app is ready, and remains with a retry action
-on load failure.
+screenshot stays hidden while the app loads and runs. It appears with a retry
+action only on load failure; the loading area reserves the live app's height.
 
 ## Publishing
 

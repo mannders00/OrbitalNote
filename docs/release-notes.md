@@ -1,8 +1,17 @@
-# OrbitalNote 1.0.0-beta.1
+# OrbitalNote 1.0.0-beta.2
 
-The first beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
+The second beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
 
 ## New in this beta
+
+- Align heading action icons with fold chevrons in source and reading views,
+  including mobile layouts.
+- Improve browser-demo startup with streaming WebAssembly instantiation and
+  parallel frontend module preloading, retaining buffered compatibility fallbacks.
+- Add local demo startup timings for diagnosing slower devices and browsers.
+- Update release builds to supported macOS runners.
+
+## Included from beta.1
 
 - Per-tab Back/Forward navigation beside the filename. Internal links and the
   file picker continue the current history; Agenda and Calendar open fresh tabs.

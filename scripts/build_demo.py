@@ -42,6 +42,18 @@ def main():
     csp = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
     html = html.replace('<head>', '<head>\n<meta http-equiv="Content-Security-Policy" content="' + csp + '">')
     html = html.replace('src="/app.js"', 'src="/bootstrap.js"')
+    # Fetch/compile the static module graph while WASM starts, without executing
+    # app code before the in-memory API adapter is ready. Rich rendering stays lazy.
+    modules, pending = set(), [ui / "app.js"]
+    while pending:
+        module = pending.pop().resolve()
+        relative = module.relative_to(ui.resolve()).as_posix()
+        if relative in modules: continue
+        modules.add(relative)
+        for dependency in re.findall(r'''^import\s+(?:[^;\n]*?\s+from\s+)?['"](\.[^'"]+)['"]''', module.read_text(), re.M):
+            pending.append(module.parent / dependency)
+    preloads = ''.join(f'<link rel="modulepreload" href="/{module}">' for module in sorted(modules))
+    html = html.replace('</head>', preloads + '</head>')
     html = html.replace('</head>', '<link rel="stylesheet" href="/demo.css"></head>')
     (OUT / "index.html").write_text(html)
     for source in (ROOT / "demo" / "browser").iterdir(): shutil.copyfile(source, OUT / source.name)

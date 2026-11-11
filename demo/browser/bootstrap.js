@@ -1,4 +1,6 @@
 // Loaded before the unchanged app entry point. Nothing is persisted or sent to /api.
+const startupStarted = performance.now();
+let engineTimings;
 function memoryStorage() {
   const data = new Map();
   return {
@@ -42,7 +44,7 @@ const ready = new Promise((resolve, reject) => {
   try { worker = new Worker(new URL('./worker.js', import.meta.url)); }
   catch (error) { clearTimeout(timer); fail('This browser could not start a demo worker.'); reject(error); return; }
   worker.onmessage = ({ data }) => {
-    if (data.type === 'ready') { clearTimeout(timer); resolve(); return; }
+    if (data.type === 'ready') { engineTimings = data.timings; clearTimeout(timer); resolve(); return; }
     if (data.type === 'fatal') { clearTimeout(timer); fail(data.error); reject(new Error(data.error)); return; }
     const item = pending.get(data.id); if (!item) return;
     clearTimeout(item.timer); pending.delete(data.id); item.resolve(data.body);
@@ -89,6 +91,7 @@ window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); }
 
 try {
   await ready;
+  const uiStarted = performance.now();
   await import('./app.js');
   // Use the app's normal file-opening action, rather than a second UI implementation.
   const openWelcome = () => {
@@ -102,5 +105,7 @@ try {
   document.getElementById('open-workspace').title = 'Disposable demo workspace — refresh to reset';
   loading.hidden = true;
   document.documentElement.dataset.demoReady = 'true';
+  // Local diagnostics only: no telemetry and no document contents.
+  window.demoStartupTimings = Object.freeze({ ...engineTimings, uiImportMs: performance.now() - uiStarted, totalMs: performance.now() - startupStarted });
   tellHost('ready');
 } catch (error) { fail('Could not open the demo. ' + error.message); }

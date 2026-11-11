@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.0.0-beta.2 — 2026-11-11
+
+- Align heading action icons and fold chevrons in source and reading views on mobile.
+- Stream WebAssembly compilation and preload frontend modules during demo startup,
+  with buffered fallbacks and local startup diagnostics.
+- Use supported macOS runners for release builds.
+
 ## 1.0.0-beta.1 — 2026-11-11
 
 - Publish the first 1.0 beta with native desktop and Android downloads.
