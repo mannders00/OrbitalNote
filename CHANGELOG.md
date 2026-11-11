@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.0.0-beta.3 — 2026-11-11
+
+- Lower source heading asterisks slightly in native Android to compensate for
+  the system monospace font's raised glyph, keeping heading controls in place.
+
 ## 1.0.0-beta.2 — 2026-11-11
 
 - Align heading action icons and fold chevrons in source and reading views on mobile.

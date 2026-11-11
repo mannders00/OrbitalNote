@@ -25,6 +25,8 @@ import { primaryModifier } from './platform.js';
 import { localNeighbors, localGraphHTML } from './local-graph.js';
 import { setupSyncSettings } from './sync.js';
 
+document.documentElement.classList.toggle('native-android', !!window.OrbitalNoteAndroid);
+
 for (const event of ['pointerdown', 'keydown', 'wheel']) document.addEventListener(event, () => {
   document.querySelectorAll('.preview-jump-highlight').forEach(el => el.classList.remove('preview-jump-highlight'));
 }, { passive: true });

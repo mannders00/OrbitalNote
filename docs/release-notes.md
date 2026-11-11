@@ -1,8 +1,14 @@
-# OrbitalNote 1.0.0-beta.2
+# OrbitalNote 1.0.0-beta.3
 
-The second beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
+The third beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
 
 ## New in this beta
+
+- Adjust source heading asterisks downward by 0.17em in the native Android app
+  to compensate for the system monospace font's raised glyph. Heading text,
+  fold controls, and line spacing retain their positions.
+
+## Included from beta.2
 
 - Align heading action icons with fold chevrons in source and reading views,
   including mobile layouts.

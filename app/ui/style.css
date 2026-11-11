@@ -101,6 +101,9 @@
 .source-pane .org-h3 { font-size: 1.2em; }
 .source-pane .org-h4, .source-pane .org-h5, .source-pane .org-h6 { font-size: 1.1em; }
 .org-marker, .org-meta, .org-format-marker { color: var(--muted); font-weight: 400; }
+/* Android's default monospace (Droid Sans Mono) places the asterisk's ink
+   center about .177em above a capital letter's. Adjust only its painted position. */
+.native-android .source-pane .org-heading .org-marker { position: relative; top: .17em; }
 .org-tags { color: var(--muted); font-size: 12px; font-weight: 400; }
 .org-metadata-line, .org-planning-line { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .org-block-code, .org-table-line { background: var(--side); color: var(--code); }
