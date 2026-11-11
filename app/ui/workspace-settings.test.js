@@ -11,6 +11,16 @@ test('only supported preferences and plain hex colors can be applied', () => {
   expect(validGroup('editor', { 'orbitalnote-hide-footer': 'false', command: 'execute' })).toEqual({ 'orbitalnote-hide-footer': 'false' });
   expect(validGroup('calendar', { colors: { work: '#abcdef', bad: 'url(https://example.com)' } })).toEqual({ colors: { work: '#abcdef' } });
 });
+test('retired shared themes retain explicit appearances and their legacy default', () => {
+  expect(validGroup('appearance', { 'org-theme': 'light' })).toEqual({ 'org-theme': 'sand', 'org-theme-mode': 'light' });
+  expect(validGroup('appearance', { 'org-theme': 'forest' })).toEqual({ 'org-theme': 'sand', 'org-theme-mode': 'dark' });
+  const shared = { 'org-theme': 'rose', 'org-theme-mode': 'system' };
+  expect(validGroup('appearance', shared)).toEqual({ 'org-theme': 'midnight', 'org-theme-mode': 'system' });
+  expect(shared['org-theme']).toBe('rose');
+  expect(validGroup('appearance', { 'org-theme': 'nord', 'org-theme-mode': 'light' })).toEqual({ 'org-theme': 'dark', 'org-theme-mode': 'light' });
+  expect(validGroup('appearance', { 'org-theme': 'unknown', 'org-theme-mode': 'dark' })).toEqual({ 'org-theme-mode': 'dark' });
+  expect(validGroup('appearance', { 'org-theme': '__proto__' })).toEqual({});
+});
 test('settings migration preserves bytes and conditionally removes only the copied legacy revision', async () => {
   const source = encodeSettings({ version: 1, groups: { editor: { 'orbitalnote-hide-footer': 'true' } } }).replaceAll('\n', '\r\n');
   const calls = [], w = { id: 7, files: [{ path: LEGACY_SETTINGS_FILE }] };

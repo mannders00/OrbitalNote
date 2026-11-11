@@ -69,6 +69,12 @@ func EditHeading(source string, line int, operation, value string) (string, erro
 		eol = "\r\n"
 	}
 	switch operation {
+	case "delete-heading":
+		ownEnd := len(source)
+		if index+1 < len(d.Headings) {
+			ownEnd = offsets[d.Headings[index+1].Line-1]
+		}
+		return splice(start, ownEnd, ""), nil
 	case "clock-in", "clock-out":
 		return editClock(source, h, operation)
 	case "tags", "property", "priority":

@@ -1,15 +1,45 @@
 /* OrbitalNote Theme v1: Studio
- * Airy, rounded controls for planning and visual notes.
+ * For visual planners: floating tabs, rounded task cards, a framed writing surface, and expressive violet accents.
  * Base appearance: dark. Self-contained; paste into Custom theme CSS.
  */
-:root { --bg:#261e2d; --side:#34283e; --ribbon:#34283e; --panel:#34283e; --text:#eddfef; --accent:#cc9de7; --button:#347ed7; --muted:color-mix(in srgb, #eddfef 65%, #261e2d); --faint:color-mix(in srgb, #eddfef 45%, #261e2d); --border:color-mix(in srgb, #eddfef 16%, #261e2d); --hover:color-mix(in srgb, #eddfef 9%, #261e2d); --selected:color-mix(in srgb, #cc9de7 18%, #261e2d); --blue-soft:color-mix(in srgb, #cc9de7 12%, #261e2d); --code:#cc9de7; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
+:root { --bg:#201d29; --side:#292434; --ribbon:#292434; --panel:#292434; --text:#eee9f7; --accent:#c3a0ee; --button:#347ed7; --muted:color-mix(in srgb, #eee9f7 65%, #201d29); --faint:color-mix(in srgb, #eee9f7 45%, #201d29); --border:color-mix(in srgb, #eee9f7 16%, #201d29); --hover:color-mix(in srgb, #eee9f7 9%, #201d29); --selected:color-mix(in srgb, #c3a0ee 18%, #201d29); --blue-soft:color-mix(in srgb, #c3a0ee 12%, #201d29); --code:#c3a0ee; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
 .ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
 
+:root { font-family: "Avenir Next", "Segoe UI", sans-serif; --document-leading: 1.8; }
 button, input, select, textarea { border-radius: 9px; }
-.segmented { border-radius: 12px; padding: 4px; }
+.tab-strip { height: 44px; padding: 5px 7px; gap: 6px; background: var(--side); }
+.tab-strip .tab { border: 1px solid transparent; border-radius: 10px; }
+.tab-strip .tab.active, .tab-group.focused > .tab-strip .tab.active { background: var(--panel); border: 1px solid var(--border); box-shadow: 0 2px 5px var(--shadow); }
+.sidebar-header .panel-title { font-size: 13px; font-weight: 650; color: var(--accent); }
+.tree button[data-open] { min-height: 34px; margin-block: 3px; border-radius: 8px; }
+.tree button[data-open].active { color: var(--accent); background: var(--blue-soft); }
+.ui-document { background: var(--side); }
+.document-toolbar { min-height: 48px; }
+.document-main { margin: 0 12px 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); overflow: hidden; }
+.ui-preview, .source-pane .cm-editor, .source-pane .cm-editor .cm-gutters { background: var(--panel); }
+.ui-preview { font-family: "Avenir Next", "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
+.ui-preview :is(h1,h2,h3) { font-weight: 700; letter-spacing: -.035em; }
+.ui-preview blockquote { border: 0; border-radius: 12px; background: var(--blue-soft); padding: 16px 20px; color: var(--text); }
+.ui-preview :is(pre, img) { border-radius: 12px; }
+.ui-preview th { background: var(--blue-soft); color: var(--text); }
+.statusbar { background: var(--panel); }
+.segmented { border-radius: 12px; padding: 3px; }
 .segmented button { border-radius: 8px; }
-.tab-strip { height: 40px; }
-.tab-strip .tab { border-radius: 12px 12px 0 0; }
-.agenda-row { margin-bottom: 8px; background: var(--side); border-radius: 12px; padding-inline: 8px; }
-.agenda-entry { border-bottom: 0; }
-.ui-preview img { border-radius: 14px; }
+.page-heading h1 { font-size: 28px; font-weight: 700; letter-spacing: -.045em; }
+.agenda-group > h2 { border-bottom: 0; font-size: 14px; font-weight: 650; }
+.agenda-row { margin-bottom: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding-inline: 8px; }
+.agenda-row:hover, .agenda-row:focus-within { background: var(--panel); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); box-shadow: 0 3px 10px var(--shadow); }
+.entry-main strong { font-weight: 600; }
+.entry-tag { border-radius: 6px; }
+#calendar-grid { border-radius: 12px; background: var(--panel); }
+.calendar-event, .timed-event { border-radius: 6px; }
+.query-popup, #modal.task-modal { border-radius: 16px; }
+@container (max-width: 600px) {
+  .document-main { margin: 0 6px 6px; border-radius: 10px; }
+  .agenda-row { padding-inline: 4px; }
+}
+
+:root { --panel:#2b2537; --button:#7350a8; --muted:color-mix(in srgb, var(--text) 74%, var(--bg)); --faint:color-mix(in srgb, var(--text) 60%, var(--bg)); }
+@container (max-width: 420px) {
+  :is(#agenda, #calendar) .page-heading h1 { font-size: 20px; }
+}

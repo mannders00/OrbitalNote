@@ -69,6 +69,7 @@ try {
   await page.locator('#ribbon [data-view="calendar"]').click();
   await page.locator('.time-slot[data-time="15:00"]').click();
   await page.locator('#modal [name="title"]').fill('Created in time grid');
+  await page.locator('.task-destination > summary').click();
   await page.locator('#modal [name="path"]').fill(path);
   assert.equal(await page.locator('#modal [name="time"]').inputValue(), '15:00');
   await page.locator('#modal [name="endTime"]').fill('16:00');

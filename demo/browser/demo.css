@@ -1,0 +1,5 @@
+/* Demo host affordances only. App styles are copied without modification. */
+#demo-loading { position: fixed; inset: 0; z-index: 100000; display: flex; gap: 16px; justify-content: center; align-items: center; padding: 32px; background: var(--bg, #f7f7f5); color: var(--text, #222); font: 15px system-ui; }
+#demo-loading[hidden] { display: none; }
+#workspace-settings-sync, .sync-setting, .setting:has(#settings-open) { display: none !important; }
+#open-workspace:disabled { opacity: 1; cursor: default; }

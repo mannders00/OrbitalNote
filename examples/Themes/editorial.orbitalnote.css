@@ -1,15 +1,46 @@
 /* OrbitalNote Theme v1: Editorial
- * A warm publication-like reading experience with expressive serif headings.
+ * For writers and long-form readers: book typography, a measured reading column, ink rules, and warm paper.
  * Base appearance: light. Self-contained; paste into Custom theme CSS.
  */
-:root { --bg:#faf5e9; --side:#eee6d5; --ribbon:#eee6d5; --panel:#eee6d5; --text:#443c30; --accent:#98652a; --button:#98652a; --muted:color-mix(in srgb, #443c30 65%, #faf5e9); --faint:color-mix(in srgb, #443c30 45%, #faf5e9); --border:color-mix(in srgb, #443c30 16%, #faf5e9); --hover:color-mix(in srgb, #443c30 9%, #faf5e9); --selected:color-mix(in srgb, #98652a 18%, #faf5e9); --blue-soft:color-mix(in srgb, #98652a 12%, #faf5e9); --code:#98652a; --todo:#bd3535; --done:#287943; --warn:#956726; --warn-bg:#fbf2e3; --shadow:#0002; color-scheme:light; }
+:root { --bg:#fbf8f2; --side:#f0ece2; --ribbon:#f0ece2; --panel:#f0ece2; --text:#342f29; --accent:#8b493b; --button:#8b493b; --muted:color-mix(in srgb, #342f29 65%, #fbf8f2); --faint:color-mix(in srgb, #342f29 45%, #fbf8f2); --border:color-mix(in srgb, #342f29 16%, #fbf8f2); --hover:color-mix(in srgb, #342f29 9%, #fbf8f2); --selected:color-mix(in srgb, #8b493b 18%, #fbf8f2); --blue-soft:color-mix(in srgb, #8b493b 12%, #fbf8f2); --code:#8b493b; --todo:#bd3535; --done:#287943; --warn:#956726; --warn-bg:#fbf2e3; --shadow:#0002; color-scheme:light; }
 .ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
 
-:root { --document-leading: 1.85; }
-.ui-preview { font-family: Georgia, "Times New Roman", serif; font-size: 18px; line-height: 1.85; }
-.ui-preview :is(h1,h2) { font-family: Georgia, serif; font-weight: 400; letter-spacing: -.04em; line-height: 1.25; }
-.ui-preview h2 { font-size: 2em; }
-.ui-preview h3 { font-size: 1.4em; font-weight: 500; }
-.ui-preview blockquote { font-size: 1.15em; font-style: italic; border-left: 2px solid var(--accent); padding-left: 20px; }
-.page-heading h1 { font-family: Georgia, serif; font-weight: 400; }
+:root { --document-size: 15px; --document-leading: 1.85; }
+button, input, select, textarea { border-radius: 3px; }
+.tab-strip { height: 38px; padding: 0 8px; gap: 0; background: var(--bg); border-bottom: 1px solid var(--border); }
 .tab-strip .tab { border-radius: 0; }
+.tab-strip .tab.active { border: 0; box-shadow: inset 0 -2px var(--text); }
+.tab-strip button[data-tab-select] { font-family: Georgia, serif; font-size: 13px; }
+.sidebar-header .panel-title, .ui-context .section-label { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.tree button[data-open] { min-height: 31px; border-radius: 0; }
+.tree button[data-open].active { background: transparent; color: var(--accent); box-shadow: inset 2px 0 var(--accent); }
+.document-toolbar { margin-inline: 20px; padding-inline: 0; min-height: 44px; border-bottom: 1px solid var(--border); }
+.document-toolbar h1 { font-size: 11px; letter-spacing: .04em; }
+.ui-preview { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-size: 18px; line-height: 1.85; }
+.ui-preview, .ui-panes[data-mode="preview"] .ui-preview { padding-top: 32px; padding-left: max(60px, calc((100% - 66ch) / 2)); padding-right: max(24px, calc((100% - 66ch) / 2)); }
+.ui-preview :is(h1,h2,h3,h4) { font-family: Georgia, serif; font-weight: 400; letter-spacing: -.035em; line-height: 1.25; text-wrap: pretty; }
+.ui-preview :is(h1,h2) { font-size: 1.9em; }
+.ui-preview h3 { font-size: 1.45em; }
+.ui-preview p { text-wrap: pretty; }
+.ui-preview blockquote { margin-block: 1.7em; padding: 16px 0; border-inline: 0; border-block: 1px solid var(--border); font-size: 1.1em; font-style: italic; color: var(--text); }
+.ui-preview :is(pre, details, img) { border-radius: 2px; }
+.ui-preview table { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; }
+.ui-preview th { background: transparent; border-bottom: 2px solid var(--text); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.page-heading h1 { font-family: Georgia, serif; font-size: 28px; font-weight: 400; letter-spacing: -.04em; }
+.agenda-group > h2 { font-family: Georgia, serif; font-size: 16px; font-weight: 400; }
+.entry-main strong { font-family: Georgia, serif; font-size: 16px; font-weight: 400; }
+.entry-tag, .segmented, .segmented button { border-radius: 2px; }
+#calendar-grid { border-radius: 2px; }
+.weekday, .time-day-headers > button { font-family: Georgia, serif; }
+.query-popup, #modal.task-modal { border-radius: 4px; }
+.query-header strong, .modal-heading h2 { font-family: Georgia, serif; font-weight: 400; }
+@container (max-width: 600px) {
+  .document-toolbar { margin-inline: 12px; }
+  .ui-preview { font-size: 17px; }
+  .entry-main strong { font-size: 14px; }
+}
+
+:root { --panel:#fbf8f2; --button:#8b493b; --muted:color-mix(in srgb, var(--text) 74%, var(--bg)); --faint:color-mix(in srgb, var(--text) 60%, var(--bg)); }
+@container (max-width: 420px) {
+  :is(#agenda, #calendar) .page-heading h1 { font-size: 20px; }
+}

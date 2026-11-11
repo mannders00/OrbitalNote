@@ -16,6 +16,13 @@ export function taskInsertion(source, headings, parentLine, position = 'append')
 export function mountTaskDestination(root, files, readNote, memoryKey) {
   const input = root.querySelector('[name="path"]');
   if (!input || input.type === 'hidden') return () => {};
+  const summary = root.querySelector('[data-task-location]');
+  const updateSummary = () => {
+    if (!summary) return;
+    const heading = parent.value ? parent.selectedOptions[0]?.textContent.trim() : '';
+    summary.textContent = [input.value.trim() || 'Choose a file', heading].filter(Boolean).join(' › ');
+    summary.closest('summary').title = `${summary.textContent} · ${placement.querySelector(':checked')?.value === 'prepend' ? 'Beginning' : 'End'}`;
+  };
   const picker = mountPicker(input, {
     label: 'Org file',
     options: () => files.map(f => ({ value: f.path, label: f.path, detail: f.label || '' })),
@@ -29,19 +36,21 @@ export function mountTaskDestination(root, files, readNote, memoryKey) {
   let memory = {};
   try { memory = JSON.parse(localStorage.getItem(memoryKey) || '{}'); } catch {}
   const placement = document.createElement('fieldset'); placement.className = 'task-insertion';
-  placement.innerHTML = '<legend>Insert at this level</legend><div class="task-segmented"><label><input type="radio" name="insertionPosition" value="prepend">Prepend</label><label><input type="radio" name="insertionPosition" value="append">Append</label></div>';
+  placement.innerHTML = '<legend>Insert at</legend><div class="task-segmented"><label><input type="radio" name="insertionPosition" value="prepend">Beginning</label><label><input type="radio" name="insertionPosition" value="append">End</label></div>';
   parentLabel.after(placement);
   const initial = memory.insertionPosition || (memory.parents?.[input.value.trim()] === 'start' ? 'prepend' : 'append');
   placement.querySelector(`[value="${initial === 'prepend' ? 'prepend' : 'append'}"]`).checked = true;
   placement.addEventListener('change', () => {
     memory.insertionPosition = placement.querySelector(':checked').value;
     if (memoryKey) localStorage.setItem(memoryKey, JSON.stringify(memory));
+    updateSummary();
   });
   async function load() {
     const seq = ++sequence, path = input.value.trim();
     parent.onchange = null;
     parent.disabled = true; parent.innerHTML = '<option value="">Top level</option>'; revision.value = '';
     input.setCustomValidity('');
+    updateSummary();
     if (!files.some(f => f.path === path)) { parent.disabled = false; return; }
     input.setCustomValidity('Wait for the heading list to load.');
     try {
@@ -53,11 +62,13 @@ export function mountTaskDestination(root, files, readNote, memoryKey) {
       const matches = saved?.title ? note.headings.filter(h => h.title === saved.title && h.level === saved.level) : [];
       const heading = matches.length === 1 ? matches[0] : matches.find(h => h.line === saved?.line);
       parent.value = heading ? String(heading.line) : '';
+      updateSummary();
       parent.onchange = () => {
         const h = note.headings.find(h => String(h.line) === parent.value);
         memory.parents ||= {}; memory.parents[path] = h ? { title: h.title, level: h.level, line: h.line } : parent.value;
         memory.path = path;
         if (memoryKey) localStorage.setItem(memoryKey, JSON.stringify(memory));
+        updateSummary();
       };
     } catch {
       if (!disposed && seq === sequence) input.setCustomValidity('Unable to load this file. Choose it again to retry.');

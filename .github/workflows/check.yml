@@ -60,6 +60,20 @@ jobs:
       - run: bun install --frozen-lockfile && bun test search.test.js focus.test.js links.test.js && bun run build
         working-directory: app/editor
       - run: git diff --exit-code -- app/ui/vendor
+  wasm-demo:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test -race ./demo
+      - run: python3 scripts/build_demo.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: disposable-wasm-demo
+          path: bin/demo/
+          if-no-files-found: error
   native-build:
     strategy:
       fail-fast: false

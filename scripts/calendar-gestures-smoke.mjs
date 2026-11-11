@@ -31,10 +31,10 @@ try {
     return {top:event.top-block.top,bottom:event.bottom-block.bottom,left:event.left-block.left,right:event.right-block.right,minute:block.top-day.top,dayHeight:day.height};
   });
   assert.deepEqual(geometry,{top:0,bottom:0,left:0,right:0,minute:600,dayHeight:1440});
-  const scrollBeforeResize=await page.locator('#calendar').evaluate(el=>el.scrollTop);
+  const scrollBeforeResize=await page.locator('#calendar-grid').evaluate(el=>el.scrollTop);
   a=await center(block.locator('[data-resize="end"]')); await drag(a,{x:a.x,y:a.y+30}); await waitStamp('10:00-11:30');
   await page.waitForFunction(()=>[...document.querySelectorAll('.time-block')].some(el=>el.textContent.includes('Gesture timed') && el.style.height==='90px'));
-  assert.equal(await page.locator('#calendar').evaluate(el=>el.scrollTop),scrollBeforeResize,'resizing preserves calendar scroll');
+  assert.equal(await page.locator('#calendar-grid').evaluate(el=>el.scrollTop),scrollBeforeResize,'resizing preserves calendar scroll');
   a=await center(page.locator('.timed-event').filter({hasText:'Gesture timed'}));
   await drag(a,await center(page.locator('.all-day-row [data-drop-date="2026-09-30"]'))); await waitStamp('SCHEDULED: <2026-09-30 Wed>');
   a=await center(page.locator('.all-day-row .calendar-event').filter({hasText:'Gesture day'}));
@@ -59,8 +59,8 @@ try {
   assert.equal(await page.locator('#modal [name="time"]').inputValue(),'10:00');
   assert.equal(await page.locator('#modal [name="endTime"]').inputValue(),'10:30');
   await page.keyboard.press('Escape');
-  await page.locator('#calendar').evaluate(el=>el.scrollTop=600);
-  const pinned=await page.locator('.time-day-headers').boundingBox(), pane=await page.locator('#calendar').boundingBox();
-  assert.ok(Math.abs(pinned.y-pane.y)<1,JSON.stringify({pinned,pane}));
+  await page.locator('#calendar-grid').evaluate(el=>el.scrollTop=600);
+  const pinned=await page.locator('.time-day-headers').boundingBox(), pane=await page.locator('#calendar-grid').boundingBox();
+  assert.ok(Math.abs(pinned.y-pane.y-1)<1,JSON.stringify({pinned,pane}));
   console.log('PASS: timed move, resize, all-day conversion, deadline preservation, drag creation range, flush pinned weekday header.');
 } finally { await browser.close(); }

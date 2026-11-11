@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+## 1.0.0-beta.1 — 2026-11-11
+
+- Publish the first 1.0 beta with native desktop and Android downloads.
+- Fix focused-root ellipsis clicks to expand the clicked fold rather than a
+  hidden preceding fold; make reading-view fold ellipses interactive.
+- Put Sync first in Settings, use shared searchable dropdowns, and move keyboard
+  shortcuts to the bottom.
+- Add a disposable WebAssembly demo using the real frontend and Go engine.
+
+- Add per-tab Back/Forward navigation beside the filename. Internal links and
+  the file picker continue the current history; planner entries open fresh tabs.
+- Sort nested fold snapshots before restoring focused views, preventing a
+  CodeMirror range-ordering error when focusing a folded task.
+- Synchronize live filter rules, match mode, selected views, and saved-view edits
+  and deletions between Agenda and Calendar; retain shared filters across reloads.
+- Give Calendar the shared view/filter controls, remove its entry-count subtitle
+  and toolbar divider, and place compact range controls beside day navigation.
+- Remove the placeholder from the new-task title field.
+- Group Agenda's view picker, filters, and search together; use shared searchable
+  selectors, roomy mobile controls, and centered task states. Use neutral selection
+  fills in Agenda and Calendar segmented controls.
+- Reduce the theme picker to six distinct families: retain Workbench and Terminal,
+  and rebuild Editorial, Studio, Focus, and Blueprint with individual typography,
+  spacing, navigation, and document treatments in light and dark. Migrate retired
+  choices while preserving appearance preferences and custom CSS.
+- Wrap reading-view date controls in narrow panes and prevent resize feedback
+  when switching between source and preview after an appearance change.
+- Refine Agenda and Calendar with compact toolbars, readable task titles, overdue
+  dates, clearer time ranges, and accessible year navigation.
+- Put Agenda day navigation at the far left and Search at the far right, remove
+  the entry count, refine the responsive filter panel, and keep task-state sizing
+  and alignment stable when switching days.
+- Keep calendar controls and day headers visible while scrolling. Busy month days
+  open their full day through “more”; narrow calendars retain readable columns.
+- Allow touch swipes to scroll day/week calendars, with touch-and-hold for creating,
+  moving, and resizing events.
+- Restore a single-column task editor with calendar-only date selection,
+  an expandable location summary, and plain-language repeat presets/custom intervals.
+- Use native time inputs with automatic 30-minute end times, adjustable durations,
+  keyboard calendar navigation, and pinned actions on smaller screens. Editing an
+  undated task now preserves its lack of a date.
+
 ## 0.1.0-preview.27 — 2026-10-26
 
 - Collapse source links to their labels until the cursor enters or selects them.

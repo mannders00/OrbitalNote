@@ -7,7 +7,7 @@ const iconSize = 832;
 // Continuous-curvature desktop tile: gradual transitions from straight sides
 // into corners, rather than the circular arcs of SVG rect rx.
 const macTile = 'M80 0H176C204 0 218 0 230 8C238 13 243 18 248 26C256 38 256 52 256 80V176C256 204 256 218 248 230C243 238 238 243 230 248C218 256 204 256 176 256H80C52 256 38 256 26 248C18 243 13 238 8 230C0 218 0 204 0 176V80C0 52 0 38 8 26C13 18 18 13 26 8C38 0 52 0 80 0Z';
-function macIcon(mark) {
+function macIcon(mark, material) {
   // Center the dominant front face (x=73..180, y=49..201), rather than
   // including the top/right extrusion. Orbit and sun follow this placement.
   const tabletX = 128 - (128 + (126.5 - 128) * 1.12 * 1.12);
@@ -20,10 +20,13 @@ function macIcon(mark) {
     .replace('scale(1 0.96)', 'scale(1.12 1.0752)');
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none"><defs>${defs}
     <clipPath id="mac-mask"><path d="${macTile}"/></clipPath>
-    <linearGradient id="mac-material" x1="128" y1="0" x2="128" y2="256" gradientUnits="userSpaceOnUse"><stop stop-color="#262626"/><stop offset=".5" stop-color="#202020"/><stop offset="1" stop-color="#191919"/></linearGradient>
-    <linearGradient id="mac-edge" x1="0" y1="0" x2="0" y2="256" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity=".12"/><stop offset=".35" stop-color="#fff" stop-opacity=".025"/><stop offset=".75" stop-color="#000" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient>
+    <linearGradient id="mac-material" x1="128" y1="0" x2="128" y2="256" gradientUnits="userSpaceOnUse"><stop stop-color="#343434"/><stop offset=".45" stop-color="#252525"/><stop offset="1" stop-color="#101010"/></linearGradient>
+    <!-- Layer a soft bevel under a fine specular edge, like Terminal's dark tile. -->
+    <linearGradient id="mac-edge" x1="30" y1="0" x2="214" y2="256" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity=".65"/><stop offset=".24" stop-color="#fff" stop-opacity=".25"/><stop offset=".55" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity=".22"/></linearGradient>
+    <linearGradient id="mac-bevel" x1="0" y1="0" x2="180" y2="256" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity=".3"/><stop offset=".4" stop-color="#fff" stop-opacity=".06"/><stop offset=".75" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity=".12"/></linearGradient>
+    <filter id="mac-edge-soften" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation=".65"/></filter>
     <filter id="mac-shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="3" stdDeviation="2.2" flood-color="#000" flood-opacity=".5"/></filter>
-    </defs><g transform="translate(${(1024 - iconSize) / 2} ${(1024 - iconSize) / 2}) scale(${iconSize / 256})"><path d="${macTile}" fill="url(#mac-material)" filter="url(#mac-shadow)"/><g clip-path="url(#mac-mask)"><g transform="translate(${tabletX} ${tabletY})">${art}</g><path d="${macTile}" stroke="url(#mac-edge)" stroke-width="3"/></g></g></svg>`;
+    </defs><g transform="translate(${(1024 - iconSize) / 2} ${(1024 - iconSize) / 2}) scale(${iconSize / 256})"><path d="${macTile}" fill="url(#mac-material)" filter="url(#mac-shadow)"/><g clip-path="url(#mac-mask)"><image href="${material}" width="256" height="256"/><g transform="translate(${tabletX} ${tabletY})">${art}</g><path d="${macTile}" stroke="url(#mac-bevel)" stroke-width="5" filter="url(#mac-edge-soften)"/><path d="${macTile}" stroke="url(#mac-edge)" stroke-width="1.6"/></g></g></svg>`;
 }
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 640 }, deviceScaleFactor: 1 });
@@ -48,7 +51,29 @@ try {
   }
   if (!bannerOnly) {
   await page.setViewportSize({ width: 1024, height: 1024 });
-  await page.setContent(`<style>html,body{margin:0;width:1024px;height:1024px;overflow:hidden;background:transparent}svg{display:block;width:1024px;height:1024px}</style>${macIcon(mark)}`);
+   // Compute the material in floating point, then dither before 8-bit rounding.
+   // Adding noise to an already quantized SVG gradient retains its visible bands.
+   const material = await page.evaluate(size => {
+     const canvas = document.createElement('canvas');
+     canvas.width = canvas.height = size;
+     const ctx = canvas.getContext('2d');
+     const pixels = ctx.createImageData(size, size);
+     let seed = 123456789;
+     for (let y = 0; y < size; y++) {
+       const t = y / (size - 1);
+       const value = t < .45 ? 52 + (37 - 52) * t / .45 : 37 + (16 - 37) * (t - .45) / .55;
+       for (let x = 0; x < size; x++) {
+         seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+         const shade = Math.floor(value + (seed >>> 0) / 4294967296);
+         const i = (y * size + x) * 4;
+         pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = shade;
+         pixels.data[i + 3] = 255;
+       }
+     }
+     ctx.putImageData(pixels, 0, 0);
+     return canvas.toDataURL('image/png');
+   }, iconSize);
+   await page.setContent(`<style>html,body{margin:0;width:1024px;height:1024px;overflow:hidden;background:transparent}svg{display:block;width:1024px;height:1024px}</style>${macIcon(mark, material)}`);
   await page.screenshot({ path: 'app/build/icon.png', omitBackground: true });
    const defs = mark.match(/<defs>[\s\S]*?<\/defs>/)[0];
    const background = mark.match(/<g id="background">([\s\S]*?)<\/g><!-- background-end -->/)[1].replace(/ rx="[^"]*"/g, '');

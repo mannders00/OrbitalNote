@@ -107,7 +107,8 @@ try {
   assert.equal(await page.locator('dialog.heading-actions-menu').evaluate(el=>document.activeElement===el),true);
   await page.getByRole('button',{name:'Edit task…',exact:true}).click();
   assert.equal(await page.locator('#modal [name="repeater"]').inputValue(),'+1w');
-  await page.locator('#modal [name="repeater"]').fill('+2w');
+  await page.getByRole('combobox', { name: 'Repeat', exact: true }).selectOption('custom');
+  await page.getByRole('spinbutton', { name: 'Repeat interval' }).fill('2');
   await page.locator('#modal-submit').click();
   await page.waitForFunction(()=>document.querySelector('.ui-document[data-path="repeat-review.org"] [data-ui="source"]').value.includes('+2w'));
   await repeat.locator('[data-ui="save-state"]').filter({hasText:'Saved to disk'}).waitFor();

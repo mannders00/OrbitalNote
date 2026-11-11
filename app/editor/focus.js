@@ -17,7 +17,9 @@ const hidden = StateField.define({
   update(value, tr) {
     if (!tr.docChanged && !tr.effects.some(e => e.is(focusEffect))) return value;
     const range = tr.state.field(focusRange), ranges = [];
-    if (range?.from) ranges.push(Decoration.replace({ block: true }).range(0, range.from));
+    // The root's line styling and negative-side action widgets belong to the
+    // visible heading, not to the block hidden immediately before it.
+    if (range?.from) ranges.push(Decoration.replace({ block: true, inclusiveEnd: false }).range(0, range.from));
     if (range && range.to < tr.state.doc.length) {
       // Keep the focused final line's newline in the DOM. Starting a block
       // replacement at an empty final line swallows its caret position, so

@@ -1,9 +1,10 @@
 import { EditorState, EditorSelection, StateField, StateEffect, Compartment, Transaction } from '@codemirror/state';
-import { EditorView, Decoration, WidgetType, keymap, drawSelection, lineNumbers, gutter, GutterMarker } from '@codemirror/view';
+import { EditorView, ViewPlugin, Decoration, WidgetType, keymap, drawSelection, gutter, GutterMarker } from '@codemirror/view';
 import { history, defaultKeymap, undo, redo } from '@codemirror/commands';
 import { codeFolding, foldService, foldEffect, unfoldEffect, foldedRanges, unfoldAll } from '@codemirror/language';
 import { headingRanges, listRanges } from './headings.js';
 import { primaryModifier } from '../ui/platform.js';
+import { icon } from '../ui/icons.js';
 import { metadataRanges } from './metadata.js';
 import { attachVim } from './vi.js';
 import { noteSearch, openNoteSearch } from './search.js';
@@ -78,6 +79,7 @@ class HeadingFold extends WidgetType {
     });
     const control = headingControl(button);
     if (this.heading.kind === 'list') control.classList.add('editor-list-control');
+    else control.classList.add('heading-gutter-anchor');
     return control;
   }
   ignoreEvent() { return true; }
@@ -101,10 +103,11 @@ class HeadingMenu extends WidgetType {
     const button = document.createElement('button');
     button.className = 'heading-menu-button'; button.type = 'button';
     button.setAttribute('aria-label', 'Heading actions'); button.setAttribute('aria-haspopup', 'menu');
-    button.textContent = '⋮';
+    button.innerHTML = icon('kebab');
     button.addEventListener('mousedown', e => e.preventDefault());
     button.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); view.contentDOM.dispatchEvent(new CustomEvent('heading-menu', { bubbles: true, detail: { line: view.state.doc.lineAt(view.posAtDOM(button.parentElement)).number, button } })); });
-    return headingControl(button);
+    const control = headingControl(button); control.classList.add('heading-gutter-anchor');
+    return control;
   }
   ignoreEvent() { return true; }
 }
@@ -134,7 +137,7 @@ function decorations(state, onlyLine = 0) {
   const headings = onlyLine ? [] : headingRanges(source), clocked = new Set();
   for (const [index, heading] of headings.entries()) {
     if (/^[ \t]*CLOCK:\s*\[[^\]\n]+\][ \t]*$/m.test(source.slice(heading.start, headings[index+1]?.start ?? source.length))) clocked.add(heading.start);
-    if (heading.to > heading.from) ranges.push(Decoration.widget({ widget: new HeadingFold(heading, isFolded(state, heading.from)), side: -2 }).range(heading.start));
+    if (heading.to > heading.from && source.slice(heading.from, heading.to).trim()) ranges.push(Decoration.widget({ widget: new HeadingFold(heading, isFolded(state, heading.from)), side: -2 }).range(heading.start));
   }
   for (const range of onlyLine ? [] : metadataRanges(source)) {
     ranges.push(Decoration.widget({ widget: new MetadataFold(range, isFolded(state, range.from)), side: -2 }).range(range.start));
@@ -169,7 +172,7 @@ function decorations(state, onlyLine = 0) {
     const heading = /^(\*+)\s+(?:(\S+)\s+)?/.exec(text);
     if (heading) {
       if (clocked.has(line.from)) ranges.push(Decoration.widget({ widget: new ClockStatus(), side: -1 }).range(line.to));
-      ranges.push(Decoration.widget({ widget: new HeadingMenu(n), side: 1 }).range(line.to));
+      ranges.push(Decoration.widget({ widget: new HeadingMenu(n), side: -3 }).range(line.from));
       ranges.push(Decoration.line({ class: `org-heading org-h${Math.min(heading[1].length, 6)}${clocked.has(line.from) ? ' org-clocked' : ''}` }).range(line.from));
       ranges.push(Decoration.mark({ class: 'org-marker' }).range(line.from, line.from + heading[1].length));
       if (states.has(heading[2])) {
@@ -213,7 +216,7 @@ function updateDecorations(value, tr) {
   const structural = /^(?:[ \t]+|\s*(?:[*#:|]|[-+]\s|\d+[.)]\s|SCHEDULED:|DEADLINE:|CLOSED:|CLOCK:))/;
   if (local && line && !structural.test(line.text)) {
     const next = tr.state.doc.line(line.number);
-    if (!structural.test(next.text)) {
+    if (!structural.test(next.text) && !!line.text.trim() === !!next.text.trim()) {
       value.between(line.from, line.to, (_from, _to, decoration) => {
         if (/org-(?:block|metadata)/.test(decoration.spec.class || '')) local = false;
       });
@@ -238,13 +241,42 @@ const jumpHighlight = StateField.define({
   provide: field => EditorView.decorations.from(field),
 });
 
+// Gutter rows already follow CodeMirror's variable block heights. Position the
+// small number within each row using the first visual line's measured center,
+// rather than the whole (possibly wrapped) heading or a fixed font-size offset.
+const alignLineNumbers = ViewPlugin.fromClass(class {
+  constructor(view) {
+    this.measure = {
+      read(view) {
+        return [...view.dom.querySelectorAll('.cm-lineNumber-label[data-line-from]')].map(label => {
+          const from = Number(label.dataset.lineFrom);
+          if (from > view.state.doc.length) return null;
+          const caret = view.coordsAtPos(from, 1);
+          if (!caret) return null;
+          const top = label.parentElement.getBoundingClientRect().top;
+          return { label, offset: (caret.top + caret.bottom) / 2 - top - label.getBoundingClientRect().height / 2 };
+        }).filter(Boolean);
+      },
+      write(positions) {
+        for (const { label, offset } of positions) label.style.transform = `translateY(${offset}px)`;
+      },
+    };
+    view.requestMeasure(this.measure);
+  }
+  update(update) { update.view.requestMeasure(this.measure); }
+});
+
 export function createEditor(host) {
   let silent = false;
   let numberMode = 'off';
-  class RelativeNumber extends GutterMarker {
-    constructor(text) { super(); this.text = text; }
-    eq(other) { return this.text === other.text; }
-    toDOM() { return document.createTextNode(this.text); }
+  class LineNumber extends GutterMarker {
+    constructor(text, from = null) { super(); this.text = text; this.from = from; }
+    eq(other) { return this.text === other.text && this.from === other.from; }
+    toDOM() {
+      const label = document.createElement('span'); label.className = 'cm-lineNumber-label'; label.textContent = this.text;
+      if (this.from !== null) label.dataset.lineFrom = this.from;
+      return label;
+    }
   }
   const numbers = new Compartment(), vi = new Compartment();
   let viAdapter;
@@ -257,8 +289,19 @@ export function createEditor(host) {
       placeholder.textContent = label ? `${label} …` : '…';
       placeholder.setAttribute('aria-label', label ? `Expand ${label.toLowerCase()}` : 'Expand folded heading');
       placeholder.setAttribute('role', 'button'); placeholder.tabIndex = 0;
-      placeholder.onclick = onclick;
-      placeholder.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onclick(event); } };
+      const expand = event => {
+        event.preventDefault(); event.stopPropagation();
+        // A focused line block can include hidden preceding headings. Resolve
+        // the clicked marker itself rather than the first fold in that block.
+        const position = view.posAtDOM(placeholder);
+        const effects = [];
+        foldedRanges(view.state).between(position, position, (from, to) => {
+          if (from === position) effects.push(unfoldEffect.of({ from, to }));
+        });
+        if (effects.length) view.dispatch({ effects });
+      };
+      placeholder.onclick = expand;
+      placeholder.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') expand(event); };
       return placeholder;
     } }),
     foldService.of((state, from) => [...headingRanges(state.doc.toString()), ...listRanges(state.doc.toString()), ...metadataRanges(state.doc.toString())].find(h => h.start === from && h.to > h.from) || null), orgStyle,
@@ -357,7 +400,15 @@ export function createEditor(host) {
     const matches = headingRanges(editor.value).filter(h => h.title === saved.title && h.level === saved.level);
     return matches.length === 1 ? matches[0] : matches.find(h => h.start === saved.start);
   };
-  editor.setFocusRange = range => view.dispatch({ effects: focusEffect.of(range), ...(range ? { selection: { anchor: range.from }, scrollIntoView: true } : {}) });
+  editor.setFocusRange = range => {
+    const effects = [focusEffect.of(range)];
+    // Reveal only enclosing folds; keep the focused heading and its descendants
+    // exactly as they were. Folds outside this view must not hide its root.
+    if (range) foldedRanges(view.state).between(0, range.from, (from, to) => {
+      if (from < range.from && to >= range.from) effects.push(unfoldEffect.of({ from, to }));
+    });
+    view.dispatch({ effects, ...(range ? { selection: { anchor: range.from }, scrollIntoView: true } : {}) });
+  };
   editor.focusHeadingRange = () => {
     const head = view.state.selection.main.head;
     return headingRanges(editor.value).filter(h => h.start <= head).at(-1);
@@ -365,6 +416,20 @@ export function createEditor(host) {
   editor.attachVi = status => (viAdapter = attachVim(view, vi, status));
   editor.openSearch = replace => openNoteSearch(view, replace);
   editor.getHeadingFolds = () => headingRanges(editor.value).filter(h => isFolded(view.state, h.from)).map(h => h.start);
+  editor.getFoldRanges = () => {
+    const ranges = [];
+    foldedRanges(view.state).between(0, view.state.doc.length, (from, to) => ranges.push({ from, to }));
+    return ranges.sort((a, b) => a.from - b.from || a.to - b.to);
+  };
+  editor.setFoldRanges = ranges => {
+    // RangeSet.between visits nested layers separately, not in source order.
+    // CodeMirror's batch fold effects require ranges sorted by their start.
+    ranges = [...ranges].sort((a, b) => a.from - b.from || a.to - b.to);
+    const effects = editor.getFoldRanges().map(range => unfoldEffect.of(range));
+    effects.push(...ranges.map(range => foldEffect.of(range)));
+    const parent = ranges.find(range => range.from < editor.selectionStart && editor.selectionStart <= range.to);
+    view.dispatch({ effects, ...(parent ? { selection: { anchor: parent.from } } : {}) });
+  };
   editor.listRanges = () => listRanges(editor.value).map(h => ({ ...h, folded: isFolded(view.state, h.from) }));
   editor.foldAt = (start, collapse, recursive = false) => {
     const item = [...headingRanges(editor.value), ...listRanges(editor.value)].find(h => h.start === start);
@@ -446,21 +511,25 @@ export function createEditor(host) {
   };
   editor.setLineNumbers = mode => {
     numberMode = mode;
-    view.dispatch({ effects: numbers.reconfigure(mode === 'off' ? [] : mode !== 'relative' ? lineNumbers() : gutter({
+    view.dispatch({ effects: numbers.reconfigure(mode === 'off' ? [] : [gutter({
       class: 'cm-lineNumbers',
-      lineMarker(view, line) { const number = view.state.doc.lineAt(line.from).number, current = view.state.doc.lineAt(view.state.selection.main.head).number; return new RelativeNumber(String(Math.abs(number - current) || number)); },
+      lineMarker(view, line) {
+        const number = view.state.doc.lineAt(line.from).number, current = view.state.doc.lineAt(view.state.selection.main.head).number;
+        return new LineNumber(String(mode === 'relative' ? Math.abs(number - current) || number : number), line.from);
+      },
       lineMarkerChange: update => update.selectionSet || update.docChanged,
-      initialSpacer: view => new RelativeNumber(String(view.state.doc.lines)),
-      updateSpacer: (spacer, update) => new RelativeNumber(String(update.state.doc.lines)),
-    })) });
+      initialSpacer: view => new LineNumber(String(view.state.doc.lines)),
+      updateSpacer: (spacer, update) => new LineNumber(String(update.state.doc.lines)),
+    }), alignLineNumbers]) });
   };
   editor.caretRect = () => { const head = view.state.selection.main.head; return view.coordsAtPos(head, head === view.state.doc.lineAt(head).from ? 1 : -1); };
   editor.refresh = () => view.requestMeasure();
+  document.addEventListener('appearance-change', editor.refresh);
   editor.viewport = view.scrollDOM;
   const tail = new ResizeObserver(() => {
     if (view.scrollDOM.clientHeight) { editor.style.setProperty('--document-tail', `${view.scrollDOM.clientHeight / 2}px`); view.requestMeasure(); }
   });
   tail.observe(view.scrollDOM);
-  editor.dispose = () => { tail.disconnect(); document.removeEventListener('pointerdown', clearJump); document.removeEventListener('keydown', clearJump); view.destroy(); };
+  editor.dispose = () => { tail.disconnect(); document.removeEventListener('appearance-change', editor.refresh); document.removeEventListener('pointerdown', clearJump); document.removeEventListener('keydown', clearJump); view.destroy(); };
   return editor;
 }

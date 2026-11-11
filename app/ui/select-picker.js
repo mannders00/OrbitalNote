@@ -14,7 +14,7 @@ export function mountPicker(input, { options, choose, label, restore, empty = 'N
   wrapper.append(toggle);
   // A popover enters the browser's top layer, escaping modal scroll clipping
   // while remaining a descendant of the dialog (and therefore not inert).
-  const root = input.closest('dialog') || document.body;
+  const root = input.closest('dialog, [popover]') || document.body;
   const topLayer = typeof list.showPopover === 'function';
   if (topLayer) list.setAttribute('popover', 'manual');
   root.append(list);
@@ -60,7 +60,7 @@ export function mountPicker(input, { options, choose, label, restore, empty = 'N
       const row = document.createElement('div'); row.role = 'option'; row.id = `${list.id}-${i}`; row.title = option.label;
       const text = document.createElement('span'); text.textContent = option.label; row.append(text);
       if (option.detail) { const detail = document.createElement('small'); detail.textContent = option.detail; row.append(detail); }
-      row.addEventListener('pointerdown', e => { e.preventDefault(); select(i); }); list.append(row);
+      row.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); select(i); }); list.append(row);
     }
     if (!matches.length) { const text = document.createElement('p'); text.textContent = empty; list.append(text); }
     list.hidden = false;
@@ -70,6 +70,7 @@ export function mountPicker(input, { options, choose, label, restore, empty = 'N
   function select(index) { if (!matches[index]) return; choose(matches[index]); input.focus(); close(); }
   input.addEventListener('input', () => draw());
   input.addEventListener('focus', () => draw(true));
+  input.addEventListener('click', () => { if (list.hidden) draw(true); });
   toggle.addEventListener('pointerdown', e => e.preventDefault());
   toggle.addEventListener('click', () => { if (list.hidden) { input.focus(); draw(true); } else close(); });
   input.addEventListener('keydown', e => {
@@ -97,11 +98,11 @@ export function mountPicker(input, { options, choose, label, restore, empty = 'N
 }
 
 export function mountSelectPickers(root) {
-  const cleanups = [];
+  const cleanups = new Map();
   function mount(select) {
     if (select.dataset.picker) return;
     select.dataset.picker = 'true'; select.hidden = true;
-    const label = select.closest('label')?.firstChild?.textContent.trim() || select.getAttribute('aria-label') || 'value';
+    const label = select.labels?.[0]?.textContent.trim() || select.closest('label')?.firstChild?.textContent.trim() || select.getAttribute('aria-label') || 'value';
     const input = document.createElement('input'); input.type = 'text'; input.setAttribute('aria-label', label); select.after(input);
     const restore = () => { input.value = select.selectedOptions[0]?.textContent || ''; };
     const picker = mountPicker(input, {
@@ -109,12 +110,16 @@ export function mountSelectPickers(root) {
       options: () => [...select.options].filter(o => !o.disabled).map(o => ({ value: o.value, label: o.textContent })),
       choose: option => { select.value = option.value; select.dispatchEvent(new Event('input', { bubbles: true })); select.dispatchEvent(new Event('change', { bubbles: true })); },
     });
-    const sync = () => { restore(); input.disabled = select.disabled; picker.refresh(); };
+    const sync = () => { restore(); input.disabled = select.disabled; input.parentElement.querySelector('button').disabled = select.disabled; picker.refresh(); };
     select.addEventListener('change', sync);
+    select.addEventListener('picker-sync', sync);
     const observer = new MutationObserver(sync); observer.observe(select, { childList: true, subtree: true, attributes: true });
-    sync(); cleanups.push(() => { observer.disconnect(); picker.dispose(); select.removeEventListener('change', sync); });
+    sync(); cleanups.set(select, () => { observer.disconnect(); picker.dispose(); select.removeEventListener('change', sync); select.removeEventListener('picker-sync', sync); });
   }
-  const scan = () => root.querySelectorAll('select:not([data-picker])').forEach(mount);
+  const scan = () => {
+    for (const [select, cleanup] of cleanups) if (!root.contains(select)) { cleanups.delete(select); cleanup(); }
+    root.querySelectorAll('select:not([data-picker]):not([data-native])').forEach(mount);
+  };
   scan(); const observer = new MutationObserver(scan); observer.observe(root, { childList: true, subtree: true });
-  return () => { observer.disconnect(); cleanups.forEach(cleanup => cleanup()); };
+  return () => { observer.disconnect(); cleanups.forEach(cleanup => cleanup()); cleanups.clear(); };
 }

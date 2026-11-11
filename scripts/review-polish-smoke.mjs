@@ -35,12 +35,12 @@ try {
   await page.keyboard.press('k'); assert.equal(await editor.evaluate(el=>el.selectionStart),0);
   await page.keyboard.press('j'); await page.keyboard.press('$');
   const caret=await editor.evaluate(el=>el.caretRect()), menu=await doc.locator('.heading-menu-button').first().boundingBox();
-  assert.ok(caret.left<menu.x,'Caret belongs to text, not the heading menu');
+  assert.ok(caret.left>menu.x+menu.width,'Caret belongs to text, after the left-side heading menu');
   await page.keyboard.press('A');
   await page.keyboard.type('!');
   await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   const insertCaret=await doc.locator('.cm-cursor').first().boundingBox();
-  assert.ok(insertCaret && insertCaret.x<menu.x-10,'Native insert caret belongs beside text');
+  assert.ok(insertCaret && insertCaret.x>menu.x+menu.width,'Native insert caret belongs beside text');
   assert.match(await editor.evaluate(el=>el.value),/Pending revised!/);
   await page.keyboard.press('Escape');
   await doc.locator('.editor-heading-fold').first().click(); assert.ok(await doc.locator('.cm-foldPlaceholder').first().isVisible());
@@ -48,9 +48,9 @@ try {
   await page.locator('#ribbon [data-view="calendar"]').click(); await page.locator('[data-calendar="week"]').click();
   assert.ok(await page.locator('.timed-event.completed').filter({hasText:'Finished review'}).isVisible());
   assert.ok(await page.locator('#calendar .completed').filter({hasText:'Repeated review'}).first().isVisible());
-  await page.locator('#calendar').evaluate(el=>el.scrollTop=600);
-  const header=await page.locator('.time-day-headers').boundingBox(), pane=await page.locator('#calendar').boundingBox(), allDay=await page.locator('.all-day-row').boundingBox();
-  assert.ok(Math.abs(header.y-pane.y)<1); assert.ok(Math.abs(allDay.y-header.y-header.height)<1);
+  await page.locator('#calendar-grid').evaluate(el=>el.scrollTop=600);
+  const header=await page.locator('.time-day-headers').boundingBox(), pane=await page.locator('#calendar-grid').boundingBox(), allDay=await page.locator('.all-day-row').boundingBox(), toggle=await page.locator('[data-all-day-toggle]').boundingBox();
+  assert.ok(Math.abs(header.y-pane.y-1)<1); assert.ok(Math.abs(allDay.y-toggle.y-toggle.height)<1);
   assert.equal(await page.locator('.time-day.is-today').evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
   console.log('PASS: completed normal/repeating entries, first-line Vi motion, text caret, fold indicator, line numbers, uniform monospace sizes, pinned weekday/all-day rows and header-only highlight.');
 } finally { await browser.close(); }

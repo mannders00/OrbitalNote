@@ -17,7 +17,7 @@ try {
   await page.locator('#source .heading-menu-button').first().click();
   await page.getByRole('button',{name:'Set event date…',exact:true}).click();
   assert(await page.getByRole('radio',{name:'Event',exact:true}).isChecked());
-  await page.locator('#modal [name="date"]').fill('2026-10-18');
+  await page.locator('.date-picker-grid [data-date="2026-10-18"]').click();
   await page.locator('#modal [name="time"]').fill('10:00');
   await page.locator('#modal [name="endTime"]').fill('11:00');
   await page.locator('#modal-submit').click();
@@ -37,9 +37,10 @@ try {
   await page.locator('#modal-submit').click();
   await page.waitForFunction(() => !document.querySelector('#modal').open);
   assert((await savedEdit).ok());
-  assert.equal((await api('Read',{id:state.id,path})).source, expected.replace('10:00','10:30'));
+  assert.equal((await api('Read',{id:state.id,path})).source, expected.replace('10:00-11:00','10:30-11:30'));
   await page.locator('#capture').click();
   await page.locator('#modal [name="title"]').fill('Another event');
+  await page.locator('.task-destination > summary').click();
   await page.locator('#modal [name="path"]').fill(path);
   await page.locator('#modal [name="path"]').press('Tab');
   await page.getByRole('radio',{name:'Event',exact:true}).check();

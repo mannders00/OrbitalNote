@@ -1,75 +1,164 @@
 import { escapeHTML as esc } from './editor.js';
 import { icon } from './icons.js';
 import { mountTaskDestination } from './task-destination.js';
+import { repeatFields, mountTaskRepeat } from './task-repeat.js';
 
 const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const civil = text => { const [y, m, d] = text.split('-').map(Number); return new Date(y, m - 1, d, 12); };
+const minutes = time => { const [h, m] = time.split(':').map(Number); return h * 60 + m; };
+const clock = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+const durationLabel = value => value < 60 ? `${value} min` : `${Math.floor(value / 60)} hr${value % 60 ? ` ${value % 60} min` : ''}`;
+const setText = (element, text) => { if (element.textContent !== text) element.textContent = text; };
+
 export async function taskDialog(dialog, { title = '', path = '', date = '', time = '', endTime = '', repeater = '', kind = 'scheduled', editing = false, inDocument = false, files = [], readNote, memoryKey } = {}) {
   if (document.getElementById('modal').open) return null;
-  date ||= key(new Date());
+  if (!date && !editing) date = key(new Date());
+  const fixedLocation = editing || inDocument;
   const pending = dialog(editing ? 'Edit task' : 'New task', `
-    <label>Title<input name="title" required value="${esc(title)}" placeholder="Task title"></label>
-    <div class="task-form-columns"><section class="task-destination-fields" aria-label="Task location and repeat"><p class="task-section-label">Location</p>
-    ${editing || inDocument ? `<p class="task-location">${esc(path)} · ${inDocument ? 'at cursor' : 'selected heading'}</p><input type="hidden" name="path" value="${esc(path)}">` : `<label>Org file<input name="path" required value="${esc(path)}" placeholder="inbox.org"></label>`}
-    <label>Repeat <small>optional</small><input name="repeater" value="${esc(repeater)}" placeholder="e.g. +1w"></label><details class="task-repeat-help"><summary>Repeating task syntax</summary><p>+1w: every week · ++1w: catch up · .+1w: a week after completion. Units: h, d, w, m, y.</p></details>
-    </section><section class="task-schedule-fields" aria-label="Task schedule"><p class="task-section-label">Planning</p>
-    <div class="task-planning task-segmented" role="group" aria-label="Planning type"><label title="An event date, stored as a plain active Org timestamp"><input type="radio" name="kind" value="event" ${kind === 'event' ? 'checked' : ''}>Event</label><label><input type="radio" name="kind" value="scheduled" ${kind === 'scheduled' ? 'checked' : ''}>Scheduled</label><label><input type="radio" name="kind" value="deadline" ${kind === 'deadline' ? 'checked' : ''}>Deadline</label></div>
-    <label>Date <small>optional</small><input name="date" value="${esc(date)}" placeholder="YYYY-MM-DD" inputmode="numeric" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"></label>
-    <div class="task-date-picker"><div class="date-picker-header"><button type="button" data-date-step="-1" aria-label="Previous month">${icon('left')}</button><strong data-date-month></strong><button type="button" data-date-step="1" aria-label="Next month">${icon('right')}</button></div><div class="date-picker-grid" role="group" aria-label="Choose date"></div><div class="date-picker-actions"><button type="button" data-date-today>Today</button><button type="button" data-date-clear>No date</button></div></div>
-    <div class="task-times"><label>Start time <small>optional</small><input type="time" name="time" value="${esc(time)}"></label><label>End time <small>optional</small><input type="time" name="endTime" value="${esc(endTime)}"></label></div><div class="time-presets" role="group" aria-label="Quick time choices"><button type="button" data-time="09:00">9 am</button><button type="button" data-time="12:00">Noon</button><button type="button" data-time="15:00">3 pm</button><button type="button" data-duration="30">30 min</button><button type="button" data-duration="60">1 hour</button><button type="button" data-time="">No time</button></div></section></div>`, editing ? 'Save task' : 'Create task');
-  const root = document.getElementById('modal-body'), dateInput = root.querySelector('[name="date"]');
-  root.closest('dialog').classList.add('task-modal');
-  const calendar = root.querySelector('.task-date-picker');
-  root.querySelector('.task-schedule-fields').prepend(calendar);
-  root.querySelector('.task-schedule-fields > .task-section-label').remove();
-  dateInput.closest('label').classList.add('task-date-field');
-  const timeRow = document.createElement('div'); timeRow.className = 'task-time-row';
-  timeRow.append(root.querySelector('.task-times'), root.querySelector('.time-presets'));
-  root.querySelector('.task-form-columns').after(timeRow);
+    <div class="task-form">
+      <label class="task-title-field">Title<input name="title" required value="${esc(title)}"></label>
+      <section class="task-schedule-fields" aria-label="Task schedule">
+        <input type="hidden" name="date" value="${esc(date)}">
+        <div class="task-date-picker">
+          <div class="date-picker-header"><strong data-date-month aria-live="polite"></strong><div><button type="button" data-date-step="-1" aria-label="Previous month">${icon('left')}</button><button type="button" data-date-step="1" aria-label="Next month">${icon('right')}</button></div></div>
+          <div class="date-picker-grid" role="group" aria-label="Choose date"></div>
+          <div class="date-picker-actions"><span data-date-summary aria-live="polite"></span><div><button type="button" data-date-today>Today</button><button type="button" data-date-clear>No date</button></div></div>
+        </div>
+        <div class="task-planning task-segmented" role="radiogroup" aria-label="Planning type">
+          ${[['event', 'Event', 'calendar'], ['scheduled', 'Scheduled', 'clock'], ['deadline', 'Deadline', 'flag']].map(([value, label, glyph]) => `<label><input type="radio" name="kind" value="${value}" ${kind === value ? 'checked' : ''}>${icon(glyph)}<span>${label}</span></label>`).join('')}
+        </div>
+      </section>
+      <div class="task-options">
+        <details class="task-destination">
+          <summary class="task-option-row"><span class="task-option-label">${icon('folder')}Location</span><span class="task-location-summary" data-task-location>${esc(path)}</span>${icon('down')}</summary>
+          <div class="task-destination-fields">
+            ${fixedLocation ? `<input type="hidden" name="path" value="${esc(path)}"><p class="task-location">${esc(path)}</p><p class="task-field-hint">${inDocument ? 'Added at your cursor in this note.' : 'Editing the selected heading in this note.'}</p>` : `<label>Org file<input name="path" required value="${esc(path)}" placeholder="inbox.org"></label>`}
+          </div>
+        </details>
+        ${repeatFields()}
+      </div>
+      <section class="task-time-section" aria-label="Time">
+        <div class="task-times"><label>Start time<input type="time" name="time" step="60" value="${esc(time)}" aria-describedby="task-time-hint"></label><span class="task-time-arrow" aria-hidden="true">${icon('right')}</span><label>End time<input type="time" name="endTime" step="60" value="${esc(endTime)}" aria-describedby="task-time-hint"></label></div>
+        <div class="task-time-footer"><p id="task-time-hint" class="task-field-hint" aria-live="polite"></p><button type="button" data-time-clear hidden>Clear time</button></div>
+        <div class="time-presets" role="group" aria-label="Duration" hidden><span>Duration</span><button type="button" data-duration="30">30 min</button><button type="button" data-duration="60">1 hour</button><button type="button" data-duration="120">2 hours</button></div>
+      </section>
+    </div>`, editing ? 'Save task' : 'Create task');
+  const root = document.getElementById('modal-body'), modal = root.closest('dialog');
+  modal.classList.add('task-modal');
+  let deleted = false;
+  const deleteButton = editing ? document.createElement('button') : null;
+  if (deleteButton) {
+    deleteButton.type = 'button'; deleteButton.textContent = 'Delete';
+    modal.querySelector('.modal-actions').prepend(deleteButton);
+    deleteButton.addEventListener('click', () => {
+      if (deleteButton.textContent !== 'Confirm') { deleteButton.textContent = 'Confirm'; return; }
+      deleted = true; modal.close('cancel');
+    });
+  }
+  const dateInput = root.querySelector('[name="date"]'), start = root.querySelector('[name="time"]'), end = root.querySelector('[name="endTime"]');
+  const repeat = mountTaskRepeat(root, repeater);
   const disposeDestination = readNote ? mountTaskDestination(root, files, readNote, memoryKey) : () => {};
-  const now = new Date();
-  let month = /^\d{4}-\d{2}-\d{2}$/.test(date) ? civil(date) : now;
+  const now = new Date(), today = key(now), grid = root.querySelector('.date-picker-grid');
+  let month = date ? civil(date) : now, focusedDate = date || today;
   month = new Date(month.getFullYear(), month.getMonth(), 1, 12);
-  function draw() {
-    root.querySelector('[data-date-month]').textContent = month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-    const start = new Date(month); start.setDate(1 - (month.getDay() + 6) % 7);
-    let html = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(day => `<span>${day}</span>`).join('');
-    for (let i = 0; i < 42; i++) {
-      const day = new Date(start); day.setDate(start.getDate() + i); const value = key(day);
-      html += `<button type="button" data-date="${value}" class="${day.getMonth() !== month.getMonth() ? 'outside' : ''} ${value === key(now) ? 'today' : ''}" aria-label="${value}" aria-pressed="${value === dateInput.value}">${day.getDate()}</button>`;
+  let duration = start.value && end.value && end.value > start.value ? minutes(end.value) - minutes(start.value) : 30;
+  // Existing start-only timestamps stay start-only until the user changes a time.
+  if (!editing && start.value && !end.value) setEnd();
+
+  function draw(focus = false) {
+    setText(root.querySelector('[data-date-month]'), month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }));
+    const first = new Date(month); first.setDate(1 - (month.getDay() + 6) % 7);
+    const days = Array.from({ length: 42 }, (_, i) => { const day = new Date(first); day.setDate(first.getDate() + i); return day; });
+    if (!days.some(day => key(day) === focusedDate)) focusedDate = key(month);
+    grid.innerHTML = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => `<span aria-hidden="true">${day}</span>`).join('') + days.map(day => {
+      const value = key(day), label = day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      return `<button type="button" data-date="${value}" class="${day.getMonth() !== month.getMonth() ? 'outside' : ''} ${value === today ? 'today' : ''}" aria-label="${esc(label)}" aria-pressed="${value === dateInput.value}" ${value === today ? 'aria-current="date"' : ''} tabindex="${value === focusedDate ? '0' : '-1'}">${day.getDate()}</button>`;
+    }).join('');
+    setText(root.querySelector('[data-date-summary]'), dateInput.value ? civil(dateInput.value).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'No date selected');
+    root.querySelector('[data-date-clear]').setAttribute('aria-pressed', String(!dateInput.value));
+    if (focus) grid.querySelector(`[data-date="${focusedDate}"]`)?.focus({ preventScroll: true });
+  }
+  function chooseDate(value, focus = false) {
+    dateInput.value = value;
+    if (value) {
+      focusedDate = value;
+      const selected = civil(value); month = new Date(selected.getFullYear(), selected.getMonth(), 1, 12);
+    } else {
+      start.value = ''; end.value = ''; duration = 30; repeat.clear();
     }
-    root.querySelector('.date-picker-grid').innerHTML = html;
+    refresh(); draw(focus);
+  }
+  function setEnd() {
+    const value = start.value ? Math.min(1439, minutes(start.value) + duration) : 0;
+    end.value = start.value && value > minutes(start.value) ? clock(value) : '';
+  }
+  function refresh() {
+    const hasDate = !!dateInput.value, hasTime = !!start.value;
+    start.disabled = end.disabled = !hasDate;
+    const invalidEnd = end.value && (!hasTime || end.value <= start.value);
+    end.setCustomValidity(invalidEnd ? 'Choose an end time after the start, on the same day.' : '');
+    end.setAttribute('aria-invalid', String(!!invalidEnd));
+    const hourly = repeat.value().endsWith('h');
+    start.setCustomValidity(hourly && !hasTime ? 'Choose a start time for an hourly repeat.' : '');
+    start.required = hourly;
+    repeat.setDisabled(!hasDate);
+    root.querySelector('[data-time-clear]').hidden = !hasTime && !end.value;
+    root.querySelector('.time-presets').hidden = !hasTime;
+    const actualDuration = hasTime && end.value && !invalidEnd ? minutes(end.value) - minutes(start.value) : 0;
+    for (const button of root.querySelectorAll('[data-duration]')) {
+      button.disabled = !hasTime || minutes(start.value) + Number(button.dataset.duration) > 1439;
+      button.setAttribute('aria-pressed', String(actualDuration === Number(button.dataset.duration)));
+    }
+    const hint = root.querySelector('#task-time-hint');
+    hint.classList.toggle('invalid', !!invalidEnd);
+    const timeHint = !hasDate ? 'Choose a date to add a time or repeat.' : invalidEnd ? 'End time must be after the start, on the same day.' : hasTime && minutes(start.value) + duration > 1439 ? 'End times stay on the same day.' : actualDuration ? `${durationLabel(actualDuration)} · Adjust the end time or choose a duration.` : hourly && !hasTime ? 'Choose a start time for an hourly repeat.' : hasTime ? 'Start time only · Add an end time if you need one.' : 'All day · Choose a start time for a 30-minute block.';
+    setText(hint, timeHint);
+    const selectedKind = root.querySelector('[name="kind"]:checked')?.value || 'scheduled';
+    setText(document.getElementById('modal-title'), `${editing ? 'Edit' : 'New'} ${selectedKind === 'event' ? 'event' : 'task'}`);
+    setText(document.getElementById('modal-submit'), `${editing ? 'Save' : 'Create'} ${selectedKind === 'event' ? 'event' : 'task'}`);
   }
   const onClick = e => {
     const button = e.target.closest('button'); if (!button) return;
-    if (button.hasAttribute('data-time')) { root.querySelector('[name="time"]').value = button.dataset.time; root.querySelector('[name="endTime"]').value = ''; }
-    if (button.dataset.duration) {
-      const input = root.querySelector('[name="time"]'); if (!input.value) input.value = '09:00';
-      const [h, m] = input.value.split(':').map(Number), end = Math.min(1439, h * 60 + m + Number(button.dataset.duration));
-      root.querySelector('[name="endTime"]').value = `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`;
-    }
-    validate();
-    if (button.dataset.date) { dateInput.value = button.dataset.date; validate(); draw(); }
-    if (button.dataset.dateStep) { month = new Date(month.getFullYear(), month.getMonth() + Number(button.dataset.dateStep), 1, 12); draw(); }
-    if (button.hasAttribute('data-date-today')) { dateInput.value = key(now); month = new Date(now.getFullYear(), now.getMonth(), 1, 12); validate(); draw(); }
-    if (button.hasAttribute('data-date-clear')) { dateInput.value = ''; root.querySelector('[name="time"]').value = ''; root.querySelector('[name="endTime"]').value = ''; validate(); draw(); }
+    if (button.dataset.date) chooseDate(button.dataset.date, true);
+    if (button.dataset.dateStep) { month = new Date(month.getFullYear(), month.getMonth() + Number(button.dataset.dateStep), 1, 12); focusedDate = key(month); draw(); }
+    if (button.hasAttribute('data-date-today')) chooseDate(today);
+    if (button.hasAttribute('data-date-clear')) chooseDate('');
+    if (button.dataset.duration) { duration = Number(button.dataset.duration); setEnd(); refresh(); }
+    if (button.hasAttribute('data-time-clear')) { start.value = ''; end.value = ''; duration = 30; refresh(); }
   };
-  function validate() {
-    const start = root.querySelector('[name="time"]'), end = root.querySelector('[name="endTime"]');
-    const validDate = !dateInput.value || (/^\d{4}-\d{2}-\d{2}$/.test(dateInput.value) && key(civil(dateInput.value)) === dateInput.value);
-    dateInput.setCustomValidity(validDate ? '' : 'Enter a valid date.');
-    start.setCustomValidity(start.value && !dateInput.value ? 'Choose a date for this time.' : '');
-    end.setCustomValidity(end.value && (!start.value || end.value <= start.value) ? 'End time must be later than start time on the same day.' : '');
-  }
-  const updateLabels = () => {
-    const event = root.querySelector('[name="kind"]:checked')?.value === 'event';
-    document.getElementById('modal-title').textContent = `${editing ? 'Edit' : 'New'} ${event ? 'event' : 'task'}`;
-    document.getElementById('modal-submit').textContent = `${editing ? 'Save' : 'Create'} ${event ? 'event' : 'task'}`;
+  const onInput = e => {
+    if (!e.target.matches('[name="time"], [name="endTime"], [name="kind"], .task-repeat input, .task-repeat select')) return;
+    if (e.target === start) setEnd();
+    if (e.target === end && start.value && end.value > start.value) duration = minutes(end.value) - minutes(start.value);
+    refresh();
   };
-  const onInput = () => { validate(); draw(); updateLabels(); };
+  const onKey = e => {
+    const button = e.target.closest('[data-date]'); if (!button) return;
+    const moves = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+    const day = civil(button.dataset.date);
+    if (e.key in moves) day.setDate(day.getDate() + moves[e.key]);
+    else if (e.key === 'Home') day.setDate(day.getDate() - (day.getDay() + 6) % 7);
+    else if (e.key === 'End') day.setDate(day.getDate() + 6 - (day.getDay() + 6) % 7);
+    else if (e.key === 'PageUp' || e.key === 'PageDown') {
+      const original = day.getDate(); day.setDate(1); day.setMonth(day.getMonth() + (e.key === 'PageUp' ? -1 : 1));
+      day.setDate(Math.min(original, new Date(day.getFullYear(), day.getMonth() + 1, 0).getDate()));
+    } else return;
+    e.preventDefault(); e.stopPropagation(); focusedDate = key(day);
+    month = new Date(day.getFullYear(), day.getMonth(), 1, 12); draw(true);
+  };
+  // Reveal a collapsed destination before native validation focuses its field.
+  const onInvalid = e => { const details = e.target.closest('details'); if (details) details.open = true; };
   root.addEventListener('click', onClick);
   root.addEventListener('input', onInput);
-  draw(); validate(); updateLabels();
-  try { return await pending; }
-  finally { disposeDestination(); root.closest('dialog').classList.remove('task-modal'); root.removeEventListener('click', onClick); root.removeEventListener('input', onInput); }
+  root.addEventListener('change', onInput);
+  root.addEventListener('keydown', onKey);
+  root.addEventListener('invalid', onInvalid, true);
+  draw(); refresh();
+  try { const result = await pending; return deleted ? { deleteHeading: true } : result; }
+  finally {
+    deleteButton?.remove();
+    disposeDestination(); repeat.dispose(); modal.classList.remove('task-modal');
+    root.removeEventListener('click', onClick); root.removeEventListener('input', onInput); root.removeEventListener('change', onInput);
+    root.removeEventListener('keydown', onKey); root.removeEventListener('invalid', onInvalid, true);
+  }
 }

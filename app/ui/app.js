@@ -1,7 +1,7 @@
 import { call, chooseWorkspace, native, onClose, onCloseTab, quit, openExternal, setNativeTheme, zoomNative } from './api.js';
 import { createShortcuts } from './shortcuts.js';
 import { setupAppearance, resizeSidebar } from './appearance.js';
-import { createAgendaQuery, matchesAgendaQuery } from './agenda-query.js';
+import { createAgendaQuery } from './agenda-query.js';
 document.addEventListener('appearance-change', () => {
   const previews = [...document.querySelectorAll('.ui-preview')].filter(p => p.querySelector('.src-mermaid'));
   if (previews.length) import('./vendor/rich.js').then(module => Promise.all(previews.map(p => module.renderRichPreview(p)))).catch(fail);
@@ -16,7 +16,7 @@ import { taskDialog } from './task-dialog.js';
 import { taskInsertion } from './task-destination.js';
 import { projectOccurrences } from './recurrence.js';
 import { setupWorkspaceSettings, isSettingsFile } from './workspace-settings.js';
-import { timeGrid, bindCalendarGestures, formatTime, calendarClock, updateNowLine } from './calendar.js';
+import { timeGrid, bindCalendarGestures, formatTime, formatTimeRange, calendarEventHTML, calendarEventLabel, updateNowLine } from './calendar.js';
 import { patchHTML } from './dom.js';
 import { reconcileOutline } from './outline.js';
 import { mountSelectPickers } from './select-picker.js';
@@ -85,6 +85,10 @@ function duplicateDocument(path = active, edge, restored) {
     Object.defineProperty(t, key, { get: () => tabs.get(t.path)?.[key], set: value => { const doc = tabs.get(t.path); if (doc) doc[key] = value; } });
   }
   duplicateViews.set(id, t); createDocumentSurface(path, t); renderDocument(t);
+  if (!restored) {
+    t.surface.querySelector('[data-ui="source"]').setFoldRanges(original.surface.querySelector('[data-ui="source"]').getFoldRanges());
+    t.documentView.syncFolds();
+  }
   if (restored?.focusHeading) {
     const heading = t.surface.querySelector('[data-ui="source"]').findHeading(restored.focusHeading);
     if (heading) isolateHeading(t, heading);
@@ -231,7 +235,7 @@ async function dialog(title, body, action = 'Continue') {
   }, { once: true }));
 }
 $('modal').addEventListener('keydown', e => {
-  if (e.key !== 'Enter' || e.isComposing || e.shiftKey || e.target.matches('textarea, select, button')) return;
+  if (e.key !== 'Enter' || e.isComposing || e.shiftKey || e.target.matches('textarea, select, button, summary')) return;
   e.preventDefault(); $('modal-form').requestSubmit($('modal-submit'));
 });
 async function askText(title, label, value = '', action = 'Continue') {
@@ -267,6 +271,7 @@ function renderTabs() {
   for (const t of [...tabs.values(), ...duplicateViews.values()]) updateStatus(t);
 }
 function createDocumentSurface(path, t) {
+  t.navigation ||= { entries: [{ path }], index: 0 };
   const surface = documentTemplate.cloneNode(true);
   for (const el of [surface, ...surface.querySelectorAll('[id]')]) {
     el.dataset.ui = el.id; el.classList.add('ui-' + el.id); el.removeAttribute('id');
@@ -286,6 +291,8 @@ function createDocumentSurface(path, t) {
   const focused = fn => run(e => { activateTab(surface.dataset.viewId); return fn(e); });
   const bind = (id, event, fn) => find(id).addEventListener(event, focused(fn));
   bind('preview-toggle', 'click', () => setMode(mode === 'edit' ? 'preview' : 'edit'));
+  bind('note-back', 'click', () => navigateHistory(-1));
+  bind('note-forward', 'click', () => navigateHistory(1));
   bind('save', 'click', save); bind('save-copy', 'click', saveCopy); bind('file-actions', 'click', fileActions);
   bind('insert-content', 'click', e => showActionMenu(e.currentTarget, 'Insert and format', [['New task…', newTaskAtCursor], ...insertionActions.map(([id, label]) => [label, () => insertContent(id)])]));
   bind('reload-file', 'click', async () => {
@@ -496,6 +503,7 @@ function showDocument() {
   renderDocument(t);
   $('document-name').textContent = active.replace(/\.org$/i, '');
   renderContext(t); updateStatus(); setMode(mode);
+  renderNavigation(t);
   const path = active, id = workspace.id;
 }
 function renderDocument(t) {
@@ -650,6 +658,7 @@ function setPreview(t, html) {
   let headingIndex = 0;
   for (const heading of preview.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
     const title = heading.textContent.trim();
+    const controls = document.createElement('span'); controls.className = 'heading-gutter-anchor'; heading.prepend(controls);
     const task = t.headings?.[headingIndex++];
     if (task) {
       heading.parentElement.classList.add('preview-section');
@@ -667,9 +676,9 @@ function setPreview(t, html) {
         if (planning.closest('[id^="' + prefix + 'outline-container-"]') !== heading.parentElement) continue;
         planning.addEventListener('click', run(async () => { selectHeading(); await editTaskAtCursor(planning.dataset.planningKind); }));
       }
-      const menu = document.createElement('button'); menu.type = 'button'; menu.className = 'heading-menu-button'; menu.textContent = '⋮';
+      const menu = document.createElement('button'); menu.type = 'button'; menu.className = 'heading-menu-button'; menu.innerHTML = icon('kebab');
       menu.setAttribute('aria-label', 'Heading actions'); menu.setAttribute('aria-haspopup', 'menu');
-      menu.addEventListener('click', e => { e.stopPropagation(); selectHeading(); showHeadingMenu(menu); }); heading.append(menu);
+      menu.addEventListener('click', e => { e.stopPropagation(); selectHeading(); showHeadingMenu(menu); }); controls.append(menu);
       const state = heading.querySelector('.todo');
       if (state && task.state) {
         const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = `task-state ${task.done ? 'org-done' : 'org-todo'}`; toggle.textContent = task.state;
@@ -681,10 +690,14 @@ function setPreview(t, html) {
     const body = heading.nextElementSibling;
     if (!body?.className.startsWith('outline-text-') || !body.textContent.trim()) continue;
     const button = document.createElement('button'); button.type = 'button'; button.className = 'preview-heading-fold';
+    const ellipsis = document.createElement('button'); ellipsis.type = 'button'; ellipsis.className = 'preview-heading-ellipsis';
+    ellipsis.textContent = '…'; ellipsis.setAttribute('aria-label', `Expand heading: ${title}`);
     button.setAttribute('aria-controls', body.id);
+    ellipsis.setAttribute('aria-controls', body.id);
     button.updateFold = (collapsed, sync = true) => {
       body.hidden = collapsed;
       heading.classList.toggle('is-folded', collapsed);
+      ellipsis.hidden = !collapsed;
       button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 5 7 7-7 7"/></svg>';
       button.setAttribute('aria-expanded', String(!collapsed));
       button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} heading: ${title}`);
@@ -694,7 +707,9 @@ function setPreview(t, html) {
     button.updateFold(false, false);
     heading.addEventListener('click', () => { t.previewHeading = heading.id; });
     button.addEventListener('click', e => { e.preventDefault(); t.documentView.fold(Number(heading.dataset.sourceHeading), !body.hidden, primaryModifier(e)); });
-    heading.prepend(button);
+    ellipsis.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); t.documentView.fold(Number(heading.dataset.sourceHeading), false, primaryModifier(e)); });
+    heading.append(ellipsis);
+    controls.append(button);
   }
   if (preview.querySelector('.src-mermaid, .src-latex') || /\\\(|\\\[|\$/.test(preview.textContent)) {
     import('./vendor/rich.js').then(module => module.renderRichPreview(preview)).catch(fail);
@@ -761,26 +776,90 @@ async function followNoteLink(target, origin = active) {
   if (!heading) { notify('Heading not found in ' + path, 'error'); return; }
   return openLinkedNote(path, heading.line, origin);
 }
-async function openLinkedNote(path, line, origin) {
-  if (view !== 'document' || active !== origin) return openNote(path, line);
-  if (path === origin) {
-    if (line && active === origin) {
-      const pos = source.value.split('\n').slice(0, line - 1).reduce((n, s) => n + s.length + 1, 0);
-      setMode('edit'); source.focus(); source.jumpTo(pos); syncScroll();
-    }
-    return;
+let noteNavigationBusy = false;
+function navigationEntry(t = current()) {
+  const editor = t.surface.querySelector('[data-ui="source"]');
+  return { path: t.surface.dataset.path, position: editor.selectionStart, scroll: editor.scrollTop,
+    previewScroll: t.surface.querySelector('[data-ui="preview"]').scrollTop, mode: t.mode,
+    revision: t.revision, folds: editor.getFoldRanges(), focus: editor.getFocusedHeading() };
+}
+function renderNavigation(t = current()) {
+  if (!t?.surface) return;
+  t.surface.dataset.navigationBusy = String(noteNavigationBusy);
+  const history = t.navigation;
+  for (const [name, step] of [['back', -1], ['forward', 1]]) {
+    const button = t.surface.querySelector(`[data-ui="note-${name}"]`), entry = history?.entries[history.index + step];
+    button.disabled = noteNavigationBusy || !entry;
+    button.title = entry ? `${name === 'back' ? 'Back' : 'Forward'} to ${entry.path}` : name === 'back' ? 'Back' : 'Forward';
   }
+}
+function restoreNavigationEntry(t, entry) {
+  const editor = t.surface.querySelector('[data-ui="source"]');
+  editor.setFocusRange(null); delete t.focusTitle;
+  t.surface.querySelectorAll('.focus-exit').forEach(button => button.remove());
+  if (entry.focus) {
+    const heading = editor.findHeading(entry.focus);
+    if (heading) isolateHeading(t, heading);
+  }
+  if (entry.revision === t.revision && entry.folds) editor.setFoldRanges(entry.folds);
+  const position = Math.min(entry.position || 0, editor.value.length);
+  editor.setSelectionRange(position, position);
+  setMode(entry.mode || 'edit');
+  editor.scrollTop = entry.scroll || 0;
+  t.surface.querySelector('[data-ui="preview"]').scrollTop = entry.previewScroll || 0;
+  t.documentView.syncFolds();
+}
+function navigateHistory(step) {
+  const history = current()?.navigation, index = (history?.index ?? 0) + step;
+  if (history?.entries[index]) return openLinkedNote(history.entries[index].path, undefined, active, index);
+}
+function renameNavigation(from, to) {
+  for (const t of [...tabs.values(), ...duplicateViews.values()]) for (const entry of t.navigation?.entries || []) {
+    if (entry.path === from || entry.path.startsWith(from + '/')) entry.path = to + entry.path.slice(from.length);
+  }
+}
+async function openLinkedNote(path, line, origin, historyIndex) {
+  if (view !== 'document' || active !== origin) return openNote(path, line);
+  const from = current();
+  if (noteNavigationBusy || path === origin && !line && historyIndex === undefined) return;
   const previous = activeDocumentID, group = layout.owner(previous)?.id, workspaceID = workspace.id;
-  const alreadyOpen = tabs.has(path);
-  await save(origin);
-  if (workspace.id !== workspaceID || activeDocumentID !== previous) return;
-  await openNote(path, line);
-  if (workspace.id !== workspaceID || active !== path || !group || !layout.tabs.has(previous)) return;
-  const next = alreadyOpen ? duplicateDocument(path).viewID : 'file:' + path;
-  layout.move(next, group, 'center', previous);
-  if (previous.startsWith('copy:')) closeDuplicate(previous);
-  else await closeTab(origin);
-  layout.select(next);
+  noteNavigationBusy = true; renderNavigation(from);
+  try {
+    await save(origin);
+    if (workspace.id !== workspaceID || activeDocumentID !== previous || dirty(from)) return;
+    const history = { entries: [...from.navigation.entries], index: from.navigation.index };
+    history.entries[history.index] = navigationEntry(from);
+    if (path !== origin) {
+      if (tabs.has(path)) duplicateDocument(path);
+      else await openNote(path);
+      if (workspace.id !== workspaceID || active !== path || !group || !layout.tabs.has(previous)) return;
+      const next = activeDocumentID;
+      layout.move(next, group, 'center', previous);
+      if (previous.startsWith('copy:')) closeDuplicate(previous);
+      else await closeTab(origin);
+      layout.select(next);
+    }
+    const target = current();
+    if (historyIndex !== undefined) {
+      history.index = historyIndex;
+      restoreNavigationEntry(target, history.entries[history.index]);
+    } else {
+      if (line) {
+        const pos = source.value.split('\n').slice(0, line - 1).reduce((n, s) => n + s.length + 1, 0);
+        const focus = source.getFocusRange();
+        if (focus && (pos < focus.from || pos > focus.to)) {
+          source.setFocusRange(null); delete target.focusTitle;
+          target.surface.querySelectorAll('.focus-exit').forEach(button => button.remove());
+        }
+        setMode('edit'); source.jumpTo(pos); syncScroll();
+      }
+      history.entries = history.entries.slice(0, history.index + 1);
+      history.entries.push(navigationEntry(target));
+      if (history.entries.length > 50) history.entries.shift();
+      history.index = history.entries.length - 1;
+    }
+    target.navigation = history; renderNavigation(target); renderTabs();
+  } finally { noteNavigationBusy = false; for (const t of [...tabs.values(), ...duplicateViews.values()]) renderNavigation(t); }
 }
 function hydrateImages(t = current()) {
   if (!t?.surface) return;
@@ -826,7 +905,7 @@ async function closeTab(path) {
     const [id, other] = replacement;
     clearTimeout(t.previewTimer); clearTimeout(t.saveTimer);
     t.resizeObserver?.disconnect(); t.documentView?.dispose(); t.vi?.dispose(); t.surface.querySelector('[data-ui="source"]').dispose();
-    for (const key of ['surface', 'vi', 'documentView', 'resizeObserver', 'mode', 'position', 'scroll', 'previewHeading']) t[key] = other[key];
+    for (const key of ['surface', 'vi', 'documentView', 'resizeObserver', 'mode', 'position', 'scroll', 'previewHeading', 'navigation']) t[key] = other[key];
     layout.remove('file:' + path);
     duplicateViews.delete(id);
     t.surface.dataset.viewId = 'file:' + path;
@@ -901,6 +980,7 @@ async function fileAction(path, action) {
     const to = await askDestination('Rename or move note', { folder: parentFolder(path), name: path.split('/').pop().replace(/\.org$/i, ''), original: path, action: 'Save changes' }); if (!to || to === path) return;
     if (id !== workspace.id || dirty(t) || t?.saving) return;
     await call('Rename', { id, path, to });
+    renameNavigation(path, to);
     if (t) { tabs.delete(path); t.path = to; tabs.set(to, t); if (active === path) active = to; renderTabs(); if (view === 'document') showDocument(); }
   } else {
     const note = t || await call('Read', { id, path });
@@ -922,6 +1002,7 @@ async function folderAction(path, action) {
     const to = await askDestination('Rename or move folder', { folder: parentFolder(path), name: path.split('/').pop(), directory: true, original: path, action: 'Save changes' }); if (!to || to === path) return;
     if (id !== workspace.id || [...tabs].some(([p,t]) => p.startsWith(path + '/') && (dirty(t) || t.saving))) return;
     await call('Rename', { id, path, to });
+    renameNavigation(path, to);
     for (const [p,t] of [...tabs]) if (p.startsWith(path + '/')) { const next = to + p.slice(path.length); tabs.delete(p); t.path = next; tabs.set(next,t); if (active === p) active = next; }
     renderTabs(); if (view === 'document') showDocument();
   } else if (await confirm('Delete empty folder?', `Remove ${path}? Folders containing files will not be deleted.`, 'Delete folder')) {
@@ -935,6 +1016,19 @@ const agendaQuery = createAgendaQuery($('agenda-query-builder'), renderAgenda, {
   read: () => ({ range: agendaFilter, text: $('agenda-query').value, kind: $('kind-filter').value }),
   apply: query => { agendaFilter = query.range; agendaDate = ''; $('agenda-query').value = query.text; $('kind-filter').value = query.kind; },
 });
+const agendaBasics = document.createElement('div');
+agendaBasics.className = 'query-agenda-basics';
+agendaBasics.append($('agenda-filters'), $('agenda-query').closest('.agenda-query-input'));
+$('agenda-query-builder').querySelector('.query-header').after(agendaBasics);
+let calendarQueryContext = { range: 'all', text: '', kind: '' };
+const calendarQuery = createAgendaQuery($('calendar-query-builder'), renderCalendar, {
+  defaultRange: 'all',
+  read: () => calendarQueryContext,
+  apply: query => { calendarQueryContext = { range: query.range, text: query.text, kind: query.kind }; },
+});
+$('calendar-query-builder').querySelector('[data-saved-view]').id = 'calendar-view';
+$('calendar-query-builder').querySelector('.query-header strong').textContent = 'Filter calendar';
+$('calendar-query-builder').querySelector('.query-popup').setAttribute('aria-label', 'Calendar filters');
 function agendaMatches(e) {
   const q = $('agenda-query').value.trim().toLowerCase(), kind = $('kind-filter').value;
   return agendaQuery.matches(e) && (!kind || kind === e.stamp.kind) && (!q || [e.path, e.title, e.state, ...e.tags, ...(e.fileTags || [])].join(' ').toLowerCase().includes(q));
@@ -960,8 +1054,13 @@ function entryHTML(e) {
   const index = entryIndices.get(e);
   const clock = e.done || e.projected ? '' : `<button class="icon-button task-clock" data-clock="${index}" aria-pressed="${!!e.clock}" aria-label="${e.clock ? 'Clock out of' : 'Clock in to'} ${esc(e.title)}" title="${e.clock ? 'Clock out' : 'Clock in'}">${icon(e.clock ? 'clock-stop' : 'clock')}</button>`;
   const actions = `<div class="agenda-row-actions">${clock}<button class="icon-button agenda-edit" data-edit-task="${index}" aria-label="Edit task: ${esc(e.title)}" title="Edit task">${icon('pencil')}</button></div>`;
-  const time = e.stamp.time ? formatTime(e.stamp.time, $('calendar-time-format').value) : e.stamp.date ? 'All day' : 'Unscheduled';
-  return `<div class="agenda-row ${e.done ? 'completed' : ''} ${e.projected ? 'projected' : ''}">${e.state ? e.stamp.kind === 'completed' || e.projected ? `<span class="task-state ${e.done ? 'org-done' : 'org-todo'}">${esc(e.state)}</span>` : `<button class="agenda-complete task-state ${e.done ? 'org-done' : 'org-todo'}" data-complete="${index}" aria-label="${e.done ? 'Reopen' : 'Mark'} ${esc(e.title)}${e.done ? '' : ' as done'}">${esc(e.state)}</button>` : ''}<div role="group" tabindex="0" aria-label="Open task" class="agenda-entry ${esc(e.stamp.kind)}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${taskTitleHTML(e.title, e.path)}</strong><small>${esc(e.path)}</small></span>${[...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('')}<span class="entry-date">${esc(time)}<br><small>${e.projected ? 'Projected · ' : ''}${esc(e.stamp.kind)}${e.stamp.repeater ? ' · ' + esc(e.stamp.repeater) : ''}</small></span></div>${actions}</div>`;
+  const time = formatTimeRange(e.stamp.time, e.stamp.endTime, $('calendar-time-format').value);
+  const overdue = !e.done && e.stamp.date && e.stamp.date < today() && ['scheduled', 'deadline'].includes(e.stamp.kind);
+  const when = overdue ? civil(e.stamp.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(e.stamp.date.slice(0, 4) !== today().slice(0, 4) ? { year: 'numeric' } : {}) }) : time || (e.stamp.date ? 'All day' : 'No date');
+  const kind = { scheduled: 'Scheduled', deadline: 'Deadline', event: 'Event', timestamp: 'Event', todo: 'Unscheduled', completed: 'Completed' }[e.stamp.kind] || e.stamp.kind;
+  const detail = [overdue && time, kind, e.projected && 'Projected', e.stamp.repeater].filter(Boolean).join(' · ');
+  const tags = [...new Set([...e.tags, ...(e.fileTags || [])])].slice(0, 2).map(t => `<span class="entry-tag" style="--tag-color:${tagColor(t)}">${esc(t)}</span>`).join('');
+  return `<div data-key="${esc(e.path+':'+e.line+':'+e.stamp.kind+':'+e.stamp.date+':'+e.stamp.time)}" class="agenda-row ${e.done ? 'completed' : ''} ${e.projected ? 'projected' : ''}">${e.state ? e.stamp.kind === 'completed' || e.projected ? `<span class="task-state ${e.done ? 'org-done' : 'org-todo'}" title="${esc(e.state)}">${esc(e.state)}</span>` : `<button class="agenda-complete task-state ${e.done ? 'org-done' : 'org-todo'}" data-complete="${index}" title="${esc(e.state)}" aria-label="${e.done ? 'Reopen' : 'Mark'} ${esc(e.title)}${e.done ? '' : ' as done'}">${esc(e.state)}</button>` : ''}<div role="group" tabindex="0" aria-label="Open task: ${esc(e.title)}" title="${esc(e.title)}" class="agenda-entry ${esc(e.stamp.kind)} ${overdue ? 'is-overdue' : ''}" ${entryColorStyle(e)} data-open="${esc(e.path)}" data-line="${e.line}"><span class="entry-main"><strong>${taskTitleHTML(e.title, e.path)}</strong><span class="entry-meta"><small class="entry-source" title="${esc(e.path)}">${esc(e.path)}</small>${tags}</span></span><span class="entry-date"><span class="entry-when">${esc(when)}</span><small>${esc(detail)}</small></span></div>${actions}</div>`;
 }
 async function editAgendaTask(item) {
   if (!item) return;
@@ -976,7 +1075,7 @@ async function editAgendaTask(item) {
   const data = await taskDialog(dialog, { editing: true, title: heading.title, path, date: stamp?.date || '', time: stamp?.time || '', endTime: stamp?.endTime || '', repeater: stamp?.repeater || '', kind: stamp?.kind || 'scheduled' });
   if (!data || workspace.id !== id) return;
   if (busy()) { notify('The open note has edits. Save them before editing this task.'); return; }
-  const changed = await call('Edit', { source: note.source, line: heading.line, operation: 'task', value: JSON.stringify({ ...taskValues(data), previousKind: stamp?.kind }) });
+  const changed = await call('Edit', { source: note.source, line: heading.line, operation: data.deleteHeading ? 'delete-heading' : 'task', value: data.deleteHeading ? '' : JSON.stringify({ ...taskValues(data), previousKind: stamp?.kind }) });
   if (busy() || workspace.id !== id) return;
   await call('Save', { id, path, source: changed, revision: note.revision });
   await refresh();
@@ -1030,7 +1129,11 @@ function renderAgenda() {
   agendaQuery.update(entries, workspace.key);
   const selectedDay = agendaDate || today();
   $('today-label').textContent = dateLabel(agendaFilter === 'today' ? selectedDay : today());
-  document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('active', b.dataset.filter === agendaFilter && (agendaFilter !== 'today' || selectedDay === today())));
+  document.querySelectorAll('[data-filter]').forEach(b => {
+    const active = b.dataset.filter === agendaFilter && (agendaFilter !== 'today' || selectedDay === today());
+    b.classList.toggle('active', active); b.setAttribute('aria-pressed', String(active));
+  });
+  $('agenda-count').title = `${$('agenda-count').textContent || 0} open entries today`;
   const now = today(); const groups = new Map();
   const horizon = civil(now); horizon.setDate(horizon.getDate() + 90);
   for (const e of entries.filter(agendaMatches)) {
@@ -1042,27 +1145,24 @@ function renderAgenda() {
     const key = !d ? 'Unscheduled' : !(agendaFilter === 'today' && selectedDay !== now) && !e.done && d < now && ['scheduled', 'deadline'].includes(e.stamp.kind) ? 'Overdue' : d === now ? 'Today' : dateLabel(d);
     if (!groups.has(key)) groups.set(key, []); groups.get(key).push(e);
   }
-  const html = [...groups].map(([label, items]) => `<section data-key="${esc(label)}" class="agenda-group ${label === 'Overdue' ? 'overdue' : ''}"><h2>${esc(label)} <small>${items.length}</small></h2>${items.map(entryHTML).join('')}</section>`).join('') || empty('No tasks match this view');
+  const html = [...groups].map(([label, items]) => `<section data-key="${esc(label)}" class="agenda-group ${label === 'Overdue' ? 'overdue' : ''}"><h2>${esc(label)} <small>${items.length}</small></h2>${items.map(entryHTML).join('')}</section>`).join('') || empty('No tasks in this view', entries.length ? 'Try another day or adjust your search and filters.' : 'Create a task to start planning your day.');
   const clocks = runningClocks();
   patchHTML($('agenda-list'), (clocks.length ? `<section data-key="clocked" class="agenda-group clocked"><h2>Clocked</h2>${clocks.map(entryHTML).join('')}</section>` : '') + html);
   renderClocks();
-  const count = [...groups.values()].reduce((n, items) => n + items.length, 0);
-  $('agenda-results-count').textContent = `${count} matching ${count === 1 ? 'entry' : 'entries'}`;
 }
 function calendarMatches(e) {
-  const query = agendaQuery.savedViews().find(v => v.name === $('calendar-view').value)?.query;
-  if (!query) return true;
+  const query = calendarQueryContext;
   const date = e.stamp.date, overdue = !e.done && date && date < today() && ['scheduled', 'deadline'].includes(e.stamp.kind);
   if (query.range === 'today' && date !== today() && !overdue) return false;
   if (query.range === 'upcoming' && (!date || date < today())) return false;
   if (query.range === 'overdue' && !overdue) return false;
   const text = [e.path, e.title, e.state, ...e.tags, ...(e.fileTags || [])].join(' ').toLowerCase();
-  return matchesAgendaQuery(e, query) && (!query.kind || query.kind === e.stamp.kind) && text.includes(query.text.trim().toLowerCase());
+  return calendarQuery.matches(e) && (!query.kind || query.kind === e.stamp.kind) && text.includes(query.text.trim().toLowerCase());
 }
 function dayEntries(key) { return entries.filter(e => calendarMatches(e) && e.stamp.date && e.stamp.date <= key && (e.stamp.endDate || e.stamp.date) >= key); }
 function monthEntry(e) {
   const format = $('calendar-time-format').value;
-  return `<div class="calendar-item" data-key="${esc(e.path+':'+e.line+':'+e.stamp.kind+':'+e.stamp.date+':'+e.stamp.time)}"><div role="group" tabindex="0" aria-label="Open task" class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''} ${e.clock ? 'is-clocked' : ''}" ${entryColorStyle(e)} draggable="${!e.stamp.repeater && !e.stamp.endDate}" data-entry="${entryIndices.get(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(e.title)}">${calendarClock(e)}<span class="calendar-event-title">${taskTitleHTML(e.title, e.path)}</span>${e.stamp.time ? `<span class="calendar-event-time">${esc(formatTime(e.stamp.time,format))}${e.stamp.endTime ? '–'+esc(formatTime(e.stamp.endTime,format)) : ''}</span>` : ''}</div></div>`;
+  return `<div class="calendar-item" data-key="${esc(e.path+':'+e.line+':'+e.stamp.kind+':'+e.stamp.date+':'+e.stamp.time)}"><div role="group" tabindex="0" aria-label="Open task: ${esc(calendarEventLabel(e, format))}" class="calendar-event ${esc(e.stamp.kind)} ${e.done ? 'completed' : ''} ${e.clock ? 'is-clocked' : ''}" ${entryColorStyle(e)} draggable="${!e.projected && !e.stamp.repeater && !e.stamp.endDate}" data-entry="${entryIndices.get(e)}" data-open="${esc(e.path)}" data-line="${e.line}" title="${esc(calendarEventLabel(e, format))}">${calendarEventHTML(e, format)}</div></div>`;
 }
 function monthGrid(year, month) {
   const first = new Date(year, month, 1, 12), start = new Date(first); start.setDate(1 - (first.getDay() + 6) % 7);
@@ -1070,29 +1170,56 @@ function monthGrid(year, month) {
   const weeks = Math.ceil(((first.getDay() + 6) % 7 + new Date(year, month + 1, 0).getDate()) / 7);
   for (let i = 0; i < weeks * 7; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i); const key = dateKey(d);
-    html += `<div data-key="${key}" class="calendar-cell ${d.getMonth() !== month ? 'outside' : ''} ${key === today() ? 'is-today' : ''}" data-drop-date="${key}"><button class="day-number" data-capture="${key}" title="Create task on ${key}">${d.getDate()}</button>${dayEntries(key).map(monthEntry).join('')}</div>`;
+    const label = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const items = dayEntries(key);
+    html += `<div data-key="${key}" class="calendar-cell ${d.getMonth() !== month ? 'outside' : ''} ${key === today() ? 'is-today' : ''}" data-drop-date="${key}"><button class="day-number" data-capture="${key}" ${key === today() ? 'aria-current="date"' : ''} aria-label="Create task on ${esc(label)}" title="Create task on ${esc(label)}">${d.getDate()}</button>${items.slice(0, 3).map(monthEntry).join('')}${items.length > 3 ? `<button class="calendar-more" data-day="${key}" aria-label="Show all ${items.length} entries on ${esc(label)}">+${items.length - 3} more</button>` : ''}</div>`;
   }
   return html + '</div>';
 }
 function renderCalendar() {
   if (updateOccurrences()) renderAgenda();
-  document.querySelectorAll('[data-calendar]').forEach(b => b.classList.toggle('active', b.dataset.calendar === calendarMode));
+  calendarQuery.update(entries, workspace.key);
+  document.querySelectorAll('[data-calendar]').forEach(b => { b.classList.toggle('active', b.dataset.calendar === calendarMode); b.setAttribute('aria-pressed', String(b.dataset.calendar === calendarMode)); });
   const y = calendarDate.getFullYear(), m = calendarDate.getMonth();
-  $('calendar-title').textContent = calendarMode === 'year' ? String(y) : calendarMode === 'day' ? dateLabel(dateKey(calendarDate)) : calendarDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const start = new Date(calendarDate), end = new Date(calendarDate);
+  if (calendarMode === 'week') { start.setDate(start.getDate() - (start.getDay() + 6) % 7); end.setTime(start.getTime()); end.setDate(end.getDate() + 6); }
+  if (calendarMode === 'month') { start.setDate(1); end.setMonth(m + 1, 0); }
+  if (calendarMode === 'year') { start.setMonth(0, 1); end.setMonth(11, 31); }
+  const visible = entries.filter(e => calendarMatches(e) && e.stamp.date && e.stamp.date <= dateKey(end) && (e.stamp.endDate || e.stamp.date) >= dateKey(start));
+  const previousMode = $('calendar').dataset.mode;
+  if (previousMode !== calendarMode || $('calendar').dataset.period !== dateKey(start)) $('calendar').dataset.revealDay = dateKey(calendarDate);
+  $('calendar').dataset.mode = calendarMode;
+  $('calendar').dataset.period = dateKey(start);
+  if (previousMode !== calendarMode && !(previousMode === 'week' && calendarMode === 'day' || previousMode === 'day' && calendarMode === 'week')) {
+    $('calendar-grid').scrollTop = 0; $('calendar-grid').scrollLeft = 0;
+  }
+  $('calendar-title').textContent = calendarMode === 'year' ? String(y) : calendarMode === 'day' ? dateLabel(dateKey(calendarDate)) : calendarMode === 'week' ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).formatRange(start, end) : calendarDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  requestAnimationFrame(updateCalendarOverflow);
+  for (const [id, label] of [['calendar-prev', 'Previous'], ['calendar-next', 'Next']]) {
+    $(id).title = `${label} ${calendarMode}`; $(id).setAttribute('aria-label', $(id).title);
+  }
   if (calendarMode === 'month') { patchHTML($('calendar-grid'), monthGrid(y, m)); return; }
   if (calendarMode === 'year') {
     let html = '<div class="year-grid">';
     for (let month = 0; month < 12; month++) {
       const first = new Date(y, month, 1, 12), blank = (first.getDay() + 6) % 7;
-      html += `<section class="mini-month"><h3 data-month="${month}">${first.toLocaleDateString(undefined, { month: 'long' })}</h3><div class="mini-grid">${'<span></span>'.repeat(blank)}`;
-      for (let d = 1; d <= new Date(y, month + 1, 0).getDate(); d++) { const key = dateKey(new Date(y, month, d, 12)); html += `<button data-day="${key}" class="${dayEntries(key).length ? 'has-events' : ''} ${key === today() ? 'is-today' : ''}">${d}</button>`; }
+      const monthLabel = first.toLocaleDateString(undefined, { month: 'long' });
+      html += `<section class="mini-month"><h3><button data-month="${month}" aria-label="Open ${esc(monthLabel)} ${y}">${esc(monthLabel)}${icon('right')}</button></h3><div class="mini-grid">${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(d => `<span class="mini-weekday" aria-hidden="true">${d}</span>`).join('')}${'<span></span>'.repeat(blank)}`;
+      for (let d = 1; d <= new Date(y, month + 1, 0).getDate(); d++) {
+        const day = new Date(y, month, d, 12), key = dateKey(day), count = dayEntries(key).length;
+        const label = day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        html += `<button data-day="${key}" class="${count ? 'has-events' : ''} ${key === today() ? 'is-today' : ''}" ${key === today() ? 'aria-current="date"' : ''} aria-label="${esc(label)} · ${count} ${count === 1 ? 'entry' : 'entries'}" title="${count} ${count === 1 ? 'entry' : 'entries'}">${d}</button>`;
+      }
       html += '</div></section>';
     }
     patchHTML($('calendar-grid'), html + '</div>'); return;
   }
-  const start = new Date(calendarDate); if (calendarMode === 'week') start.setDate(start.getDate() - (start.getDay() + 6) % 7);
   patchHTML($('calendar-grid'), timeGrid(start, calendarMode === 'week' ? 7 : 1, entries.filter(calendarMatches), entryColorStyle, e => entryIndices.get(e), $('calendar-time-format').value, localStorage.getItem('orbitalnote-calendar-all-day-collapsed') === 'true'));
   updateNowLine($('calendar-grid'), $('calendar-time-format').value);
+  if (!['day', 'week'].includes(previousMode)) {
+    const firstHour = visible.reduce((hour, e) => e.stamp.time && !e.stamp.endDate ? Math.min(hour, Number(e.stamp.time.slice(0, 2)) * 60) : hour, 8 * 60);
+    $('calendar-grid').scrollTop = Math.max(0, firstHour - 12);
+  }
 }
 function shiftCalendar(delta) {
   if (calendarMode === 'month') calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + delta, 1, 12);
@@ -1165,10 +1292,10 @@ async function editTaskAtCursor(kindOverride) {
   title = title.replace(/^\[#[^\]]+\]\s+/, '').replace(/\s+:[\w@#%:]+:\s*$/, '');
   const editableStamp = st => st.active && ['event', 'scheduled', 'deadline'].includes(st.kind);
   const stamp = heading.dates.find(st => editableStamp(st) && st.kind === kindOverride) || heading.dates.find(editableStamp);
-  const data = await taskDialog(dialog, { editing: true, title, path, date: stamp?.date || '', time: stamp?.time || '', endTime: stamp?.endTime || '', repeater: stamp?.repeater || '', kind: kindOverride || stamp?.kind || 'scheduled' });
+  const data = await taskDialog(dialog, { editing: true, title, path, date: stamp?.date || (kindOverride ? today() : ''), time: stamp?.time || '', endTime: stamp?.endTime || '', repeater: stamp?.repeater || '', kind: kindOverride || stamp?.kind || 'scheduled' });
   if (!data) return;
   if (!liveDocument(path, t) || t.buffer !== buffer) { notify('This heading changed while the task dialog was open. Please try again.'); return; }
-  const changed = await call('Edit', { source: buffer, line: heading.line, operation: 'task', value: JSON.stringify({ ...taskValues(data), previousKind: stamp?.kind }) });
+  const changed = await call('Edit', { source: buffer, line: heading.line, operation: data.deleteHeading ? 'delete-heading' : 'task', value: data.deleteHeading ? '' : JSON.stringify({ ...taskValues(data), previousKind: stamp?.kind }) });
   if (!liveDocument(path, t) || t.buffer !== buffer) return;
   applySource(editor, buffer, changed);
 }
@@ -1320,7 +1447,8 @@ function showActionMenu(anchor, title, actions) {
   });
   const rect = anchor.getBoundingClientRect(); document.body.append(menu); menu.showModal();
   menu.tabIndex = -1; menu.focus();
-  menu.style.left = `${Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, rect.right - menu.offsetWidth))}px`;
+  const left = anchor.matches('.heading-menu-button') ? rect.left : rect.right - menu.offsetWidth;
+  menu.style.left = `${Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, left))}px`;
   menu.style.top = `${Math.max(8, Math.min(innerHeight - menu.offsetHeight - 8, rect.bottom + 4))}px`;
   menu.addEventListener('click', e => { if (e.target === menu) menu.close(); });
   menu.addEventListener('keydown', e => {
@@ -1340,7 +1468,7 @@ function headingFoldCommand(action) {
       t.surface.querySelector('[data-ui="source"]').foldHeading(action);
       t.documentView.syncFolds();
     } else {
-      const button = buttons.find(b => b.parentElement.id === t.previewHeading) || buttons.find(b => b.getClientRects().length);
+      const button = buttons.find(b => b.closest('h1,h2,h3,h4,h5,h6').id === t.previewHeading) || buttons.find(b => b.getClientRects().length);
       if (button) button.updateFold(action === 'fold' ? true : action === 'unfold' ? false : button.getAttribute('aria-expanded') === 'true');
     }
     return;
@@ -1431,7 +1559,7 @@ async function openHeadingPalette() {
 function openPalette(kind) { paletteKind = kind; $('palette-input').value = ''; $('palette-input').placeholder = kind === 'files' ? 'Open a file…' : kind === 'headings' ? 'Jump to heading…' : 'Find a command…'; $('palette').showModal(); $('palette-input').focus(); renderPalette(); }
 function renderPalette() {
   const q = $('palette-input').value.toLowerCase().trim();
-  const items = paletteKind === 'files' ? workspace.files.filter(f => !f.directory).sort((a, b) => (recent.indexOf(a.path) < 0 ? 999 : recent.indexOf(a.path)) - (recent.indexOf(b.path) < 0 ? 999 : recent.indexOf(b.path))).map(f => [f.path, recent.includes(f.path) ? 'Recent' : '', () => openNote(f.path)]) : actionDefinitions.map(d => [d.label, shortcuts.binding(d.id) ? shortcuts.label(d.id) : '', d.execute]);
+  const items = paletteKind === 'files' ? workspace.files.filter(f => !f.directory).sort((a, b) => (recent.indexOf(a.path) < 0 ? 999 : recent.indexOf(a.path)) - (recent.indexOf(b.path) < 0 ? 999 : recent.indexOf(b.path))).map(f => [f.path, recent.includes(f.path) ? 'Recent' : '', () => openLinkedNote(f.path, undefined, active)]) : actionDefinitions.map(d => [d.label, shortcuts.binding(d.id) ? shortcuts.label(d.id) : '', d.execute]);
   paletteItems = (paletteKind === 'headings' ? headingPaletteItems : items).filter(item => fuzzy(item[0] + (paletteKind === 'headings' ? ' ' + item[1] : ''), q)); paletteSelection = 0; drawPalette();
 }
 function drawPalette() { $('palette-results').innerHTML = paletteItems.map((item, i) => `<button data-command-index="${i}" class="${i === paletteSelection ? 'selected' : ''}">${esc(item[0])}<kbd>${esc(item[1])}</kbd></button>`).join('') || '<p class="empty">No matches</p>'; }
@@ -1477,6 +1605,11 @@ document.addEventListener('click', run(async e => {
       if (line) { setMode('edit'); source.jumpTo(source.value.split('\n').slice(0, line - 1).reduce((n, s) => n + s.length + 1, 0)); source.focus(); }
       return;
     }
+    if (b.closest('#agenda, #calendar') && tabs.has(b.dataset.open)) {
+      duplicateDocument(b.dataset.open);
+      if (line) { setMode('edit'); source.jumpTo(source.value.split('\n').slice(0, line - 1).reduce((n, s) => n + s.length + 1, 0)); source.focus(); }
+      return;
+    }
     return openNote(b.dataset.open, line);
   }
   if (b.dataset.close) return closeTab(b.dataset.close);
@@ -1488,8 +1621,8 @@ document.addEventListener('click', run(async e => {
   if (b.hasAttribute('data-all-day-toggle')) { localStorage.setItem('orbitalnote-calendar-all-day-collapsed', String(b.getAttribute('aria-expanded') === 'true')); renderCalendar(); }
   if (b.dataset.calendar) { calendarMode = b.dataset.calendar; renderCalendar(); }
   if (b.dataset.capture) return capture(b.dataset.capture, b.dataset.time || '');
-  if (b.dataset.day) { calendarDate = civil(b.dataset.day); calendarMode = 'day'; renderCalendar(); }
-  if (b.dataset.month !== undefined) { calendarDate = new Date(calendarDate.getFullYear(), Number(b.dataset.month), 1, 12); calendarMode = 'month'; renderCalendar(); }
+  if (b.dataset.day) { calendarDate = civil(b.dataset.day); calendarMode = 'day'; renderCalendar(); $('calendar-grid').focus({ preventScroll: true }); }
+  if (b.dataset.month !== undefined) { calendarDate = new Date(calendarDate.getFullYear(), Number(b.dataset.month), 1, 12); calendarMode = 'month'; renderCalendar(); $('calendar-grid').focus({ preventScroll: true }); }
   if (b.dataset.jump) return openNote(active, Number(b.dataset.jump));
   if (b.dataset.tag) { $('search-input').value = ':' + b.dataset.tag + ':'; setView('search'); await search(); }
   if (b.dataset.commandIndex !== undefined) return executePalette(Number(b.dataset.commandIndex));
@@ -1513,15 +1646,22 @@ listen('agenda-minimal', 'click', () => {
   $('capture').disabled = enabled;
   (enabled ? $('agenda-minimal') : $('capture')).focus({ preventScroll: true });
 });
-const calendarView = $('calendar-view');
-document.querySelector('#calendar .filterbar').append(calendarView);
-listen('calendar-view', 'change', renderCalendar);
-$('agenda-query-builder').addEventListener('saved-views-changed', e => {
-  const selected = calendarView.value;
-  patchHTML(calendarView, '<option value="">All entries</option>' + e.detail.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join(''));
-  calendarView.value = e.detail.some(v => v.name === selected) ? selected : '';
-  renderCalendar();
-});
+function updateCalendarOverflow() {
+  const grid = $('calendar-grid'), hint = document.querySelector('.calendar-scroll-hint');
+  const reveal = $('calendar').dataset.revealDay;
+  if (reveal && grid.clientWidth) {
+    const day = grid.querySelector(calendarMode === 'week' ? `.time-day[data-time-date="${reveal}"]` : `.calendar-cell[data-drop-date="${reveal}"]`);
+    if (day && grid.scrollWidth > grid.clientWidth) {
+      const gutter = calendarMode === 'week' ? grid.querySelector('.time-labels').getBoundingClientRect().width : 0;
+      grid.scrollLeft += day.getBoundingClientRect().left - grid.getBoundingClientRect().left - gutter - grid.clientLeft;
+    }
+    delete $('calendar').dataset.revealDay;
+  }
+  const touch = matchMedia('(pointer: coarse)').matches && ['day', 'week'].includes(calendarMode);
+  hint.textContent = touch ? 'Swipe to scroll · Touch and hold to drag' : '';
+  hint.hidden = !touch;
+}
+new ResizeObserver(() => requestAnimationFrame(updateCalendarOverflow)).observe($('calendar-grid'));
 $('line-numbers').value = localStorage.getItem('orbitalnote-line-numbers') || 'off';
 $('initial-fold-state').value = localStorage.getItem('orbitalnote-initial-fold-state') === 'folded' ? 'folded' : 'expanded';
 listen('initial-fold-state', 'change', () => localStorage.setItem('orbitalnote-initial-fold-state', $('initial-fold-state').value));
@@ -1541,7 +1681,7 @@ applyMonospace();
 listen('monospace-mode', 'change', () => { localStorage.setItem('orbitalnote-monospace', String($('monospace-mode').checked)); applyMonospace(); });
 listen('capture', 'click', () => capture(agendaFilter === 'today' ? agendaDate || today() : today())); listen('calendar-capture', 'click', () => capture(dateKey(calendarDate)));
 listen('agenda-query', 'input', renderAgenda); listen('kind-filter', 'change', renderAgenda);
-listen('calendar-prev', 'click', () => shiftCalendar(-1)); listen('calendar-next', 'click', () => shiftCalendar(1)); listen('calendar-today', 'click', () => { calendarDate = new Date(); renderCalendar(); });
+listen('calendar-prev', 'click', () => shiftCalendar(-1)); listen('calendar-next', 'click', () => shiftCalendar(1)); listen('calendar-today', 'click', () => { calendarDate = new Date(); $('calendar').dataset.revealDay = today(); renderCalendar(); });
 function shiftAgendaDay(delta) {
   const day = new Date((agendaDate || today()) + 'T12:00:00');
   day.setDate(day.getDate() + delta);
@@ -1677,5 +1817,8 @@ async function restoreLayout() {
   restoringLayout = false; layout.changed();
 }
 const workspaceSettings = setupWorkspaceSettings($('workspace-settings-sync'), { workspace: () => workspace, call, colorsChanged: () => { renderTags(); renderAgenda(); renderCalendar(); } });
+const settingsPage = $('settings');
+settingsPage.querySelector('.page-heading').after(settingsPage.querySelector('.sync-setting'), $('workspace-settings-sync'));
+mountSelectPickers(settingsPage);
 try { workspace = await call('Status'); loadRecent(); await refreshData(); await restoreLayout(); renderTabs(); setInterval(() => refresh().catch(fail), 1000); }
 catch (err) { fail(err); setView('welcome'); }

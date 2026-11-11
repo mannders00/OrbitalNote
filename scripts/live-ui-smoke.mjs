@@ -25,6 +25,7 @@ try {
   assert.ok(await editor.evaluate(el=>{const r=el.caretRect();return r.bottom>r.top;}));
   await doc.locator('[data-ui="preview-toggle"]').click();
   const preview=doc.locator('.ui-preview');await preview.evaluate(el=>el.scrollTop=el.scrollHeight);
+  await doc.locator('.preview-checkbox').scrollIntoViewIfNeeded();
   const oldScroll=await preview.evaluate(el=>el.scrollTop);await doc.locator('.preview-checkbox').click();
   await page.waitForFunction(()=>document.querySelector('.ui-document[data-path="live-ui.org"] [data-ui="source"]').value.includes('[X] Bottom checklist'));
   await doc.locator('[data-ui="save-state"]').filter({hasText:'Saved to disk'}).waitFor();
@@ -37,14 +38,14 @@ try {
   assert.match(await page.locator('.time-labels').innerText(),/1:00 PM/);
   const block=page.locator('.time-block').filter({hasText:'Live task'});
   await block.evaluate(el=>window.calendarNode=el);
-  await page.locator('#calendar').evaluate(el=>el.scrollTop=600);
-  const scroll=await page.locator('#calendar').evaluate(el=>el.scrollTop);
+  await page.locator('#calendar-grid').evaluate(el=>el.scrollTop=600);
+  const scroll=await page.locator('#calendar-grid').evaluate(el=>el.scrollTop);
   assert.equal(await page.locator('.calendar-now-line:not([hidden])').evaluate(el=>el.style.top),'795px');
   const note=await api('Read',{id:state.id,path});
   await api('Save',{id:state.id,path,revision:note.revision,source:note.source.replace('Live task','Live revised')});
   await page.locator('.timed-event').filter({hasText:'Live revised'}).waitFor();
   assert.ok(await page.evaluate(()=>window.agendaNode.isConnected && window.outlineNode.isConnected && window.calendarNode.isConnected));
-  assert.equal(await page.locator('#calendar').evaluate(el=>el.scrollTop),scroll);
+  assert.equal(await page.locator('#calendar-grid').evaluate(el=>el.scrollTop),scroll);
   assert.equal(await page.locator('#calendar [data-clock], #calendar [data-complete]').count(),0);
   await page.locator('#ribbon [data-view="agenda"]').click();
   await page.getByRole('button',{name:'Clock in to Live revised',exact:true}).click();
@@ -56,7 +57,7 @@ try {
   await page.getByRole('button',{name:'Mark Live revised as done',exact:true}).first().click();
   await page.locator('#ribbon [data-view="calendar"]').click();
   await page.locator('.timed-event.completed').filter({hasText:'Live revised'}).waitFor();
-  assert.equal(await page.locator('#calendar').evaluate(el=>el.scrollTop),scroll);
+  assert.equal(await page.locator('#calendar-grid').evaluate(el=>el.scrollTop),scroll);
   await page.locator('#ribbon [data-view="settings"]').click();await page.locator('#calendar-time-format').selectOption('24');
   await page.locator('#ribbon [data-view="calendar"]').click();assert.match(await page.locator('.time-labels').innerText(),/13:00/);
   await page.locator('#ribbon [data-view="agenda"]').click();
@@ -78,16 +79,16 @@ try {
   await doc.locator('[data-ui="save-state"]').filter({hasText:'Saved to disk'}).waitFor();
   await page.locator('#ribbon [data-view="agenda"]').click();
   await page.getByRole('button',{name:'Edit task: Undated task',exact:true}).click();
-  assert.equal(await page.locator('#modal [name="date"]').inputValue(),'2026-10-01');
+  assert.equal(await page.locator('#modal [name="date"]').inputValue(),'');
   const taskSaved = page.waitForResponse(response => {
     if (!response.url().endsWith('/api') || response.request().method() !== 'POST') return false;
     const request = response.request().postDataJSON();
-    return request.method === 'Save' && request.path === path && request.source.includes('SCHEDULED: <2026-10-01');
+    return request.method === 'Save' && request.path === path && request.source.includes('* TODO Undated task');
   });
   await page.keyboard.press('Enter');
   await page.locator('#modal').waitFor({state:'hidden'});
-  const dated = await (await taskSaved).json();
-  assert.match(dated.source,/\* TODO Undated task\nSCHEDULED: <2026-10-01(?: Thu)?>/);
+  const undated = await (await taskSaved).json();
+  assert.equal(undated.source, inserted, 'Editing an undated task preserves its lack of a date');
   // Gutters use the same theme surface as the editor, including custom colors.
   await page.locator('#ribbon [data-view="settings"]').click();
   await page.locator('#line-numbers').selectOption('absolute');
@@ -95,5 +96,5 @@ try {
   await page.evaluate(()=>{document.documentElement.style.setProperty('--bg','#142536');document.documentElement.style.setProperty('--muted','#abcabc');});
   assert.deepEqual(await doc.locator('.cm-gutters').evaluate(el=>[getComputedStyle(el).backgroundColor,getComputedStyle(el).color,getComputedStyle(el).borderRightWidth]),['rgb(20, 37, 54)','rgb(171, 202, 188)','0px']);
   assert.deepEqual(errors,[]);
-  console.log('PASS: jumps/caret, scroll and stable DOM, nested Outline identity, today-by-default task save, themed gutters, calendar clock display without action buttons, current-time marker and time format.');
+  console.log('PASS: jumps/caret, scroll and stable DOM, nested Outline identity, undated task preservation, themed gutters, calendar clock display without action buttons, current-time marker and time format.');
 } finally {await browser.close();}

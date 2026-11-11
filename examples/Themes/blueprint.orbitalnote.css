@@ -1,13 +1,42 @@
 /* OrbitalNote Theme v1: Blueprint
- * Structured technical notes with grid-like tables and crisp headings.
+ * For structured thinking: strong rules, square controls, monospaced labels, bold headings, and precise technical tables.
  * Base appearance: light. Self-contained; paste into Custom theme CSS.
  */
-:root { --bg:#f2fafc; --side:#e2eff3; --ribbon:#e2eff3; --panel:#e2eff3; --text:#203f4b; --accent:#147e98; --button:#147e98; --muted:color-mix(in srgb, #203f4b 65%, #f2fafc); --faint:color-mix(in srgb, #203f4b 45%, #f2fafc); --border:color-mix(in srgb, #203f4b 16%, #f2fafc); --hover:color-mix(in srgb, #203f4b 9%, #f2fafc); --selected:color-mix(in srgb, #147e98 18%, #f2fafc); --blue-soft:color-mix(in srgb, #147e98 12%, #f2fafc); --code:#147e98; --todo:#bd3535; --done:#287943; --warn:#956726; --warn-bg:#fbf2e3; --shadow:#0002; color-scheme:light; }
+:root { --bg:#f7f9fb; --side:#e9eff4; --ribbon:#e9eff4; --panel:#e9eff4; --text:#182b3a; --accent:#1f568e; --button:#1f568e; --muted:color-mix(in srgb, #182b3a 65%, #f7f9fb); --faint:color-mix(in srgb, #182b3a 45%, #f7f9fb); --border:color-mix(in srgb, #182b3a 16%, #f7f9fb); --hover:color-mix(in srgb, #182b3a 9%, #f7f9fb); --selected:color-mix(in srgb, #1f568e 18%, #f7f9fb); --blue-soft:color-mix(in srgb, #1f568e 12%, #f7f9fb); --code:#1f568e; --todo:#bd3535; --done:#287943; --warn:#956726; --warn-bg:#fbf2e3; --shadow:#0002; color-scheme:light; }
 .ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
 
-.ui-preview :is(h1,h2,h3), .page-heading h1 { font-family: "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: -.04em; }
-.ui-preview h2 { border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
-.ui-preview table { border-collapse: collapse; width: 100%; }
-.ui-preview :is(th,td) { border: 1px solid var(--border); padding: 8px 12px; }
-.tab-strip .tab, button, input, select { border-radius: 2px; }
-.ui-preview blockquote { border-left: 3px solid var(--accent); background: var(--side); padding: 12px 18px; }
+:root { --document-leading: 1.75; --border: color-mix(in srgb, var(--text) 30%, var(--bg)); }
+button, input, select, textarea, .segmented, .segmented button { border-radius: 2px; }
+.tab-strip { height: 40px; padding: 0 5px; gap: 0; background: var(--side); border-bottom: 2px solid var(--text); }
+.tab-strip .tab { border-radius: 0; border-right: 1px solid var(--border); }
+.tab-strip .tab.active { border: 0; border-right: 1px solid var(--border); box-shadow: inset 0 3px var(--accent); }
+.tab-strip button[data-tab-select], .panel-title, .section-label, .document-toolbar h1, .statusbar { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
+.sidebar-header .panel-title, .section-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.tree button[data-open] { min-height: 30px; border-radius: 0; }
+.tree button[data-open].active { color: var(--text); background: var(--blue-soft); box-shadow: inset 3px 0 var(--accent); }
+.document-toolbar { min-height: 44px; border-bottom: 1px solid var(--border); background: var(--side); }
+.document-toolbar h1 { font-size: 11px; }
+.ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.75; }
+.ui-preview :is(h1,h2,h3) { font-weight: 750; letter-spacing: -.035em; }
+.ui-preview :is(h1,h2) { padding-block: 10px; border-top: 2px solid var(--text); border-bottom: 1px solid var(--border); }
+.ui-preview pre { border-radius: 0; border-left: 3px solid var(--accent); padding: 12px 16px; }
+.ui-preview :is(details, img) { border-radius: 0; }
+.ui-preview blockquote { border: 1px solid var(--border); border-left: 3px solid var(--accent); background: var(--side); padding: 12px 18px; color: var(--text); }
+.ui-preview :is(th,td) { border: 1px solid var(--border); padding: 9px 12px; }
+.ui-preview th { font: 600 11px/1.6 ui-monospace, monospace; letter-spacing: .04em; text-transform: uppercase; background: var(--blue-soft); color: var(--text); }
+.ui-preview tbody tr:nth-child(even) { background: color-mix(in srgb, var(--side) 50%, transparent); }
+.page-heading h1 { font-weight: 750; letter-spacing: -.04em; }
+.agenda-group > h2 { padding: 8px; border-block: 1px solid var(--border); background: var(--side); font: 600 11px/1.5 ui-monospace, monospace; letter-spacing: .07em; text-transform: uppercase; }
+.agenda-row { border-bottom-color: var(--border); }
+.entry-main strong { font-weight: 650; }
+.entry-date { font-family: ui-monospace, monospace; font-size: 11px; }
+#calendar-grid { border: 2px solid var(--text); border-radius: 0; }
+.weekday, .time-day-headers > button { font-family: ui-monospace, monospace; font-size: 11px; }
+.calendar-event, .timed-event, .entry-tag { border-radius: 2px; }
+.query-popup { border-width: 2px; border-radius: 2px; box-shadow: 4px 4px 0 var(--border); }
+#modal.task-modal, #modal.task-modal #modal-body :is(input, select) { border-radius: 2px; }
+
+:root { --panel:#f7f9fb; --button:#1f568e; --muted:color-mix(in srgb, var(--text) 74%, var(--bg)); --faint:color-mix(in srgb, var(--text) 60%, var(--bg)); }
+@container (max-width: 420px) {
+  :is(#agenda, #calendar) .page-heading h1 { font-size: 20px; }
+}

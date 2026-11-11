@@ -32,12 +32,15 @@ try {
   console.log('PASS default preview indentation without guides, flat preference, and hidden footer');
   await page.locator('#ribbon [data-view="agenda"]').click(); await page.locator('#capture').click();
   assert.equal(await page.locator('#modal [name="path"]').inputValue(), path);
+  await page.locator('.task-destination > summary').click();
   await page.locator('#modal [name="path"]').fill('feature-settings');
-  await page.locator('#task-file-options [role="option"]').filter({ hasText: path }).click();
+  await page.locator('.task-file-options [role="option"]').filter({ hasText: path }).click();
   await page.waitForFunction(() => !document.querySelector('#modal [name="parentLine"]').disabled);
-  await page.locator('#modal [name="parentLine"]').selectOption('2');
+  await page.getByRole('combobox', { name: 'Parent heading', exact: true }).fill('Projects');
+  await page.getByRole('combobox', { name: 'Parent heading', exact: true }).press('Enter');
+  await page.getByRole('radio', { name: 'Beginning', exact: true }).check();
   await page.locator('#modal [name="title"]').fill('Projected picker task');
-  await page.locator('#modal [name="repeater"]').fill('+1w');
+  await page.getByRole('combobox', { name: 'Repeat', exact: true }).selectOption('+1w');
   await page.locator('#modal-submit').click();
   await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('Task saved'));
   const saved = await api('Read', { id: status.id, path });

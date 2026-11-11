@@ -7,9 +7,22 @@ export function formatTime(time, format = '12') {
   const [hour, minute] = time.split(':').map(Number);
   return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
 }
+export function formatTimeRange(time, endTime, format = '12') {
+  if (!time) return '';
+  const start = formatTime(time, format), end = formatTime(endTime, format);
+  if (!end) return start;
+  return `${format === '12' && start.slice(-2) === end.slice(-2) ? start.slice(0, -3) : start}–${end}`;
+}
 export function calendarClock(entry) {
   if (entry.projected) return '<span class="calendar-clock" role="img" aria-label="Projected occurrence" title="Projected occurrence; completion may change future dates">↻</span>';
   return entry.clock ? `<span class="calendar-clock" role="img" aria-label="Clock running" title="Clock running">${icon('clock')}</span>` : '';
+}
+export function calendarEventHTML(entry, format = '12') {
+  const time = formatTimeRange(entry.stamp.time, entry.stamp.endTime, format);
+  return `<span class="calendar-event-title">${calendarClock(entry)}${taskTitleHTML(entry.title, entry.path)}</span>${time ? `<span class="calendar-event-time">${esc(time)}</span>` : ''}`;
+}
+export function calendarEventLabel(entry, format = '12') {
+  return `${entry.title} · ${formatTimeRange(entry.stamp.time, entry.stamp.endTime, format) || 'All day'} · ${entry.path}`;
 }
 export function updateNowLine(root, format = '12', now = new Date()) {
   for (const day of root.querySelectorAll('.time-day')) {
@@ -40,10 +53,14 @@ export function eventLanes(entries) {
 export function timeGrid(start, days, entries, colorStyle, indexOf = entry => entries.indexOf(entry), format = '12', allDayCollapsed = false) {
   const dates = Array.from({ length: days }, (_, i) => { const day = new Date(start); day.setDate(start.getDate() + i); return day; });
   const onDay = date => entries.filter(e => e.stamp.date && e.stamp.date <= date && (e.stamp.endDate || e.stamp.date) >= date);
-  const task = (entry, cls, style = '') => `<div role="group" tabindex="0" aria-label="Open task" class="${cls} ${entry.done ? 'completed' : ''} ${entry.clock ? 'is-clocked' : ''}" ${colorStyle(entry)} draggable="false" data-entry="${indexOf(entry)}" data-open="${esc(entry.path)}" data-line="${entry.line}" ${style} title="${esc(entry.title)}">${calendarClock(entry)}${esc(formatTime(entry.stamp.time, format))}${entry.stamp.endTime ? '–' + esc(formatTime(entry.stamp.endTime, format)) : ''} ${taskTitleHTML(entry.title, entry.path)}</div>`;
+  const task = (entry, cls) => `<div role="group" tabindex="0" aria-label="Open task: ${esc(calendarEventLabel(entry, format))}" class="${cls} ${esc(entry.stamp.kind)} ${entry.done ? 'completed' : ''} ${entry.clock ? 'is-clocked' : ''}" ${colorStyle(entry)} draggable="false" data-entry="${indexOf(entry)}" data-open="${esc(entry.path)}" data-line="${entry.line}" title="${esc(calendarEventLabel(entry, format))}">${calendarEventHTML(entry, format)}</div>`;
   const firstDate = dateKey(dates[0]), lastDate = dateKey(dates.at(-1));
   const allDayCount = entries.filter(e => (!e.stamp.time || e.stamp.endDate) && e.stamp.date && e.stamp.date <= lastDate && (e.stamp.endDate || e.stamp.date) >= firstDate).length;
-  let html = `<div class="time-calendar" style="--days:${days}"><div class="calendar-pinned-header"><div class="time-day-headers"><span></span>${dates.map(day => `<button class="time-day-header ${dateKey(day) === dateKey(new Date()) ? 'is-today' : ''}" data-capture="${dateKey(day)}">${esc(day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }))}</button>`).join('')}</div><button class="all-day-toggle" data-all-day-toggle aria-expanded="${!allDayCollapsed}" aria-controls="calendar-all-day"><span aria-hidden="true">${allDayCollapsed ? '▸' : '▾'}</span> All day <span class="all-day-count">${allDayCount}</span></button><div id="calendar-all-day" class="all-day-row" ${allDayCollapsed ? 'hidden' : ''}><span></span>${dates.map(day => `<div data-key="${dateKey(day)}" data-drop-date="${dateKey(day)}">${onDay(dateKey(day)).filter(e => !e.stamp.time || e.stamp.endDate).map(e => `<div class="calendar-item">${task(e, 'calendar-event')}</div>`).join('')}</div>`).join('')}</div></div><div class="time-grid"><div class="time-labels">${Array.from({ length: 24 }, (_, h) => `<span style="top:${h * 60}px">${formatTime(clock(h * 60),format)}</span>`).join('')}</div>`;
+  let html = `<div class="time-calendar ${days === 1 ? 'single-day' : ''}" style="--days:${days}"><div class="calendar-pinned-header"><div class="time-day-headers"><span></span>${dates.map(day => {
+    const key = dateKey(day), current = key === dateKey(new Date());
+    const label = day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    return `<button class="time-day-header ${current ? 'is-today' : ''}" data-capture="${key}" ${current ? 'aria-current="date"' : ''} aria-label="Create task on ${esc(label)}" title="Create task on ${esc(label)}"><span class="calendar-weekday">${esc(day.toLocaleDateString(undefined, { weekday: 'short' }))}</span><span class="calendar-date-number">${day.getDate()}</span></button>`;
+  }).join('')}</div><button class="all-day-toggle" data-all-day-toggle aria-expanded="${!allDayCollapsed}" aria-controls="calendar-all-day"><span aria-hidden="true">${allDayCollapsed ? '▸' : '▾'}</span> All day <span class="all-day-count">${allDayCount}</span></button><div id="calendar-all-day" class="all-day-row" ${allDayCollapsed ? 'hidden' : ''}><span></span>${dates.map(day => `<div data-key="${dateKey(day)}" data-drop-date="${dateKey(day)}">${onDay(dateKey(day)).filter(e => !e.stamp.time || e.stamp.endDate).map(e => `<div class="calendar-item">${task(e, 'calendar-event')}</div>`).join('')}</div>`).join('')}</div></div><div class="time-grid"><div class="time-labels">${Array.from({ length: 24 }, (_, h) => `<span style="top:${h * 60}px">${formatTime(clock(h * 60),format)}</span>`).join('')}</div>`;
   for (const day of dates) {
     const date = dateKey(day), scheduled = onDay(date).filter(e => e.stamp.time && !e.stamp.endDate);
     html += `<div class="time-day ${date === dateKey(new Date()) ? 'is-today' : ''}" data-key="${date}" data-drop-date="${date}" data-time-date="${date}">${Array.from({ length: 48 }, (_, i) => `<button class="time-slot" style="top:${i * 30}px" data-capture="${date}" data-time="${clock(i * 30)}" aria-label="New task ${date} at ${formatTime(clock(i * 30),format)}"></button>`).join('')}`;
@@ -51,7 +68,7 @@ export function timeGrid(start, days, entries, colorStyle, indexOf = entry => en
       const { entry, start, end, lane, columns } = event;
       // Geometry is separate from tag color's style attribute.
       const editable = !entry.projected && entry.stamp.kind !== 'completed';
-      html += `<div class="time-block" data-key="${esc(entry.path+':'+entry.line+':'+entry.stamp.kind+':'+entry.stamp.date+':'+entry.stamp.time)}" style="top:${start}px;height:${end - start}px;left:${lane / columns * 100}%;width:${100 / columns}%">${task(entry, 'timed-event')}${editable ? `<span class="event-resize start" data-resize="start" data-entry="${indexOf(entry)}" title="Drag to change start time"></span><span class="event-resize end" data-resize="end" data-entry="${indexOf(entry)}" title="Drag to change end time"></span>` : ''}</div>`;
+      html += `<div class="time-block ${end - start <= 30 ? 'is-short' : end - start < 60 ? 'is-compact' : ''}" data-key="${esc(entry.path+':'+entry.line+':'+entry.stamp.kind+':'+entry.stamp.date+':'+entry.stamp.time)}" style="top:${start}px;height:${end - start}px;left:${lane / columns * 100}%;width:${100 / columns}%">${task(entry, 'timed-event')}${editable ? `<span class="event-resize start" data-resize="start" data-entry="${indexOf(entry)}" title="Drag to change start time"></span><span class="event-resize end" data-resize="end" data-entry="${indexOf(entry)}" title="Drag to change end time"></span>` : ''}</div>`;
     }
     html += '<div class="calendar-now-line" hidden role="img"></div></div>';
   }
@@ -60,12 +77,17 @@ export function timeGrid(start, days, entries, colorStyle, indexOf = entry => en
 
 // Pointer gestures work for mouse, pen and touch; ordinary event clicks still open notes.
 export function bindCalendarGestures(root, { entry, create, change }) {
-  let gesture, suppressClick = false;
+  let gesture, holdTimer, suppressClick = false;
   const snap = (column, y) => Math.max(0, Math.min(1425, Math.round((y - column.getBoundingClientRect().top) / column.getBoundingClientRect().height * 1440 / 15) * 15));
   // Creation selects the visible half-hour cells, rather than rounding the
   // pointer to the nearest resize/move increment inside those cells.
   const slotStart = (column, y) => Math.max(0, Math.min(1410, Math.floor((y - column.getBoundingClientRect().top) / column.getBoundingClientRect().height * 1440 / 30) * 30));
   const cleanup = () => { root.querySelectorAll('.calendar-drag-preview').forEach(el => el.remove()); root.classList.remove('calendar-dragging'); };
+  const clearHold = () => { clearTimeout(holdTimer); root.querySelector('.calendar-touch-ready')?.classList.remove('calendar-touch-ready'); };
+  // Let ordinary touch swipes scroll. Holding first retains creation, movement
+  // and resizing on touch without turning every attempt to scroll into an edit.
+  root.addEventListener('touchmove', e => { if (gesture?.ready && e.cancelable) e.preventDefault(); }, { passive: false });
+  root.addEventListener('contextmenu', e => { if (gesture?.ready && e.target.closest('.time-calendar')) e.preventDefault(); });
   root.addEventListener('click', e => {
     if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopImmediatePropagation(); return; }
     const cell = e.target.closest('.all-day-row [data-drop-date]');
@@ -74,18 +96,29 @@ export function bindCalendarGestures(root, { entry, create, change }) {
   root.addEventListener('pointerdown', e => {
     if (e.target.closest('[data-task-link]')) return;
     if (e.button !== 0 || !e.target.closest('.time-calendar')) return;
-    suppressClick = false;
+    suppressClick = false; clearHold();
     const target = e.target.closest('[data-entry]'), item = target ? entry(Number(target.dataset.entry)) : null;
     const column = e.target.closest('.time-day'), allDay = e.target.closest('.all-day-row [data-drop-date]');
     if (!column && !allDay) return;
     if (item && (item.projected || item.stamp.kind === 'completed' || item.stamp.endDate)) return;
     if (!item && !column) return;
     const start = column ? item ? snap(column, e.clientY) : slotStart(column, e.clientY) : 0;
-    gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, item, column, start, resize: target?.dataset.resize, offset: item?.stamp.time && column ? start - minutes(item.stamp.time) : 0 };
+    gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, item, column, start, touch: e.pointerType === 'touch', resize: target?.dataset.resize, offset: item?.stamp.time && column ? start - minutes(item.stamp.time) : 0 };
+    if (gesture.touch) {
+      const pending = gesture;
+      holdTimer = setTimeout(() => {
+        if (gesture !== pending) return;
+        gesture.ready = true; (target || e.target.closest('.time-slot'))?.classList.add('calendar-touch-ready');
+      }, 350);
+    }
   });
   root.addEventListener('pointermove', e => {
     if (!gesture || gesture.id !== e.pointerId) return;
     const g = gesture;
+    if (g.touch && !g.ready) {
+      if (Math.hypot(e.clientX - g.x, e.clientY - g.y) > 8) { clearHold(); gesture = null; }
+      return;
+    }
     if (!g.moved && Math.hypot(e.clientX - g.x, e.clientY - g.y) < 5) return;
     if (!g.moved) root.setPointerCapture(e.pointerId);
     g.moved = true; e.preventDefault(); cleanup(); root.classList.add('calendar-dragging');
@@ -115,11 +148,11 @@ export function bindCalendarGestures(root, { entry, create, change }) {
   });
   root.addEventListener('pointerup', e => {
     if (!gesture || gesture.id !== e.pointerId) return;
-    const g = gesture; gesture = null; cleanup();
+    const g = gesture; gesture = null; clearHold(); cleanup();
     if (root.hasPointerCapture(e.pointerId)) root.releasePointerCapture(e.pointerId);
     if (!g.moved) return;
     suppressClick = true;
     if (g.value) { if (g.item) change(g.item, g.value); else create(g.value.date, g.value.time, g.value.endTime); }
   });
-  root.addEventListener('pointercancel', () => { gesture = null; cleanup(); });
+  root.addEventListener('pointercancel', () => { gesture = null; clearHold(); cleanup(); });
 }

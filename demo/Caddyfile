@@ -1,0 +1,15 @@
+# Deploy bin/demo to its own static origin. No app server, cookies, or /api proxy.
+demo.orbitalnote.org {
+	root * /srv/orbitalnote-demo
+	encode zstd gzip
+	header {
+		Content-Security-Policy "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors https://orbitalnote.org https://www.orbitalnote.org"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Referrer-Policy "no-referrer"
+		X-Content-Type-Options "nosniff"
+		Cache-Control "no-cache"
+	}
+	file_server {
+		precompressed gzip
+	}
+}

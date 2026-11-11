@@ -18,7 +18,9 @@ try {
   await page.locator('[data-filter="all"]').click();
   await page.getByRole('button', { name: 'Mark Complete from agenda as done', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('#notice')?.textContent.includes('Task completed'));
-  assert.equal((await api('Read', { id, path })).source, source.replace('* NEXT', '* FINISHED'));
+  const completed = (await api('Read', { id, path })).source;
+  assert.match(completed, /CLOSED: \[\d{4}-\d{2}-\d{2} \w{3} \d{2}:\d{2}\]\r\n/);
+  assert.equal(completed.replace(/^CLOSED: \[[^\r\n]+\]\r\n/m, ''), source.replace('* NEXT', '* FINISHED'));
   assert.equal(await page.getByRole('button', { name: 'Mark Complete from agenda as done', exact: true }).count(), 0);
   await page.locator(`#tree [data-open="${path}"]`).click();
   await page.locator(`[data-tab-select="file:${path}"]`).waitFor();

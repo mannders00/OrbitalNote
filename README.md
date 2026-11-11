@@ -101,8 +101,9 @@ Agenda, and local note graph. Click an image to see it full-size.
 | [![Default theme with rich Org notes and linked-note graph](docs/assets/themes/default.png)](docs/assets/themes/default.png) | [![Base16-inspired Terminal theme with monospace typography](docs/assets/themes/terminal.png)](docs/assets/themes/terminal.png) | [![Editorial theme with warm paper and serif typography](docs/assets/themes/editorial.png)](docs/assets/themes/editorial.png) |
 | Balanced, neutral, and focused. | Base16-inspired colors and dense monospace. | Warm paper and expressive serif headings. |
 
-Every built-in theme includes **light and dark palettes**, with an option to
-follow your system. You can also **[create your own CSS theme](docs/themes.md)**.
+Choose from six distinct families: **Workbench, Terminal, Editorial, Studio,
+Focus, and Blueprint**. Each includes **light and dark palettes**, with an option
+to follow your system. You can also **[create your own CSS theme](docs/themes.md)**.
 Explore the screenshots' Org files in [examples/Connected](examples/Connected).
 
 ## Start on your desktop. Pick it up on your phone.
@@ -285,8 +286,9 @@ in-process bridge and do not start this HTTP server.
   strikethrough. Click a time slot to schedule a task; drag simple non-repeating
   events between month cells to modify their actual source dates.
 - Alt T opens task details for the selected heading, preserving its body, tags,
-  priority and children. The shared task dialog has an app-styled date picker
-  and optional 24-hour start/end times; an end time must be later on the same day.
+  priority and children. The single-column form has a calendar, expandable note
+  location, repeat presets, and native time inputs. Start times default to a
+  30-minute block; adjust the end or choose a duration. End times stay on the same day.
 - Cmd/Ctrl 1–9 selects a tab in the focused pane. Tabs and sidebar controls share
   the top bar. macOS press-and-hold character previews and automatic text
   corrections are disabled for this application.

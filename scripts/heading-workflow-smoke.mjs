@@ -97,6 +97,7 @@ try {
   console.log('PASS planner opens a new task tab in the other split');
   await page.waitForFunction(() => [...document.querySelectorAll('.ui-save-state')].every(el => el.textContent === 'Saved to disk'));
   await page.locator('#ribbon [data-view="agenda"]').click(); await page.locator('#capture').click();
+  await page.locator('.task-destination > summary').click();
   await page.locator('#modal [name="path"]').fill(path); await page.locator('#modal [name="parentLine"] option', { hasText: 'Second' }).waitFor({ state: 'attached' });
   await page.getByRole('combobox', { name: 'Parent heading', exact: true }).fill('Second');
   await page.getByRole('combobox', { name: 'Parent heading', exact: true }).press('Enter');
@@ -106,9 +107,10 @@ try {
   await page.locator('#capture').click();
   await page.waitForFunction(() => document.querySelector('[name="parentLine"]')?.selectedOptions[0]?.textContent === 'Second');
   assert.equal(await page.locator('#modal [name="path"]').inputValue(), path);
+  await page.locator('.task-destination > summary').click();
   await page.getByRole('combobox', { name: 'Parent heading', exact: true }).fill('Top level');
   await page.getByRole('combobox', { name: 'Parent heading', exact: true }).press('Enter');
-  await page.getByRole('radio', { name: 'Prepend', exact: true }).check();
+  await page.getByRole('radio', { name: 'Beginning', exact: true }).check();
   const captured = page.waitForResponse(response => response.url().endsWith('/api') && response.request().postDataJSON()?.method === 'Save' && response.request().postDataJSON()?.path === path);
   await page.locator('#modal [name="title"]').fill('At beginning'); await page.locator('#modal-submit').click();
   const insertedSource = (await (await captured).json()).source;

@@ -79,8 +79,9 @@ try {
   assert.match(moved.source, /SCHEDULED: <2026-09-26 Sat>/);
   await page.locator('#calendar-capture').click();
   await page.locator('#modal input[name="title"]').fill('Captured through calendar');
+  await page.locator('.task-destination > summary').click();
   await page.locator('#modal input[name="path"]').fill('inbox.org');
-  await page.locator('#modal input[name="date"]').fill('2026-09-28');
+  await page.locator('.date-picker-grid [data-date="2026-09-28"]').click();
   await page.locator('#modal-submit').click();
   await page.locator('.calendar-event', { hasText:'Captured through calendar' }).waitFor();
   await page.screenshot({ path: '/tmp/opencode/orbitalnote-calendar.png' });

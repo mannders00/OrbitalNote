@@ -1,8 +1,9 @@
 // app/dev must use a disposable workspace. Verifies both presentations of one note.
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 import { strict as assert } from 'node:assert';
 const base = process.env.BASE_URL || 'http://127.0.0.1:9267';
-const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
+const engine = process.env.BROWSER === 'webkit' ? webkit : chromium;
+const browser = await engine.launch({ headless: true, ...(engine === chromium ? { executablePath: process.env.CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' } : {}) });
 const page = await browser.newPage({ viewport: { width: 1300, height: 900 } });
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 const api = async (method, data = {}) => (await page.request.post(base + '/api', { data: { method, ...data } })).json();

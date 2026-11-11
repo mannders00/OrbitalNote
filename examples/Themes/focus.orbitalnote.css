@@ -1,13 +1,46 @@
 /* OrbitalNote Theme v1: Focus
- * Quieter controls, generous leading, and calmer reading.
+ * For unhurried reading and everyday planning: larger type, open spacing, quiet navigation, and clearly visible controls.
  * Base appearance: dark. Self-contained; paste into Custom theme CSS.
  */
-:root { --bg:#101827; --side:#182338; --ribbon:#182338; --panel:#182338; --text:#dce7f7; --accent:#8bb9ff; --button:#347ed7; --muted:color-mix(in srgb, #dce7f7 65%, #101827); --faint:color-mix(in srgb, #dce7f7 45%, #101827); --border:color-mix(in srgb, #dce7f7 16%, #101827); --hover:color-mix(in srgb, #dce7f7 9%, #101827); --selected:color-mix(in srgb, #8bb9ff 18%, #101827); --blue-soft:color-mix(in srgb, #8bb9ff 12%, #101827); --code:#8bb9ff; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
+:root { --bg:#1c2420; --side:#232e27; --ribbon:#232e27; --panel:#232e27; --text:#e1e9e1; --accent:#a5ceb5; --button:#347ed7; --muted:color-mix(in srgb, #e1e9e1 65%, #1c2420); --faint:color-mix(in srgb, #e1e9e1 45%, #1c2420); --border:color-mix(in srgb, #e1e9e1 16%, #1c2420); --hover:color-mix(in srgb, #e1e9e1 9%, #1c2420); --selected:color-mix(in srgb, #a5ceb5 18%, #1c2420); --blue-soft:color-mix(in srgb, #a5ceb5 12%, #1c2420); --code:#a5ceb5; --todo:#e88787; --done:#7fc59a; --warn:#d4ad73; --warn-bg:#352e23; --shadow:#0006; color-scheme:dark; }
 .ui-preview { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.8; }
 
 :root { --document-size: 15px; --document-leading: 1.95; }
-.document-toolbar h1 { opacity: .65; }
-.ui-preview { font-size: 17px; line-height: 1.95; }
-.ui-preview :is(h1,h2,h3) { font-weight: 500; letter-spacing: -.02em; }
-.tree button[data-open] { padding-block: 8px; }
-.statusbar { font-size: 10px; }
+button, input, select, textarea { border-radius: 10px; }
+#ribbon { background: var(--bg); }
+.tab-strip { height: 44px; padding: 4px 8px 0; gap: 8px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.tab-strip .tab { border-radius: 0; }
+.tab-strip .tab.active { border: 0; box-shadow: inset 0 -3px var(--accent); }
+.tab-strip button[data-tab-select] { font-size: 13px; }
+.sidebar-header .panel-title { font-size: 14px; font-weight: 500; color: var(--text); }
+.tree { padding-top: 14px; }
+.tree button[data-open] { min-height: 38px; margin-block: 3px; border-radius: 10px; font-size: 14px; }
+.tree button[data-open].active { background: var(--blue-soft); color: var(--text); }
+.document-toolbar { min-height: 52px; }
+.document-toolbar .actions > button:not(.icon-button) { min-height: 36px; }
+.document-toolbar h1 { font-size: 13px; color: var(--text); }
+.ui-preview { font-size: 18px; line-height: 1.95; }
+.ui-preview, .ui-panes[data-mode="preview"] .ui-preview { padding-top: 32px; padding-left: max(60px, calc((100% - 62ch) / 2)); padding-right: max(24px, calc((100% - 62ch) / 2)); }
+.ui-preview :is(h1,h2,h3,h4) { font-weight: 500; letter-spacing: -.02em; line-height: 1.5; }
+.ui-preview :is(h1,h2) { font-size: 1.5em; }
+.ui-preview li { margin-block: .6em; }
+.ui-preview blockquote { border-left: 2px solid var(--accent); padding-left: 22px; color: var(--text); }
+.ui-preview th { background: transparent; color: var(--text); }
+.ui-context button:not(.icon-button) { padding-block: 9px; font-size: 13px; }
+.setting :is(select, input:not([type="checkbox"])) { min-height: 42px; font-size: 14px; }
+.page-heading h1 { font-size: 26px; font-weight: 500; letter-spacing: -.03em; }
+.agenda-group > h2 { border-bottom: 0; font-size: 14px; }
+.agenda-row { margin-block: 5px; border-bottom: 0; }
+.entry-main strong { font-size: 15px; line-height: 1.6; font-weight: 500; }
+.segmented { border: 0; background: var(--side); padding: 4px; border-radius: 10px; }
+.segmented button { border-radius: 7px; }
+.query-popup, #modal.task-modal { border-radius: 12px; }
+@container (max-width: 600px) {
+  .ui-preview { font-size: 17px; }
+  .entry-main strong { font-size: 14px; }
+}
+
+:root { --panel:#1c2420; --button:#3c7157; --muted:color-mix(in srgb, var(--text) 74%, var(--bg)); --faint:color-mix(in srgb, var(--text) 60%, var(--bg)); }
+@container (max-width: 420px) {
+  :is(#agenda, #calendar) .page-heading h1 { font-size: 20px; }
+}

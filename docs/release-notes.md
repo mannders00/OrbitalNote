@@ -1,4 +1,31 @@
-# OrbitalNote 0.1.0-preview.27
+# OrbitalNote 1.0.0-beta.1
+
+The first beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
+
+## New in this beta
+
+- Per-tab Back/Forward navigation beside the filename. Internal links and the
+  file picker continue the current history; Agenda and Calendar open fresh tabs.
+- Focused headings retain their styling, controls, and nested folds. Fix fold
+  restoration errors and ellipsis clicks expanding invisible headings.
+- Shared Agenda/Calendar filters and saved views, consistent compact toolbars,
+  responsive filter controls, and improved touch calendar interactions.
+- Six distinct themes with light and dark appearances: Workbench, Terminal,
+  Editorial, Studio, Focus, and Blueprint.
+- Refined task editing, date and repeat controls, and in-place deletion confirmation.
+- Reordered Settings with Sync first, shared searchable dropdowns, and keyboard
+  shortcuts at the bottom.
+- A disposable browser demo built from the real frontend and Go engine using
+  WebAssembly, with in-memory edits and reset-on-refresh behavior.
+
+## Availability
+
+Native downloads cover macOS (Apple Silicon and Intel), Windows x64, Linux x64,
+and Android ARM64. macOS builds remain unsigned/not notarized. iPhone and iPad
+installation builds are not included. Optional encrypted Sync remains a paid
+preview; attachment sync and history cleanup are not included yet.
+
+## Earlier preview improvements
 
 ## Source links and platform icons
 
@@ -49,7 +76,7 @@
 - Update the repository README with first-use documentation, current downloads,
   and clearer paths for users and contributors arriving from the website.
 
-## Consistent modal selectors
+## Included from earlier previews
 
 - Focused headings now support source and reading modes with the normal preview
   controls, limited to the selected subtree. **Show whole file** is a quiet

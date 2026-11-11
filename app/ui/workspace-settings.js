@@ -1,4 +1,4 @@
-import { themes } from './appearance.js';
+import { themes, retiredThemes, resolveTheme } from './appearance.js';
 export const SETTINGS_FILE = '.orbitalnote.org';
 export const LEGACY_SETTINGS_FILE = 'OrbitalNote-settings.org';
 export const isSettingsFile = path => path === SETTINGS_FILE || path === LEGACY_SETTINGS_FILE;
@@ -28,6 +28,7 @@ export function decodeSettings(source) {
 export function encodeSettings(data) { return '#+TITLE: OrbitalNote shared settings\n\n#+begin_src json\n' + JSON.stringify(data, null, 2) + '\n#+end_src\n'; }
 export function validGroup(group, value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  if (group === 'appearance' && Object.hasOwn(retiredThemes, value['org-theme'])) value = { 'org-theme-mode': retiredThemes[value['org-theme']][1], ...value, 'org-theme': resolveTheme(value['org-theme']) };
   const result = {};
   for (const [key, [, allowed]] of Object.entries(controls[group] || {})) if (allowed.includes(value[key])) result[key] = value[key];
   if (group === 'calendar' && value.colors && typeof value.colors === 'object' && !Array.isArray(value.colors)) {

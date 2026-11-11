@@ -16,7 +16,8 @@ export function createDocumentView(surface, editor) {
     if (preview.clientHeight) preview.style.setProperty('--document-tail', `${preview.clientHeight / 2}px`);
     if (mode === 'preview' && pending) placePreview(pending);
   });
-  observer.observe(preview);
+  // Tail padding changes the content box, but must not trigger a resize loop.
+  observer.observe(preview, { box: 'border-box' });
   const visible = el => el.getClientRects().length && !el.closest('[hidden], details:not([open])');
   const foldSignature = () => editor.getHeadingFolds().join(',') + '/' + editor.getMetadataFolds().join(',') + '/' + editor.listRanges().filter(h => h.folded).map(h => h.start).join(',');
   function syncFolds() {
@@ -135,7 +136,7 @@ export function createDocumentView(surface, editor) {
       li.classList.add('foldable-list-item');
     }
     syncFolds();
-    observer.disconnect(); observer.observe(preview);
+    observer.disconnect(); observer.observe(preview, { box: 'border-box' });
     for (const child of preview.children) observer.observe(child);
     if (pending && mode === 'preview') placePreview(pending);
   }
