@@ -29,6 +29,7 @@ try {
   const folds = await original.evaluate(el => el.getFoldRanges());
   const rootLine = original.locator('.cm-line').filter({ hasText: 'Focus root' });
   const style = await rootLine.evaluate(el => ({ size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight }));
+  await rootLine.hover();
   await rootLine.locator('.heading-menu-button').click();
   await page.getByRole('button', { name: 'Focus on heading', exact: true }).click();
   const focused = page.locator('#source');
@@ -41,11 +42,28 @@ try {
   assert(await heading.locator('.heading-menu-button').isVisible());
   assert(await heading.locator('.editor-heading-fold').isVisible());
   const checkControlAlignment = async root => {
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.mouse.move(1, 1);
+    const gutter = await root.locator('.heading-menu-button').boundingBox();
+    // Enter the gap beside the hidden menu directly, without crossing heading text.
+    await page.mouse.move(gutter.x + gutter.width + 1, gutter.y + gutter.height / 2);
+    await page.waitForFunction(() => [...document.querySelectorAll('.heading-menu-button')].some(el => el.closest('.org-heading, [data-source-heading]')?.matches(':hover') && getComputedStyle(el).opacity === '1'));
     const centers = await root.evaluate(el => [...el.querySelectorAll('.heading-menu-button svg, .editor-heading-fold svg, .preview-heading-fold svg')].map(icon => {
       const r = icon.getBoundingClientRect(); return r.top + r.height / 2;
     }));
     assert.equal(centers.length, 2);
     assert(Math.abs(centers[0] - centers[1]) < 1, 'Heading menu and fold icons share the first-line center');
+    const contained = await root.evaluate(el => {
+      const pane = el.closest('.source-pane, .ui-preview').getBoundingClientRect();
+      return [...el.querySelectorAll('.heading-menu-button, .editor-heading-fold, .preview-heading-fold')].every(button => {
+        const r = button.getBoundingClientRect();
+        return r.left >= pane.left && r.right <= pane.right;
+      });
+    });
+    assert(contained, 'Both heading controls fit inside the pane rather than being clipped by its scroll viewport');
+    await root.locator('.heading-menu-button').click();
+    await page.getByRole('button', { name: 'Focus on heading', exact: true }).waitFor({ state: 'visible' });
+    await page.keyboard.press('Escape');
   };
   await page.setViewportSize({ width: 390, height: 844 });
   await checkControlAlignment(heading);
@@ -64,6 +82,7 @@ try {
   const previewRoot = preview.locator('[data-source-heading]').filter({ hasText: 'Focus root' });
   assert(await previewRoot.locator('.preview-heading-fold').isVisible());
   await page.setViewportSize({ width: 390, height: 844 });
+  await previewRoot.click({ position: { x: 110, y: 10 } });
   await checkControlAlignment(previewRoot);
   await page.setViewportSize({ width: 1300, height: 950 });
   await previewRoot.locator('.preview-heading-fold').click();

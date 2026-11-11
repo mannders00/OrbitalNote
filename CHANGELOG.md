@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.0.0-beta.5 — 2026-11-11
+
+- Keep source heading action menus visible and tappable in mobile portrait by
+  preserving space for both heading controls inside the editor.
+- On touch devices, reveal heading controls on the cursor's source heading or a
+  tapped preview heading; tap its text again or elsewhere to hide them. Preserve
+  hover-based controls for mouse interaction.
+- Extend heading hover targets across the controls' gutter, including the gaps
+  between buttons, so the controls can be revealed directly from that area.
+
 ## 1.0.0-beta.4 — 2026-11-11
 
 - Center explorer folder labels, chevrons, and actions on desktop and mobile.

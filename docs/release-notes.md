@@ -1,8 +1,17 @@
-# OrbitalNote 1.0.0-beta.4
+# OrbitalNote 1.0.0-beta.5
 
-The fourth beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
+The fifth beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
 
 ## New in this beta
+
+- Fix heading controls being clipped in mobile portrait source mode.
+- On touch devices, show source heading controls at the cursor's heading.
+  In preview, tap heading text to reveal or hide controls; tapping elsewhere
+  hides them. TODO buttons retain their task-toggle behavior.
+- Preserve mouse-hover controls and extend their hover area across the gutter,
+  so entering the button area directly reveals them.
+
+## Included from beta.4
 
 - Center explorer folder labels, chevrons, and action buttons on desktop and mobile.
 - Keep the Outline overlay below its pane's tabs, matching the explorer's mobile

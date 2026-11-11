@@ -118,12 +118,12 @@
 .task-state:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .heading-menu-button { position: absolute; left: -58px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; opacity: 0; border: 0; background: transparent; color: var(--muted); padding: 0; width: 26px; height: 28px; }
 .heading-menu-button:hover { background: var(--hover); color: var(--text); }
-.org-heading:hover .heading-menu-button, .org-heading:focus-within .heading-menu-button, .ui-preview :is(h1,h2,h3,h4,h5,h6):hover .heading-menu-button, .ui-preview :is(h1,h2,h3,h4,h5,h6):focus-within .heading-menu-button { opacity: 1; }
+.heading-menu-button { pointer-events: none; }
+.heading-menu-button:focus-visible { opacity: 1; pointer-events: auto; }
 .heading-actions-menu { position: fixed; margin: 0; padding: 5px; width: 220px; max-height: calc(100dvh - 16px); overflow: auto; }
 .heading-actions-menu::backdrop { background: transparent; }
 .heading-actions-menu button { display: block; width: 100%; border: 0; background: transparent; text-align: left; padding: 7px 10px; font-size: 13px; }
 .heading-actions-menu button:hover, .heading-actions-menu button:focus-visible { background: var(--hover); }
-@media (hover: none) { .heading-menu-button { opacity: 1; } }
 .org-bold { font-weight: 750; }
 .org-italic { font-style: italic; }
 .org-underline { text-decoration: underline; }
@@ -424,7 +424,18 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .ui-preview .preview-heading-ellipsis { background: none; border: 0; color: inherit; font: inherit; padding: 0 .2em; cursor: pointer; }
 .org-heading, .ui-preview :is(h1,h2,h3,h4,h5,h6) { position: relative; }
 .editor-heading-fold, .preview-heading-fold { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); width: 23px; height: 28px; margin: 0; opacity: 0; transition: opacity .12s; }
-.org-heading:hover .editor-heading-fold, .org-heading:focus-within .editor-heading-fold, .ui-preview :is(h1,h2,h3,h4,h5,h6):hover .preview-heading-fold, .preview-heading-fold:focus-visible { opacity: 1; }
+.org-heading .editor-heading-fold, .preview-heading-fold { pointer-events: none; }
+.editor-heading-fold:focus-visible, .preview-heading-fold:focus-visible { opacity: 1; pointer-events: auto; }
+@media (hover: hover) {
+  /* Include the empty gutter and gaps between controls in the heading's hover area. */
+  .heading-gutter-anchor:has(> .heading-menu-button)::before { content: ''; position: absolute; left: -60px; top: 0; width: 60px; height: 100%; }
+  .org-heading:is(:hover, :focus-within) :is(.heading-menu-button, .editor-heading-fold),
+  .ui-preview :is(h1,h2,h3,h4,h5,h6):is(:hover, :focus-within) :is(.heading-menu-button, .preview-heading-fold) { opacity: 1; pointer-events: auto; }
+}
+@media (hover: none) {
+  .org-heading-current :is(.heading-menu-button, .editor-heading-fold),
+  .heading-controls-visible :is(.heading-menu-button, .preview-heading-fold) { opacity: 1; pointer-events: auto; }
+}
 .editor-heading-fold[aria-expanded="true"] svg, .preview-heading-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
 /* Anchor both controls to the first text line, including wrapped headings. */
 .heading-gutter-anchor, .editor-heading-control.heading-gutter-anchor { position: relative; display: inline-block; width: 0; height: 1lh; vertical-align: top; }
@@ -492,7 +503,7 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .sidebar-resizer[data-side="left"] { right: 0; }
 .sidebar-resizer[data-side="right"] { left: 0; }
 .sidebar-resizer:hover, .sidebar-resizer:focus-visible { background: color-mix(in srgb, var(--accent) 40%, transparent); }
-@media (hover: none) { .editor-heading-fold, .preview-heading-fold, .preview-list-fold { opacity: 1; } .task-hover:focus-within .task-hover-edit { visibility: visible; } }
+@media (hover: none) { .editor-list-control .editor-heading-fold, .preview-list-fold { opacity: 1; } .task-hover:focus-within .task-hover-edit { visibility: visible; } }
 .ui-panes { display: flex; flex: 1; min-width: 0; overflow: hidden; }
 .source-pane { position: relative; flex: 1; min-width: 0; overflow: hidden; }
 .ui-source, .ui-highlight, .vi-cursor-layer {
@@ -754,10 +765,6 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .ui-context .local-graph-links button { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; width: 100%; padding: 7px 8px; border: 0; background: transparent; text-align: left; font-size: 11px; }
 .local-graph-links button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .local-graph-links small { flex-shrink: 0; color: var(--faint); font-size: 9px; }
-@media (max-width: 760px) {
-  .cm-content { padding-left: 28px !important; }
-  .ui-preview { padding-left: 30px; }
-}
 .calendar-event { display: block; width: 100%; overflow: hidden; text-align: left; margin-top: 4px; padding: 5px 6px; border: 0; border-left: 3px solid var(--event-color); border-radius: 4px; font-size: 11px; line-height: 1.35; }
 .calendar-event, .timed-event { --event-color: var(--tag-color, var(--accent)); color: var(--text); background: color-mix(in srgb, var(--event-color) 14%, var(--bg)); cursor: pointer; }
 .calendar-event.deadline, .timed-event.deadline { --event-color: var(--tag-color, var(--warn)); }
@@ -1019,6 +1026,7 @@ dialog::backdrop { background: #0006; }
 
 /* Size trailing space to the actual pane, including stacked/mobile layouts. */
 .source-pane .cm-content.ui-source, .ui-preview, .ui-panes[data-mode="preview"] .ui-preview { padding-bottom: max(80px, var(--document-tail, 50vh)); }
+/* Reserve both heading controls' gutter at every width, including portrait. */
 .source-pane .cm-content.ui-source { padding-left: 60px; }
 .ui-preview, .ui-panes[data-mode="preview"] .ui-preview { padding-left: max(60px, calc((100% - 752px) / 2)); }
 .ui-preview { overflow-anchor: none; }

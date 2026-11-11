@@ -11,6 +11,15 @@ export function createDocumentView(surface, editor) {
   const preview = surface.querySelector('[data-ui="preview"]');
   let source = '', anchors = [], pending = null, restored = null, sourceReturn = null, mode = 'edit';
   const cancel = () => { pending = null; };
+  preview.addEventListener('click', event => {
+    if (matchMedia('(hover: hover)').matches) return;
+    // Task states, links, and heading controls retain their own actions.
+    if (event.target.closest('button, a, input, [role="button"]')) return;
+    const heading = event.target.closest('[data-source-heading]');
+    const reveal = heading && !heading.classList.contains('heading-controls-visible');
+    preview.querySelectorAll('.heading-controls-visible').forEach(el => el.classList.remove('heading-controls-visible'));
+    if (reveal) heading.classList.add('heading-controls-visible');
+  });
   for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) preview.addEventListener(event, cancel, { passive: true });
   const observer = new ResizeObserver(() => {
     if (preview.clientHeight) preview.style.setProperty('--document-tail', `${preview.clientHeight / 2}px`);

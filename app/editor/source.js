@@ -230,6 +230,15 @@ function updateDecorations(value, tr) {
   return decorations(tr.state);
 }
 const orgStyle = StateField.define({ create: state => decorations(state), update: updateDecorations, provide: field => EditorView.decorations.from(field) });
+function currentHeadingDecoration(state) {
+  const line = state.doc.lineAt(state.selection.main.head);
+  return /^\*+\s/.test(line.text) ? Decoration.set([Decoration.line({ class: 'org-heading-current' }).range(line.from)]) : Decoration.none;
+}
+const currentHeading = StateField.define({
+  create: currentHeadingDecoration,
+  update: (value, tr) => tr.docChanged || tr.selection ? currentHeadingDecoration(tr.state) : value,
+  provide: field => EditorView.decorations.from(field),
+});
 const jumpEffect = StateEffect.define();
 const jumpHighlight = StateField.define({
   create: () => Decoration.none,
@@ -280,7 +289,7 @@ export function createEditor(host) {
   }
   const numbers = new Compartment(), vi = new Compartment();
   let viAdapter;
-  const extensions = [vi.of([]), history(), drawSelection(), EditorView.lineWrapping, jumpHighlight, noteSearch, headingFocus,
+  const extensions = [vi.of([]), history(), drawSelection(), EditorView.lineWrapping, jumpHighlight, currentHeading, noteSearch, headingFocus,
     EditorView.scrollMargins.of(view => view.state.selection.main.head >= view.state.doc.line(view.state.doc.lines).from ? { bottom: view.scrollDOM.clientHeight / 2 } : {}),
     numbers.of([]), EditorView.atomicRanges.of(view => foldedRanges(view.state)), skipFoldedSelection,
     codeFolding({ preparePlaceholder: (state, range) => metadataLabel(state, range.from),
