@@ -283,7 +283,10 @@ function createDocumentSurface(path, t) {
   surface.dataset.viewId = t.viewID || 'file:' + path;
   surface.dataset.previewPrefix = `note-${++documentSerial}-`;
   const find = id => surface.querySelector(`[data-ui="${id}"]`);
-  const editor = createEditor(surface.querySelector('.source-pane'));
+  const editor = createEditor(surface.querySelector('.source-pane'), () => ({
+    path: surface.dataset.path,
+    files: workspace.files.filter(file => !file.directory && !isSettingsFile(file.path)).map(file => file.path),
+  }));
   surface.uiElements.set('source', editor); surface.uiElements.set('document', surface);
   t.documentView = createDocumentView(surface, editor);
   editor.setLineNumbers($('line-numbers').value);
@@ -376,9 +379,7 @@ function activateTab(id, restoreFocus = false) {
       target.focus({ preventScroll: true });
     } else {
       const page = pages.get(view);
-      const primary = page?.querySelector('#capture, #calendar-capture');
-      const target = primary?.getClientRects().length && !primary.disabled ? primary : [...(page?.querySelectorAll('input:not([type="hidden"]), button, select, [tabindex="0"]') || [])].find(el => !el.disabled && el.getClientRects().length);
-      target?.focus({ preventScroll: true });
+      if (page) { page.tabIndex = -1; page.focus({ preventScroll: true }); }
     }
   };
   if (view === 'document' && id === activeDocumentID && activeSurface === current()?.surface) { focusContent(); return; }
@@ -709,7 +710,11 @@ function setPreview(t, html) {
     button.updateFold(false, false);
     heading.addEventListener('click', () => { t.previewHeading = heading.id; });
     button.addEventListener('click', e => { e.preventDefault(); t.documentView.fold(Number(heading.dataset.sourceHeading), !body.hidden, primaryModifier(e)); });
-    ellipsis.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); t.documentView.fold(Number(heading.dataset.sourceHeading), false, primaryModifier(e)); });
+    ellipsis.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      heading.classList.remove('heading-controls-visible');
+      t.documentView.fold(Number(heading.dataset.sourceHeading), false, primaryModifier(e));
+    });
     heading.append(ellipsis);
     controls.append(button);
   }
@@ -1278,6 +1283,7 @@ async function newTaskAtCursor() {
   editor.jumpTo(at + prefix.length); editor.focus();
 }
 function applySource(editor, before, after) {
+  if (before === after) return;
   let start = 0, end = before.length, changedEnd = after.length;
   while (start < end && start < changedEnd && before[start] === after[start]) start++;
   while (end > start && changedEnd > start && before[end - 1] === after[changedEnd - 1]) { end--; changedEnd--; }
@@ -1558,14 +1564,21 @@ async function openHeadingPalette() {
   });
   openPalette('headings');
 }
-function openPalette(kind) { paletteKind = kind; $('palette-input').value = ''; $('palette-input').placeholder = kind === 'files' ? 'Open a file…' : kind === 'headings' ? 'Jump to heading…' : 'Find a command…'; $('palette').showModal(); $('palette-input').focus(); renderPalette(); }
+function openPalette(kind) { paletteKind = kind; $('palette-new-tab-hint').hidden = kind !== 'files'; $('palette-input').value = ''; $('palette-input').placeholder = kind === 'files' ? 'Open a file…' : kind === 'headings' ? 'Jump to heading…' : 'Find a command…'; $('palette').showModal(); $('palette-input').focus(); renderPalette(); }
 function renderPalette() {
   const q = $('palette-input').value.toLowerCase().trim();
   const items = paletteKind === 'files' ? workspace.files.filter(f => !f.directory).sort((a, b) => (recent.indexOf(a.path) < 0 ? 999 : recent.indexOf(a.path)) - (recent.indexOf(b.path) < 0 ? 999 : recent.indexOf(b.path))).map(f => [f.path, recent.includes(f.path) ? 'Recent' : '', () => openLinkedNote(f.path, undefined, active)]) : actionDefinitions.map(d => [d.label, shortcuts.binding(d.id) ? shortcuts.label(d.id) : '', d.execute]);
   paletteItems = (paletteKind === 'headings' ? headingPaletteItems : items).filter(item => fuzzy(item[0] + (paletteKind === 'headings' ? ' ' + item[1] : ''), q)); paletteSelection = 0; drawPalette();
 }
 function drawPalette() { $('palette-results').innerHTML = paletteItems.map((item, i) => `<button data-command-index="${i}" class="${i === paletteSelection ? 'selected' : ''}">${esc(item[0])}<kbd>${esc(item[1])}</kbd></button>`).join('') || '<p class="empty">No matches</p>'; }
-async function executePalette(i) { const item = paletteItems[i]; if (!item) return; $('palette').close(); await item[2](); }
+async function executePalette(i, newTab = false) {
+  const item = paletteItems[i]; if (!item) return;
+  $('palette').close();
+  if (paletteKind === 'files' && newTab) {
+    if (tabs.has(item[0])) duplicateDocument(item[0]);
+    else await openNote(item[0]);
+  } else await item[2]();
+}
 
 document.addEventListener('keydown', e => {
   if (e.target.matches('[data-open][role="group"]') && ['Enter', ' '].includes(e.key)) { e.preventDefault(); e.target.click(); }
@@ -1639,7 +1652,7 @@ listen('panel-scrim', 'click', () => { closeMobileSidebars(); $('menu').focus();
 listen('notice', 'click', () => notify(''));
 listen('quick-open', 'click', () => openPalette('files')); listen('palette-button', 'click', () => openPalette('commands'));
 listen('palette-input', 'input', renderPalette);
-listen('palette-input', 'keydown', async e => { const key = e.ctrlKey && !e.altKey && !e.metaKey ? ({ n: 'ArrowDown', p: 'ArrowUp' }[e.key.toLowerCase()] || e.key) : e.key; if (key === 'ArrowDown' || key === 'ArrowUp') { e.preventDefault(); paletteSelection = Math.max(0, Math.min(paletteItems.length - 1, paletteSelection + (key === 'ArrowDown' ? 1 : -1))); drawPalette(); $('palette-results').querySelector('.selected')?.scrollIntoView({ block: 'nearest' }); } else if (key === 'Enter') { e.preventDefault(); await executePalette(paletteSelection); } });
+listen('palette-input', 'keydown', async e => { const key = e.ctrlKey && !e.altKey && !e.metaKey ? ({ n: 'ArrowDown', p: 'ArrowUp' }[e.key.toLowerCase()] || e.key) : e.key; if (key === 'ArrowDown' || key === 'ArrowUp') { e.preventDefault(); paletteSelection = Math.max(0, Math.min(paletteItems.length - 1, paletteSelection + (key === 'ArrowDown' ? 1 : -1))); drawPalette(); $('palette-results').querySelector('.selected')?.scrollIntoView({ block: 'nearest' }); } else if (key === 'Enter') { e.preventDefault(); await executePalette(paletteSelection, e.shiftKey); } });
 listen('palette', 'click', e => { const r = $('palette').getBoundingClientRect(); if (e.target === $('palette') && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) $('palette').close(); });
 listen('agenda-minimal', 'click', () => {
   const enabled = $('agenda').classList.toggle('minimal'), label = enabled ? 'Exit minimal view' : 'Enter minimal view';
@@ -1681,7 +1694,7 @@ setInterval(() => updateNowLine($('calendar-grid'), $('calendar-time-format').va
 const applyMonospace = () => document.documentElement.classList.toggle('monospace-mode', $('monospace-mode').checked);
 applyMonospace();
 listen('monospace-mode', 'change', () => { localStorage.setItem('orbitalnote-monospace', String($('monospace-mode').checked)); applyMonospace(); });
-listen('capture', 'click', () => capture(agendaFilter === 'today' ? agendaDate || today() : today())); listen('calendar-capture', 'click', () => capture(dateKey(calendarDate)));
+listen('capture', 'click', () => capture()); listen('calendar-capture', 'click', () => capture());
 listen('agenda-query', 'input', renderAgenda); listen('kind-filter', 'change', renderAgenda);
 listen('calendar-prev', 'click', () => shiftCalendar(-1)); listen('calendar-next', 'click', () => shiftCalendar(1)); listen('calendar-today', 'click', () => { calendarDate = new Date(); $('calendar').dataset.revealDay = today(); renderCalendar(); });
 function shiftAgendaDay(delta) {
@@ -1699,10 +1712,23 @@ resizeSidebar($('sidebar'), 'left');
 $('vi-mode').checked = localStorage.getItem('org-vi-mode') === 'true';
 listen('vi-mode', 'change', () => { localStorage.setItem('org-vi-mode', String($('vi-mode').checked)); for (const t of [...tabs.values(), ...duplicateViews.values()]) t.vi?.setEnabled($('vi-mode').checked); });
 const dialogs = document.getElementsByTagName('dialog');
+// Consume thumb buttons before the webview can use them for browser history.
+// Navigate only on release; auxclick can follow the same mouseup.
+for (const type of ['mousedown', 'mouseup', 'auxclick']) document.addEventListener(type, run(async e => {
+  if (e.button !== 3 && e.button !== 4) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (type !== 'mouseup' || view !== 'document' || [...dialogs].some(dialog => dialog.open)) return;
+  await navigateHistory(e.button === 3 ? -1 : 1);
+}), true);
 document.addEventListener('keydown', run(async e => {
   if (shortcuts.capture(e) || e.isComposing) return;
   const action = shortcuts.match(e);
   if ([...dialogs].some(dialog => dialog.open) && !['zoom-in', 'zoom-out', 'zoom-reset'].includes(action?.id)) return;
+  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey &&
+      ['agenda', 'calendar'].includes(view) &&
+      !e.target.closest('input, textarea, select, button, a, summary, [contenteditable="true"], [role="combobox"], [role="button"]')) {
+    e.preventDefault(); e.stopImmediatePropagation(); await capture(); return;
+  }
   const editing = source && current()?.mode === 'edit' && !e.target.closest('button') && (e.target === source || source.contains(e.target));
   if (action && (action.scope !== 'editor' || editing)) {
     e.preventDefault(); e.stopImmediatePropagation(); await action.execute();

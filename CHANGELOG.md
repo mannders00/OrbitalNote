@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 1.0.0-beta.6 — 2026-11-14
+
+- Add inline internal-link completion with relative paths, label-ready cursor
+  placement, arrow/Ctrl-N/Ctrl-P navigation, and touch selection.
+- Support mouse back/forward buttons for active-note history.
+- Reclaim narrow-pane space with on-demand heading and checklist fold controls;
+  refine control spacing, focus visibility, inline expand ellipses, and hover targets.
+- Center desktop editing and preview on an 800px text column with balanced padding.
+- Align Agenda/Calendar layouts and New task buttons; focus pages rather than
+  automatically activating controls, with Enter opening New task in planner views.
+- Make the task calendar a single keyboard stop with immediate arrow-key date
+  selection and Enter-to-save. Move task type to the bottom with arrow/Space
+  navigation and remove the all-day hint.
+- Use a symmetrical circular settings gear.
+
+- Default undated tasks to today when editing, and avoid moving the cursor to
+  the end of the file when saving an unchanged task.
+
+- Default general New task actions to Scheduled, all day, today, even when
+  browsing another date in Agenda or Calendar.
+
+- Open the selected file in a new tab with Shift+Enter in the file picker.
+
 ## 1.0.0-beta.5 — 2026-11-11
 
 - Keep source heading action menus visible and tappable in mobile portrait by

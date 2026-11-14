@@ -15,7 +15,7 @@ export function createDocumentView(surface, editor) {
     if (matchMedia('(hover: hover)').matches) return;
     // Task states, links, and heading controls retain their own actions.
     if (event.target.closest('button, a, input, [role="button"]')) return;
-    const heading = event.target.closest('[data-source-heading]');
+    const heading = event.target.closest('.preview-list-label, [data-source-heading]');
     const reveal = heading && !heading.classList.contains('heading-controls-visible');
     preview.querySelectorAll('.heading-controls-visible').forEach(el => el.classList.remove('heading-controls-visible'));
     if (reveal) heading.classList.add('heading-controls-visible');
@@ -134,8 +134,21 @@ export function createDocumentView(surface, editor) {
         control.append(button); label.prepend(control);
       }
       button.dataset.listStart = String(item.start);
+      let ellipsis = label.querySelector('.preview-list-ellipsis');
+      if (!ellipsis) {
+        ellipsis = document.createElement('button'); ellipsis.type = 'button'; ellipsis.className = 'preview-list-ellipsis';
+        ellipsis.textContent = '…'; label.append(ellipsis);
+      }
+      ellipsis.setAttribute('aria-label', `Expand list item: ${item.title}`);
+      ellipsis.onclick = event => {
+        event.preventDefault(); event.stopPropagation();
+        label.classList.remove('heading-controls-visible');
+        pending = null; restored = null; sourceReturn = null;
+        editor.foldList(Number(button.dataset.listStart), false, primaryModifier(event)); syncFolds();
+      };
       button.updateFold = collapsed => {
         for (const body of bodies) body.hidden = collapsed;
+        ellipsis.hidden = !collapsed;
         label.classList.toggle('is-folded', collapsed);
         button.setAttribute('aria-expanded', String(!collapsed));
         button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} list item: ${item.title}`);

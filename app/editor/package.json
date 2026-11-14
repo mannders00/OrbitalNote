@@ -5,6 +5,7 @@
     "build": "bun build.js"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "6.20.4",
     "@codemirror/commands": "6.11.1",
     "@codemirror/language": "6.12.4",
     "@codemirror/search": "6.7.2",

@@ -1,8 +1,33 @@
-# OrbitalNote 1.0.0-beta.5
+# OrbitalNote 1.0.0-beta.6
 
-The fifth beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
+The sixth beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
 
 ## New in this beta
+
+- Complete internal note links inline by typing `[[` or `[[file:`. Search
+  workspace files, navigate with arrows or Ctrl-N/Ctrl-P, and accept with Enter
+  or a tap. Insert relative paths and place the cursor in the link's label.
+- Use mouse back/forward buttons with the active note's navigation history.
+- Reclaim mobile reading space: heading controls shift the active line only
+  when revealed. Keep both controls visible while operating them, use compact
+  centered action buttons, and expand inline ellipses without revealing controls.
+- Give checklist folds their own space before the bullet/checkbox, inline
+  expand ellipses, and continuous hover targets.
+- Center desktop editing and preview on an 800px text column with equal side
+  spacing; retain compact, balanced insets in narrow panes.
+- Match Agenda and Calendar page spacing and New task button placement.
+- Stop automatically focusing action buttons and settings dropdowns on page
+  navigation. Enter on Agenda or Calendar opens New task.
+- Make the task calendar one Tab stop. Arrow keys select dates immediately,
+  Page Up/Down changes month, and Enter validates and saves the modal.
+- Put Event/Scheduled/Deadline at the bottom of the task form as one Tab stop;
+  arrow keys change type, Space cycles, and Enter saves. Remove the all-day hint.
+- Refine the settings icon into a symmetrical circular gear.
+- Default general New task actions to Scheduled, all day, today; default undated
+  tasks to today when editing and preserve the cursor when saving unchanged tasks.
+- Open a file in a new tab with Shift+Enter in the file picker.
+
+## Included from beta.5
 
 - Fix heading controls being clipped in mobile portrait source mode.
 - On touch devices, show source heading controls at the cursor's heading.

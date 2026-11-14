@@ -10,6 +10,7 @@ import { attachVim } from './vi.js';
 import { noteSearch, openNoteSearch } from './search.js';
 import { headingFocus, focusRange, focusEffect, externalEdit } from './focus.js';
 import { collapsedLinks, linkAt } from './links.js';
+import { noteLinkCompletion } from './link-completion.js';
 
 const metadataLabels = new WeakMap();
 function metadataLabel(state, from) {
@@ -232,7 +233,8 @@ function updateDecorations(value, tr) {
 const orgStyle = StateField.define({ create: state => decorations(state), update: updateDecorations, provide: field => EditorView.decorations.from(field) });
 function currentHeadingDecoration(state) {
   const line = state.doc.lineAt(state.selection.main.head);
-  return /^\*+\s/.test(line.text) ? Decoration.set([Decoration.line({ class: 'org-heading-current' }).range(line.from)]) : Decoration.none;
+  const className = /^\*+\s/.test(line.text) ? 'org-heading-current' : /^\s*(?:[-+]|\d+[.)])\s/.test(line.text) ? 'org-list-current' : '';
+  return className ? Decoration.set([Decoration.line({ class: className }).range(line.from)]) : Decoration.none;
 }
 const currentHeading = StateField.define({
   create: currentHeadingDecoration,
@@ -275,7 +277,7 @@ const alignLineNumbers = ViewPlugin.fromClass(class {
   update(update) { update.view.requestMeasure(this.measure); }
 });
 
-export function createEditor(host) {
+export function createEditor(host, getLinkNotes = () => ({ files: [] })) {
   let silent = false;
   let numberMode = 'off';
   class LineNumber extends GutterMarker {
@@ -289,7 +291,7 @@ export function createEditor(host) {
   }
   const numbers = new Compartment(), vi = new Compartment();
   let viAdapter;
-  const extensions = [vi.of([]), history(), drawSelection(), EditorView.lineWrapping, jumpHighlight, currentHeading, noteSearch, headingFocus,
+  const extensions = [vi.of([]), history(), drawSelection(), EditorView.lineWrapping, jumpHighlight, currentHeading, noteSearch, headingFocus, noteLinkCompletion(getLinkNotes),
     EditorView.scrollMargins.of(view => view.state.selection.main.head >= view.state.doc.line(view.state.doc.lines).from ? { bottom: view.scrollDOM.clientHeight / 2 } : {}),
     numbers.of([]), EditorView.atomicRanges.of(view => foldedRanges(view.state)), skipFoldedSelection,
     codeFolding({ preparePlaceholder: (state, range) => metadataLabel(state, range.from),
