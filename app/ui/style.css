@@ -523,12 +523,13 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .editor-list-control > .editor-list-fold { left: -26px; right: auto; width: 26px; opacity: 0; pointer-events: none; }
 .preview-list-ellipsis { background: none; border: 0; color: inherit; font: inherit; padding: 0 .2em; cursor: pointer; }
 .preview-list-label:has(.preview-list-control :focus) .preview-list-fold,
-.org-list-current .editor-list-fold,
 .org-list-fold-line:focus-within .editor-list-fold { opacity: 1; pointer-events: auto; }
 @media (hover: hover) {
+  .org-list-fold-line:hover .editor-list-fold,
   .preview-list-label:hover > .preview-list-control > .preview-list-fold { opacity: 1; pointer-events: auto; }
 }
 @media (hover: none) {
+  .org-list-current .editor-list-fold,
   .preview-list-label.heading-controls-visible .preview-list-fold { opacity: 1; pointer-events: auto; }
   .task-hover:focus-within .task-hover-edit { visibility: visible; }
 }

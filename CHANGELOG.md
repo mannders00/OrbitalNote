@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.0.0-beta.9 — 2026-11-16
+
+- Restore desktop source list/checklist fold chevrons on mouse hover. Limit
+  cursor-triggered reveal to touch devices and retain keyboard-focus visibility.
+- Preserve list indentation and mobile active-subtree spacing from beta.8.
+
 ## 1.0.0-beta.8 — 2026-11-16
 
 - Remove permanent list/checklist fold-control spacing so inactive source bullets

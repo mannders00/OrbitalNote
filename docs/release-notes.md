@@ -1,8 +1,16 @@
-# OrbitalNote 1.0.0-beta.8
+# OrbitalNote 1.0.0-beta.9
 
-The eighth beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
+The ninth beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
 
 ## New in this beta
+
+- Restore hover-to-reveal list and checklist fold chevrons in the desktop source
+  editor. Cursor-based reveal is limited to touch devices; reading view retains
+  desktop hover and touch tap behavior. Keyboard focus keeps controls available.
+- Preserve the normal inactive list spacing and mobile active-subtree behavior
+  introduced in beta.8.
+
+## Included from beta.8
 
 - Remove the permanent fold-control gutter from lists and checklists. Inactive
   source bullets align with paragraph text; standalone bullets need no extra space.

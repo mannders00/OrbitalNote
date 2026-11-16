@@ -62,9 +62,18 @@ try {
       const line = root.locator(mode === 'source' ? '.org-list-fold-line' : '.preview-list-label').first();
       if (mode === 'source') {
         await root.evaluate(el => { el.setSelectionRange(el.value.indexOf('- five'), el.value.indexOf('- five')); el.focus(); });
-        if (!touch) await line.hover();
-        assert.equal(await line.locator('.editor-list-fold').evaluate(el => getComputedStyle(el).pointerEvents), 'none', 'Inactive source controls stay hidden even on hover');
-        await root.evaluate(el => { const at = el.value.indexOf('- one'); el.setSelectionRange(at, at); el.focus(); });
+        await page.mouse.move(0, 0);
+        const control = line.locator('.editor-list-fold');
+        assert.equal(await control.evaluate(el => getComputedStyle(el).pointerEvents), 'none', 'Inactive source controls stay hidden');
+        if (touch) {
+          await root.evaluate(el => { const at = el.value.indexOf('- one'); el.setSelectionRange(at, at); el.focus(); });
+        } else {
+          await root.evaluate(el => { const at = el.value.indexOf('- one'); el.setSelectionRange(at, at); el.focus(); });
+          assert.equal(await control.evaluate(el => getComputedStyle(el).pointerEvents), 'none', 'Desktop cursor placement alone does not reveal controls');
+          await root.evaluate(el => { const at = el.value.indexOf('- five'); el.setSelectionRange(at, at); el.focus(); });
+          await line.hover();
+        }
+        assert.equal(await control.evaluate(el => getComputedStyle(el).pointerEvents), 'auto', touch ? 'Touch cursor reveals controls' : 'Desktop hover reveals controls without moving the cursor');
       } else if (touch) await line.tap(); else await line.hover();
       const active = await positions(mode);
       for (const label of Object.keys(before)) assert(Math.abs(active[label] - before[label] - (touch && ['one', 'two'].includes(label) ? 26 : 0)) < 1, `${mode}: only the active mobile subtree shifts (${label})`);
@@ -74,6 +83,13 @@ try {
       await fold.click();
       assert.equal(await fold.getAttribute('aria-expanded'), 'true');
       assert.deepEqual(await positions(mode), active, `${mode}: folding and expanding preserves indentation`);
+      if (!touch) {
+        await fold.focus();
+        await page.mouse.move(0, 0);
+        assert.equal(await fold.evaluate(el => getComputedStyle(el).pointerEvents), 'auto', 'Keyboard focus retains controls after the pointer leaves');
+        await root.evaluate(el => el.focus());
+        assert.equal(await fold.evaluate(el => getComputedStyle(el).pointerEvents), 'none', 'Controls hide when hover and button focus leave');
+      }
       if (mode === 'source') await root.evaluate(el => { const at = el.value.indexOf('- solo'); el.setSelectionRange(at, at); el.focus(); });
       else if (touch) await root.getByText('Paragraph', { exact: true }).tap();
       else await page.mouse.move(0, 0);
