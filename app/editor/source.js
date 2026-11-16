@@ -144,10 +144,15 @@ function decorations(state, onlyLine = 0) {
     ranges.push(Decoration.widget({ widget: new MetadataFold(range, isFolded(state, range.from)), side: -2 }).range(range.start));
     ranges.push(Decoration.line({ class: 'org-metadata-fold-line' }).range(range.start));
   }
-  for (const item of onlyLine ? [] : listRanges(source)) if (item.to > item.from) {
-    ranges.push(Decoration.widget({ widget: new HeadingFold(item, isFolded(state, item.from)), side: -2 }).range(item.marker));
-    ranges.push(Decoration.line({ class: 'org-list-fold-line' }).range(item.start));
+  const listLines = new Set();
+  for (const item of onlyLine ? [] : listRanges(source)) {
+    for (let n = state.doc.lineAt(item.start).number; n <= state.doc.lineAt(item.to).number; n++) listLines.add(n);
+    if (item.to > item.from) {
+      ranges.push(Decoration.widget({ widget: new HeadingFold(item, isFolded(state, item.from)), side: -2 }).range(item.marker));
+      ranges.push(Decoration.line({ class: 'org-list-fold-line' }).range(item.start));
+    }
   }
+  for (const n of listLines) ranges.push(Decoration.line({ class: 'org-list-line' }).range(state.doc.line(n).from));
   const keywords = source.match(/^#\+TODO:\s*(.+)$/im)?.[1] || 'TODO | DONE';
   const [pending, finished = 'DONE'] = keywords.split('|');
   const words = text => text.trim().split(/\s+/).map(word => word.replace(/\(.*\)/, ''));

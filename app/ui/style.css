@@ -513,34 +513,22 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .sidebar-resizer[data-side="left"] { right: 0; }
 .sidebar-resizer[data-side="right"] { left: 0; }
 .sidebar-resizer:hover, .sidebar-resizer:focus-visible { background: color-mix(in srgb, var(--accent) 40%, transparent); }
-/* List controls sit before their content, never over the bullet or line gutter. */
-.preview-list-control, .editor-heading-control.editor-list-control { width: 26px; height: 1lh; vertical-align: top; }
+/* Reserve the same gutter for every list line, including leaves. A fold
+   control must never add indentation only to an item's first line. */
+.source-pane .cm-line.org-list-line { padding-left: 30px; }
+.preview-list-control, .editor-heading-control.editor-list-control { width: 0; height: 1lh; vertical-align: top; }
 .preview-list-control > .preview-list-fold,
-.editor-list-control > .editor-list-fold { left: 0; right: auto; width: 26px; opacity: 0; pointer-events: none; }
+.editor-list-control > .editor-list-fold { left: -26px; right: auto; width: 26px; opacity: 0; pointer-events: none; }
 .preview-list-ellipsis { background: none; border: 0; color: inherit; font: inherit; padding: 0 .2em; cursor: pointer; }
 .preview-list-label:has(.preview-list-control :focus) .preview-list-fold,
+.org-list-current .editor-list-fold,
 .org-list-fold-line:focus-within .editor-list-fold { opacity: 1; pointer-events: auto; }
 @media (hover: hover) {
-  .preview-list-label:hover > .preview-list-control > .preview-list-fold,
-  .org-list-fold-line:hover .editor-list-fold { opacity: 1; pointer-events: auto; }
+  .preview-list-label:hover > .preview-list-control > .preview-list-fold { opacity: 1; pointer-events: auto; }
 }
 @media (hover: none) {
-  .preview-list-label.heading-controls-visible .preview-list-fold,
-  .org-list-current .editor-list-fold { opacity: 1; pointer-events: auto; }
+  .preview-list-label.heading-controls-visible .preview-list-fold { opacity: 1; pointer-events: auto; }
   .task-hover:focus-within .task-hover-edit { visibility: visible; }
-}
-@container (max-width: 600px) {
-  .preview-list-control, .editor-heading-control.editor-list-control { width: 0; }
-  .preview-list-label:has(.preview-list-control :focus) > .preview-list-control,
-  .org-list-fold-line:focus-within .editor-list-control { width: 26px; }
-  @media (hover: hover) {
-    .preview-list-label:hover > .preview-list-control,
-    .org-list-fold-line:hover .editor-list-control { width: 26px; }
-  }
-  @media (hover: none) {
-    .preview-list-label.heading-controls-visible > .preview-list-control,
-    .org-list-current .editor-list-control { width: 26px; }
-  }
 }
 .ui-panes { display: flex; flex: 1; min-width: 0; overflow: hidden; }
 .source-pane { position: relative; flex: 1; min-width: 0; overflow: hidden; }
@@ -654,24 +642,9 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .prose .preview-checkbox { top: 5px; }
 /* Preview markers live outside the label. Reserve space before the marker,
    rather than inserting the fold control between the marker and its text. */
-.prose li.foldable-list-item { margin-left: 26px; }
+.prose :is(ul, ol):has(> li.foldable-list-item) { margin-left: 26px; }
 .preview-list-label > .preview-list-control { width: 0; }
 .preview-list-control > .preview-list-fold { left: calc(-1.6em - 26px); font-size: inherit; }
-@container (max-width: 600px) {
-  .prose li.foldable-list-item { margin-left: 0; }
-  .prose li.foldable-list-item:has(> .preview-list-label .preview-list-control :focus),
-  .prose li.foldable-list-item:has(> p > .preview-list-label .preview-list-control :focus) { margin-left: 26px; }
-  @media (hover: hover) {
-    .prose li.foldable-list-item:has(> .preview-list-label:hover),
-    .prose li.foldable-list-item:has(> p > .preview-list-label:hover) { margin-left: 26px; }
-  }
-  @media (hover: none) {
-    .prose li.foldable-list-item:has(> .preview-list-label.heading-controls-visible),
-    .prose li.foldable-list-item:has(> p > .preview-list-label.heading-controls-visible) { margin-left: 26px; }
-  }
-  .preview-list-label:is(:hover, .heading-controls-visible):has(> .preview-list-control) > .preview-list-control,
-  .preview-list-label:has(.preview-list-control :focus) > .preview-list-control { width: 0; }
-}
 .preview-checkbox[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
 .source-checkbox { cursor: pointer; color: var(--accent); border-radius: 3px; }
 .source-checkbox:hover { background: var(--hover); }

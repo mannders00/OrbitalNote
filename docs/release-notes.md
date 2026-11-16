@@ -1,8 +1,17 @@
-# OrbitalNote 1.0.0-beta.6
+# OrbitalNote 1.0.0-beta.7
 
-The sixth beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
+The seventh beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
 
 ## New in this beta
+
+- Fix nested bullet, numbered, and checklist indentation in source and reading
+  views. Fold controls no longer push parent items farther right than their
+  children or misalign them with sibling items.
+- Show source list fold controls only on the cursor's line (or while a control
+  has keyboard focus). Revealing, folding, and expanding controls preserves
+  text positions on desktop and touch devices.
+
+## Included from beta.6
 
 - Complete internal note links inline by typing `[[` or `[[file:`. Search
   workspace files, navigate with arrows or Ctrl-N/Ctrl-P, and accept with Enter

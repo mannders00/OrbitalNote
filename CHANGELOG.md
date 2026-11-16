@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.0.0-beta.7 — 2026-11-16
+
+- Fix list fold-control spacing so nested bullets, checklists, numbered items,
+  and continuation lines retain their indentation in source and reading views.
+- Keep source list fold controls hidden until the cursor is on their line or
+  the control has keyboard focus; revealing controls no longer shifts list text.
+
 ## 1.0.0-beta.6 — 2026-11-14
 
 - Add inline internal-link completion with relative paths, label-ready cursor
