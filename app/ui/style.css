@@ -513,9 +513,11 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .sidebar-resizer[data-side="left"] { right: 0; }
 .sidebar-resizer[data-side="right"] { left: 0; }
 .sidebar-resizer:hover, .sidebar-resizer:focus-visible { background: color-mix(in srgb, var(--accent) 40%, transparent); }
-/* Reserve the same gutter for every list line, including leaves. A fold
-   control must never add indentation only to an item's first line. */
-.source-pane .cm-line.org-list-line { padding-left: 30px; }
+/* Desktop controls use the existing margin without changing source indentation.
+   Narrow panes temporarily shift the active item and its entire subtree. */
+@container (max-width: 600px) {
+  .source-pane .cm-line.org-list-controls-space { padding-left: 30px; }
+}
 .preview-list-control, .editor-heading-control.editor-list-control { width: 0; height: 1lh; vertical-align: top; }
 .preview-list-control > .preview-list-fold,
 .editor-list-control > .editor-list-fold { left: -26px; right: auto; width: 26px; opacity: 0; pointer-events: none; }
@@ -640,11 +642,20 @@ main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: colu
 .preview-checkbox { position: absolute; left: -1.6em; top: calc(.5lh - 8px); display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; padding: 0; border: 1px solid var(--muted); border-radius: 4px; background: transparent; color: var(--bg); line-height: 1; font-size: 12px; }
 .preview-checkbox[aria-checked="mixed"] { color: var(--accent); border-color: var(--accent); }
 .prose .preview-checkbox { top: 5px; }
-/* Preview markers live outside the label. Reserve space before the marker,
-   rather than inserting the fold control between the marker and its text. */
-.prose :is(ul, ol):has(> li.foldable-list-item) { margin-left: 26px; }
+/* Preview markers and controls live outside the label. On mobile, move the
+   whole active li (including nested content), never just its first line. */
 .preview-list-label > .preview-list-control { width: 0; }
 .preview-list-control > .preview-list-fold { left: calc(-1.6em - 26px); font-size: inherit; }
+@container (max-width: 600px) {
+  .prose li.foldable-list-item:has(> .preview-list-label.heading-controls-visible),
+  .prose li.foldable-list-item:has(> p > .preview-list-label.heading-controls-visible),
+  .prose li.foldable-list-item:has(> .preview-list-label .preview-list-control :focus),
+  .prose li.foldable-list-item:has(> p > .preview-list-label .preview-list-control :focus) { margin-left: 26px; }
+  @media (hover: hover) {
+    .prose li.foldable-list-item:has(> .preview-list-label:hover),
+    .prose li.foldable-list-item:has(> p > .preview-list-label:hover) { margin-left: 26px; }
+  }
+}
 .preview-checkbox[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
 .source-checkbox { cursor: pointer; color: var(--accent); border-radius: 3px; }
 .source-checkbox:hover { background: var(--hover); }

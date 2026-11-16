@@ -1,8 +1,17 @@
-# OrbitalNote 1.0.0-beta.7
+# OrbitalNote 1.0.0-beta.8
 
-The seventh beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
+The eighth beta toward OrbitalNote 1.0. This is a prerelease, not the final 1.0.
 
 ## New in this beta
+
+- Remove the permanent fold-control gutter from lists and checklists. Inactive
+  source bullets align with paragraph text; standalone bullets need no extra space.
+- On desktop, reveal list controls in the existing margin without shifting text.
+  On narrow screens, cursor placement in source or tapping a preview item makes
+  room temporarily by shifting the active item and its nested content together.
+  Leaving the item restores its normal indentation; siblings stay in place.
+
+## Included from beta.7
 
 - Fix nested bullet, numbered, and checklist indentation in source and reading
   views. Fold controls no longer push parent items farther right than their

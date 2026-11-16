@@ -13,7 +13,7 @@ try {
       assert(response.ok(), await response.text()); return response.json();
     };
     const { id, files } = await api('Status'), path = 'list-indentation.org';
-    const source = '- one\n  - two\n- three\n  - four\n- five\n\n- [ ] parent\n  - [ ] child\n- [ ] sibling\n\n1. first\n   1. nested\n2. last\n';
+    const source = 'Paragraph\n\n- one\n  - two\n- three\n  - four\n- five\n\n- [ ] parent\n  - [ ] child\n- [ ] sibling\n\n1. first\n   1. nested\n2. last\n\n- solo\n';
     const old = files.some(file => file.path === path) ? await api('Read', { id, path }) : null;
     await api('Save', { id, path, source, revision: old?.revision || '' });
     await page.reload();
@@ -23,7 +23,7 @@ try {
     await page.keyboard.press('Enter');
     await page.locator('#source').waitFor();
     const positions = mode => page.locator(mode === 'source' ? '#source' : '#preview').evaluate((root, mode) => {
-      const labels = ['one', 'two', 'three', 'four', 'five', 'parent', 'child', 'sibling', 'first', 'nested', 'last'];
+      const labels = ['Paragraph', 'one', 'two', 'three', 'four', 'five', 'parent', 'child', 'sibling', 'first', 'nested', 'last', 'solo'];
       return Object.fromEntries(labels.map(label => {
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         let node;
@@ -45,25 +45,53 @@ try {
       if (mode === 'preview') await page.keyboard.press('ControlOrMeta+e');
       const root = page.locator(mode === 'source' ? '#source' : '#preview');
       await root.waitFor({ state: 'visible' });
+      if (mode === 'source') await root.evaluate(el => { el.setSelectionRange(0, 0); el.focus(); });
       const before = await positions(mode); check(before);
+      if (mode === 'source') {
+        const bullets = await root.evaluate(el => [...el.querySelectorAll('.cm-line')].filter(line => /^- (one|five|solo)$/.test(line.textContent)).map(line => {
+          const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT); let node;
+          while (node = walker.nextNode()) if (node.textContent.startsWith('- ')) {
+            const range = document.createRange(); range.setStart(node, 0); range.setEnd(node, 1); return range.getBoundingClientRect().x;
+          }
+        }));
+        assert.equal(bullets.length, 3);
+        for (const x of bullets) assert(Math.abs(x - before.Paragraph) < 1, 'Inactive bullets align with paragraph source, without a reserved gutter');
+      } else {
+        assert.equal(await root.locator('ul').first().evaluate(el => getComputedStyle(el).marginLeft), '0px', 'Preview has no permanent fold gutter');
+      }
       const line = root.locator(mode === 'source' ? '.org-list-fold-line' : '.preview-list-label').first();
       if (mode === 'source') {
         await root.evaluate(el => { el.setSelectionRange(el.value.indexOf('- five'), el.value.indexOf('- five')); el.focus(); });
         if (!touch) await line.hover();
         assert.equal(await line.locator('.editor-list-fold').evaluate(el => getComputedStyle(el).pointerEvents), 'none', 'Inactive source controls stay hidden even on hover');
-        await root.evaluate(el => { el.setSelectionRange(0, 0); el.focus(); });
+        await root.evaluate(el => { const at = el.value.indexOf('- one'); el.setSelectionRange(at, at); el.focus(); });
       } else if (touch) await line.tap(); else await line.hover();
-      assert.deepEqual(await positions(mode), before, `${mode}: revealing controls does not shift text`);
+      const active = await positions(mode);
+      for (const label of Object.keys(before)) assert(Math.abs(active[label] - before[label] - (touch && ['one', 'two'].includes(label) ? 26 : 0)) < 1, `${mode}: only the active mobile subtree shifts (${label})`);
       const fold = root.locator(mode === 'source' ? '.editor-list-fold' : '.preview-list-fold').first();
       await fold.click();
       assert.equal(await fold.getAttribute('aria-expanded'), 'false');
       await fold.click();
       assert.equal(await fold.getAttribute('aria-expanded'), 'true');
-      assert.deepEqual(await positions(mode), before, `${mode}: folding and expanding preserves indentation`);
+      assert.deepEqual(await positions(mode), active, `${mode}: folding and expanding preserves indentation`);
+      if (mode === 'source') await root.evaluate(el => { const at = el.value.indexOf('- solo'); el.setSelectionRange(at, at); el.focus(); });
+      else if (touch) await root.getByText('Paragraph', { exact: true }).tap();
+      else await page.mouse.move(0, 0);
+      assert.deepEqual(await positions(mode), before, `${mode}: leaving the item restores normal indentation; a leaf needs no space`);
+      for (const [label, child] of [['parent', 'child'], ['first', 'nested']]) {
+        if (mode === 'source') await root.evaluate((el, label) => { const at = el.value.indexOf(label); el.setSelectionRange(at, at); el.focus(); }, label);
+        else {
+          const target = root.locator('.preview-list-label').filter({ hasText: new RegExp(`\\b${label}\\b`) });
+          if (touch) await target.tap(); else await target.hover();
+        }
+        const shifted = await positions(mode);
+        for (const key of Object.keys(before)) assert(Math.abs(shifted[key] - before[key] - (touch && [label, child].includes(key) ? 26 : 0)) < 1, `${mode}: ${label} and its child shift together, without moving siblings`);
+      }
+      if (mode === 'source') await root.evaluate(el => { el.setSelectionRange(0, 0); el.focus(); });
       assert.equal(await page.locator('#source').evaluate(el => el.value), source);
     }
     assert.deepEqual(errors, []);
     await page.close();
   }
-  console.log('PASS: nested bullets, checklists and numbered lists align in source/preview on desktop/touch; controls and folding do not shift text or change source.');
+   console.log('PASS: no permanent list gutter; desktop margin controls; mobile active-subtree shifting and restoration; folding and source preservation.');
 } finally { await browser.close(); }

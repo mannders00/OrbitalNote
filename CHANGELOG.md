@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.0.0-beta.8 — 2026-11-16
+
+- Remove permanent list/checklist fold-control spacing so inactive source bullets
+  align with ordinary paragraphs, including standalone non-foldable bullets.
+- Match heading controls: use the existing desktop margin; on narrow screens,
+  temporarily shift only the active item and its subtree when revealing controls.
+
 ## 1.0.0-beta.7 — 2026-11-16
 
 - Fix list fold-control spacing so nested bullets, checklists, numbered items,

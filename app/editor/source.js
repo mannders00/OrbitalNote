@@ -144,15 +144,12 @@ function decorations(state, onlyLine = 0) {
     ranges.push(Decoration.widget({ widget: new MetadataFold(range, isFolded(state, range.from)), side: -2 }).range(range.start));
     ranges.push(Decoration.line({ class: 'org-metadata-fold-line' }).range(range.start));
   }
-  const listLines = new Set();
   for (const item of onlyLine ? [] : listRanges(source)) {
-    for (let n = state.doc.lineAt(item.start).number; n <= state.doc.lineAt(item.to).number; n++) listLines.add(n);
     if (item.to > item.from) {
       ranges.push(Decoration.widget({ widget: new HeadingFold(item, isFolded(state, item.from)), side: -2 }).range(item.marker));
       ranges.push(Decoration.line({ class: 'org-list-fold-line' }).range(item.start));
     }
   }
-  for (const n of listLines) ranges.push(Decoration.line({ class: 'org-list-line' }).range(state.doc.line(n).from));
   const keywords = source.match(/^#\+TODO:\s*(.+)$/im)?.[1] || 'TODO | DONE';
   const [pending, finished = 'DONE'] = keywords.split('|');
   const words = text => text.trim().split(/\s+/).map(word => word.replace(/\(.*\)/, ''));
@@ -236,10 +233,23 @@ function updateDecorations(value, tr) {
   return decorations(tr.state);
 }
 const orgStyle = StateField.define({ create: state => decorations(state), update: updateDecorations, provide: field => EditorView.decorations.from(field) });
+const listRangeCache = new WeakMap();
 function currentHeadingDecoration(state) {
   const line = state.doc.lineAt(state.selection.main.head);
   const className = /^\*+\s/.test(line.text) ? 'org-heading-current' : /^\s*(?:[-+]|\d+[.)])\s/.test(line.text) ? 'org-list-current' : '';
-  return className ? Decoration.set([Decoration.line({ class: className }).range(line.from)]) : Decoration.none;
+  if (!className) return Decoration.none;
+  const ranges = [Decoration.line({ class: className }).range(line.from)];
+  if (className === 'org-list-current') {
+    let items = listRangeCache.get(state.doc);
+    if (!items) { items = listRanges(state.doc.toString()); listRangeCache.set(state.doc, items); }
+    const item = items.find(item => item.start === line.from && item.to > item.from);
+    // On narrow panes the active item's whole subtree makes room together.
+    // Siblings and non-foldable items retain their original source indentation.
+    if (item) for (let n = line.number; n <= state.doc.lineAt(item.to).number; n++) {
+      ranges.push(Decoration.line({ class: 'org-list-controls-space' }).range(state.doc.line(n).from));
+    }
+  }
+  return Decoration.set(ranges, true);
 }
 const currentHeading = StateField.define({
   create: currentHeadingDecoration,
